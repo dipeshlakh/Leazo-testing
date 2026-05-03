@@ -1,216 +1,606 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Leazo – Booking Confirmed</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">
-    <link rel="icon" href="favicon.png" type="image/png" />
-    <style>
-      html, body {
-        height: 100%;
-        margin: 0;
-        padding: 0;
-      }
-    @keyframes pulseGlow {
-  0%, 100% { opacity: 0.4; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(1.15); }
-}
-.pulse-glow {
-  animation: pulseGlow 3s ease-in-out infinite;
-}
-</style>
-    <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-JPKZWZL4MZ"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Booking Confirmed – Leazo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  gtag('config', 'G-JPKZWZL4MZ');
-</script>
-    <!-- Meta Pixel Code -->
-<script>
-!function(f,b,e,v,n,t,s)
-{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-n.queue=[];t=b.createElement(e);t.async=!0;
-t.src=v;s=b.getElementsByTagName(e)[0];
-s.parentNode.insertBefore(t,s)}(window, document,'script',
-'https://connect.facebook.net/en_US/fbevents.js');
-fbq('init', '596729610157061');
-fbq('track', 'PageView');
-</script>
-<noscript><img height="1" width="1" style="display:none"
-src="https://www.facebook.com/tr?id=596729610157061&ev=PageView&noscript=1"
-/></noscript>
-<!-- End Meta Pixel Code -->
-  </head>
-  <body class="bg-white text-gray-900 font-sans">
-    <!-- Header -->
-    <header class="w-full fixed top-0 z-50 bg-[#FFD345] py-2 px-4 shadow-md border-b-4 border-[#393be5]">
-      <div class="container mx-auto flex justify-between items-center">
-        <a href="/" class="text-2xl md:text-4xl font-extrabold italic mx-auto md:mx-0" style="font-family: 'Anton', sans-serif; letter-spacing: 3px;">LEAZO</a>
-        <div class="relative md:hidden absolute right-4">
-  <button id="menu-toggle" class="text-lg font-medium focus:outline-none">
-    ☰
-  </button>
-  <div id="mobile-menu" class="absolute right-0 mt-2 w-48 bg-white border rounded shadow-md hidden">
-    <a href="/" class="block px-4 py-2 hover:bg-gray-100">Home</a>
-    <a href="/#booknow" class="block px-4 py-2 hover:bg-gray-100">Book Now</a>
-<!--<a href="/#how" class="block px-4 py-2 hover:bg-gray-100">How It Works</a>-->
-    <a href="referral-portal.html" class="block px-4 py-2 hover:bg-gray-100">Refer & Earn</a>
-    <a href="#/contact" class="block px-4 py-2 hover:bg-gray-100">Contact Us</a> 
+    :root {
+      --yellow: #FFE000;
+      --yellow-dark: #E6C800;
+      --black: #0A0A0A;
+      --white: #FFFFFF;
+      --gray: #F5F5F5;
+      --gray-mid: #E0E0E0;
+      --text-muted: #6B6B6B;
+      --green: #00C853;
+      --red: #FF3B30;
+      --blue: #007AFF;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--black);
+      color: var(--white);
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    .header {
+      background: var(--yellow);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-bottom: 3px solid var(--black);
+    }
+    .logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 28px;
+      color: var(--black);
+      letter-spacing: 3px;
+    }
+    .header-right a {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--black);
+      text-decoration: none;
+      background: var(--black);
+      color: var(--white);
+      padding: 6px 14px;
+      border-radius: 20px;
+    }
+
+    /* ── LOADING ── */
+    #loadingState {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 70vh;
+      gap: 16px;
+    }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid rgba(255,224,0,0.2);
+      border-top-color: var(--yellow);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── ERROR ── */
+    #errorState {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 70vh;
+      gap: 12px;
+      padding: 24px;
+      text-align: center;
+    }
+    .error-icon { font-size: 48px; }
+
+    /* ── MAIN CONTENT ── */
+    #mainContent { display: none; padding-bottom: 40px; }
+
+    /* ── HERO BANNER ── */
+    .hero {
+      background: var(--yellow);
+      color: var(--black);
+      padding: 32px 20px 28px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -30px; right: -30px;
+      width: 120px; height: 120px;
+      background: rgba(0,0,0,0.06);
+      border-radius: 50%;
+    }
+    .hero::after {
+      content: '';
+      position: absolute;
+      bottom: -20px; left: -20px;
+      width: 80px; height: 80px;
+      background: rgba(0,0,0,0.04);
+      border-radius: 50%;
+    }
+    .success-icon {
+      width: 64px; height: 64px;
+      background: var(--black);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px;
+      font-size: 28px;
+    }
+    .hero h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 36px;
+      letter-spacing: 2px;
+      margin-bottom: 6px;
+    }
+    .hero p {
+      font-size: 14px;
+      font-weight: 500;
+      opacity: 0.75;
+    }
+    .ref-badge {
+      display: inline-block;
+      margin-top: 14px;
+      background: var(--black);
+      color: var(--yellow);
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 15px;
+      letter-spacing: 2px;
+      padding: 6px 16px;
+      border-radius: 20px;
+    }
+
+    /* ── STATUS TRACKER ── */
+    .section { padding: 20px; }
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+
+    .status-track {
+      background: #161616;
+      border-radius: 16px;
+      padding: 20px;
+      border: 1px solid #222;
+    }
+    .status-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      position: relative;
+    }
+    .status-step:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      left: 15px;
+      top: 32px;
+      bottom: -12px;
+      width: 2px;
+      background: #2a2a2a;
+    }
+    .status-step.done::after { background: var(--yellow); }
+    .step-dot {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      border: 2px solid #333;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+      background: #161616;
+    }
+    .status-step.done .step-dot {
+      background: var(--yellow);
+      border-color: var(--yellow);
+    }
+    .status-step.active .step-dot {
+      background: transparent;
+      border-color: var(--yellow);
+      animation: pulse-border 1.5s ease infinite;
+    }
+    @keyframes pulse-border {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(255,224,0,0.4); }
+      50% { box-shadow: 0 0 0 6px rgba(255,224,0,0); }
+    }
+    .step-info { padding-bottom: 20px; }
+    .step-info h4 { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+    .step-info p { font-size: 12px; color: var(--text-muted); }
+
+    /* ── CARD ── */
+    .card {
+      background: #161616;
+      border-radius: 16px;
+      border: 1px solid #222;
+      overflow: hidden;
+    }
+    .card-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 18px;
+      border-bottom: 1px solid #1e1e1e;
+    }
+    .card-row:last-child { border-bottom: none; }
+    .card-label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+    .card-value { font-size: 14px; font-weight: 600; text-align: right; max-width: 60%; }
+    .card-value.big { font-size: 20px; font-weight: 700; color: var(--yellow); }
+
+    /* ── PAYMENT BADGE ── */
+    .pay-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .pay-paid { background: rgba(0,200,83,0.15); color: var(--green); }
+    .pay-pending { background: rgba(255,224,0,0.15); color: var(--yellow); }
+    .pay-failed { background: rgba(255,59,48,0.15); color: var(--red); }
+
+    /* ── OPERATOR STATUS ── */
+    .op-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .op-new { background: rgba(255,224,0,0.12); color: var(--yellow); }
+    .op-delivered { background: rgba(0,200,83,0.12); color: var(--green); }
+    .op-returned { background: rgba(0,122,255,0.12); color: var(--blue); }
+    .op-cancelled { background: rgba(255,59,48,0.12); color: var(--red); }
+
+    /* ── GAMES CHIPS ── */
+    .games-wrap {
+      padding: 14px 18px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .game-chip {
+      background: #222;
+      border-radius: 20px;
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #ccc;
+    }
+
+    /* ── HELP SECTION ── */
+    .help-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .help-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 18px 12px;
+      border-radius: 16px;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      transition: transform 0.15s, opacity 0.15s;
+    }
+    .help-btn:active { transform: scale(0.97); opacity: 0.85; }
+    .help-btn-icon { font-size: 24px; }
+    .btn-call { background: var(--yellow); color: var(--black); }
+    .btn-whatsapp { background: #25D366; color: var(--white); }
+    .btn-book { background: #161616; border: 1px solid #333; color: var(--white); }
+
+    /* ── FOOTER NOTE ── */
+    .footer-note {
+      text-align: center;
+      padding: 20px;
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* ── ANIMATIONS ── */
+    .fade-up {
+      opacity: 0;
+      transform: translateY(16px);
+      animation: fadeUp 0.4s ease forwards;
+    }
+    @keyframes fadeUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .delay-1 { animation-delay: 0.1s; }
+    .delay-2 { animation-delay: 0.2s; }
+    .delay-3 { animation-delay: 0.3s; }
+    .delay-4 { animation-delay: 0.4s; }
+    .delay-5 { animation-delay: 0.5s; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <span class="logo">LEAZO</span>
+    <div class="header-right">
+      <a href="index.html">Book Again</a>
+    </div>
   </div>
-</div>
-<nav class="hidden md:flex space-x-4 text-lg font-medium justify-center md:justify-end">
-  <a href="/" class="hover:underline">Home</a>
-  <a href="/#booknow" class="hover:underline">Book Now</a>
-  <a href="referral-portal.html" class="hover:underline">Refer & Earn</a>
-  <!--<a href="#/how" class="hover:underline">How It Works</a>-->
-  <a href="#/contact" class="hover:underline">Contact Us</a>
-</nav>
-<script>
-document.getElementById('menu-toggle').addEventListener('click', function() {
-  const menu = document.getElementById('mobile-menu');
-  menu.classList.toggle('hidden');
-});
 
-document.querySelectorAll('#mobile-menu a').forEach(link => {
-  link.addEventListener('click', () => {
-    document.getElementById('mobile-menu').classList.add('hidden');
-  });
-});
-</script>
+  <!-- Loading -->
+  <div id="loadingState">
+    <div class="spinner"></div>
+    <p style="color: var(--text-muted); font-size: 14px;">Loading your booking...</p>
+  </div>
+
+  <!-- Error -->
+  <div id="errorState">
+    <div class="error-icon">😕</div>
+    <h2 style="font-family: 'Bebas Neue'; font-size: 28px; letter-spacing: 2px;">Booking Not Found</h2>
+    <p style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">We couldn't find a booking with this reference.<br>Please check your link or contact support.</p>
+    <a href="index.html" style="margin-top: 20px; background: var(--yellow); color: var(--black); font-weight: 700; padding: 12px 28px; border-radius: 12px; text-decoration: none; font-size: 14px;">Go to Homepage</a>
+    <a href="https://wa.me/919202227070" style="margin-top: 10px; color: var(--text-muted); font-size: 13px;">Need help? WhatsApp us</a>
+  </div>
+
+  <!-- Main Content -->
+  <div id="mainContent">
+
+    <!-- Hero -->
+    <div class="hero fade-up">
+      <div class="success-icon">🎮</div>
+      <h1 id="heroTitle">Booking Confirmed!</h1>
+      <p id="heroSubtitle">Your PS5 is being prepared for delivery</p>
+      <div class="ref-badge" id="refBadge">REF: —</div>
+    </div>
+
+    <!-- Order Status -->
+    <div class="section fade-up delay-1">
+      <div class="section-title">Order Status</div>
+      <div class="status-track" id="statusTrack">
+        <!-- injected by JS -->
       </div>
-    </header>
+    </div>
 
-    <!-- Thank You Section -->
-    <section class="pt-[72px] px-4 py-12 text-center bg-gray-50">
-      <div class="max-w-xl mx-auto">
-        <div class="relative w-fit mx-auto mb-6">
-  <div class="absolute inset-0 rounded-full bg-gradient-to-r from-[#FFD345] via-white to-[#393be5] blur-2xl opacity-60 scale-125 z-0"></div>
-  <img src="ps5-slim.webp" alt="PS5 Slim" class="relative z-10 w-60 md:w-80" />
-</div>
-        <h2 class="text-3xl md:text-4xl font-bold mb-2 text-black">Thank You for Booking!</h2>
-<p class="text-xl text-gray-800 font-semibold mb-4">Get ready to play!</p>
-        <p class="text-gray-700 text-base font-semibold mb-4">Your Booking Reference: <span id="ref-code" class="text-blue-600"></span></p>
-<p class="text-gray-700 text-lg mb-4">We’ll contact you shortly to confirm the details.</p>
-        <p class="text-gray-500 mb-1.5">Need help? You can also message us directly.</p>
+    <!-- Booking Summary -->
+    <div class="section fade-up delay-2">
+      <div class="section-title">Booking Summary</div>
+      <div class="card" id="summaryCard">
+        <!-- injected by JS -->
+      </div>
+    </div>
 
-        <button onclick="sendBookingToWhatsApp()" class="mt-2 inline-block bg-green-600 text-white px-6 py-3 rounded-full text-sm md:text-base font-semibold hover:bg-green-700 transition">
-          Message Us on WhatsApp
-        </button>
+    <!-- Games -->
+    <div class="section fade-up delay-3" id="gamesSection">
+      <div class="section-title">Selected Games</div>
+      <div class="card">
+        <div class="games-wrap" id="gamesWrap"></div>
+      </div>
+    </div>
 
-        <div class="mt-4">
-          <a href="/" class="inline-block bg-black text-white px-6 py-3 rounded-full text-sm md:text-base font-semibold hover:bg-gray-800 transition">← Back to Home</a>
+    <!-- Delivery Address -->
+    <div class="section fade-up delay-3">
+      <div class="section-title">Delivery Address</div>
+      <div class="card">
+        <div class="card-row">
+          <div>
+            <div class="card-label">📍 Delivering to</div>
+            <div style="font-size: 14px; font-weight: 600; margin-top: 4px; line-height: 1.5;" id="addressLine">—</div>
+          </div>
         </div>
       </div>
-    </section>
+    </div>
 
-    <script>
-      function sendBookingToWhatsApp() {
-        const url = "https://wa.me/919202227070?text=Hi, I just booked a PS5 on your website. Please confirm my reservation.";
-        window.open(url, '_blank');
-      }
-    </script>
+    <!-- Payment -->
+    <div class="section fade-up delay-3">
+      <div class="section-title">Payment</div>
+      <div class="card" id="paymentCard"></div>
+    </div>
 
-    <section id="contact" class="w-full bg-black py-10">
-  <div class="max-w-5xl mx-auto px-6">
-
-    <!-- Desktop Layout: Contact + Quick Links side by side -->
-    <div class="hidden md:flex justify-between items-start">
-      
-      <!-- Contact Info -->
-      <div>
-        <h2 class="text-xl md:text-3xl font-bold text-white mb-4">
-      Contact Us
-    </h2>
-                <p class="text-white text-md mt-3 mb-3">
-      Email: <a href="mailto:contact@leazo.in" class="text-blue-400">contact@leazo.in</a><br>Contact: +91 9202227070</p>
-
-        <a href="https://wa.me/919202227070" target="_blank"
-           class="inline-block bg-[#25D366] text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:scale-105 transition">
-          💬 Chat on WhatsApp
+    <!-- Need Help -->
+    <div class="section fade-up delay-4">
+      <div class="section-title">Need Help?</div>
+      <div class="help-grid">
+        <a href="tel:9202227070" class="help-btn btn-call">
+          <span class="help-btn-icon">📞</span>
+          Call Us
+        </a>
+        <a id="waLink" href="https://wa.me/919202227070" target="_blank" class="help-btn btn-whatsapp">
+          <span class="help-btn-icon">💬</span>
+          WhatsApp
         </a>
       </div>
-
-      <!-- Quick Links -->
-      <div>
-        <h2 class="text-xl font-bold text-white mb-4">Quick Links</h2>
-        <ul class="space-y-2">
-          <li><a href="/TnC.html" class="text-gray-300 hover:text-[#FFD345] transition">Terms & Conditions</a></li>
-          <li><a href="/privacy-policy.html" class="text-gray-300 hover:text-[#FFD345] transition">Privacy Policy</a></li>
-          <li><a href="/cancellation&refund-policy.html" class="text-gray-300 hover:text-[#FFD345] transition">Cancellation & Refund Policy</a></li>
-        </ul>
-      </div>
-
+      <a href="index.html" class="help-btn btn-book" style="margin-top: 10px; width: 100%;">
+        <span class="help-btn-icon">🎮</span>
+        Book Another Session
+      </a>
     </div>
 
-    <!-- Mobile Layout: Stack -->
-    <div class="md:hidden text-center">
-      <h2 class="text-2xl md:text-3xl font-bold text-white mb-5">
-      Contact Us
-    </h2>
-       
-        <a href="https://wa.me/919202227070" target="_blank"
-           class="inline-block bg-[#25D366] text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:scale-105 transition">
-          💬 Chat on WhatsApp
-        </a>
-         <p class="text-white text-md mt-3 mb-3">
-      Email: <a href="mailto:contact@leazo.in" class="text-blue-400">contact@leazo.in</a><br>Contact: +91 9202227070</p>
-
-          <h2 class="text-xl font-bold text-white mt-10 mb-4">Quick Links</h2>
-      <div class="flex flex-col items-center gap-2">
-        <a href="TnC.html" class="text-gray-300 hover:text-[#FFD345] transition">Terms & Conditions</a>
-        <a href="privacy-policy.html" class="text-gray-300 hover:text-[#FFD345] transition">Privacy Policy</a>
-        <a href="cancellation&refund-policy.html" class="text-gray-300 hover:text-[#FFD345] transition">Cancellation & Refund Policy</a>
-      </div>
+    <div class="footer-note fade-up delay-5">
+      Leazo — PS5 on Rent<br>
+      <span style="color: #444;">Questions? Call or WhatsApp 9202227070</span>
     </div>
-          <div class="flex justify-center gap-6 mt-5">
-      <a href="https://instagram.com/leazo.in" target="_blank" class="text-white text-2xl hover:text-[#FFD345] transition"><img src="instagramicon.webp" alt="Instagram" class="w-7 h-7"></a>
-      <a href="https://www.facebook.com/profile.php?id=61577716333704#" target="_blank" class="text-white text-2xl hover:text-[#FFD345] transition"><img src="facebookicon.webp" alt="Facebook" class="w-7 h-7"></a>
-    </div>
-    </div>
-
 
   </div>
-</section>
 
+  <script>
+    const SUPABASE_URL = 'https://rohybhpktpfmeashdlzz.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvaHliaHBrdHBmbWVhc2hkbHp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3MzcwMTYsImV4cCI6MjA5MzMxMzAxNn0.NhM9DnXOl_7h3NHh1r78cPNvbogO_qOEhPfQauyKHJE';
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-
-    <footer class="bg-black text-white text-center py-4 text-sm text-gray-600">
-      &copy; 2025 Leazo. All rights reserved.
-    </footer>
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    // Run confetti
-    setTimeout(() => {
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 }
-      });
-    }, 300);
-
-    // Extract booking reference
+    // Get ref from URL
     const params = new URLSearchParams(window.location.search);
-    const ref = params.get("ref");
-    if (ref) {
-      const refSpan = document.getElementById("ref-code");
-      if (refSpan) {
-        refSpan.textContent = ref;
-      }
+    const ref = params.get('ref');
+
+    async function loadBooking() {
+      if (!ref) { showError(); return; }
+
+      // Try matching full ref or just the order part (before _cfPaymentId)
+      const { data, error } = await db
+        .from('bookings')
+        .select('*')
+        .or(`reference_number.eq.${ref},reference_number.like.${ref}%`)
+        .limit(1);
+
+      if (error || !data || data.length === 0) { showError(); return; }
+
+      renderBooking(data[0]);
     }
-  });
-</script>
+
+    function renderBooking(b) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('mainContent').style.display = 'block';
+
+      // Hero
+      const isReturned = b.operator_status === 'returned';
+      const isCancelled = b.operator_status === 'cancelled';
+      document.getElementById('heroTitle').textContent =
+        isCancelled ? 'Booking Cancelled' :
+        isReturned  ? 'Session Complete!' :
+        'Booking Confirmed!';
+      document.getElementById('heroSubtitle').textContent =
+        isCancelled ? 'This booking was cancelled. Please rebook or contact us.' :
+        isReturned  ? 'Hope you had a great gaming session!' :
+        b.operator_status === 'delivered' ? 'Your PS5 has been delivered. Enjoy!' :
+        'Your PS5 is being prepared for delivery.';
+      document.getElementById('refBadge').textContent = `REF: ${b.reference_number}`;
+
+      // WhatsApp link with ref
+      document.getElementById('waLink').href =
+        `https://wa.me/919202227070?text=Hi%20Leazo%2C%20I%20need%20help%20with%20my%20booking%20${encodeURIComponent(b.reference_number)}`;
+
+      // Status tracker
+      renderStatusTrack(b.operator_status, b.payment_status);
+
+      // Summary card
+      const planLabel = { hourly: 'Hourly', daily: 'Full Day', weekly: 'Weekly' }[b.plan] || b.plan;
+      document.getElementById('summaryCard').innerHTML = `
+        <div class="card-row">
+          <span class="card-label">Customer</span>
+          <span class="card-value">${b.customer_name}</span>
+        </div>
+        <div class="card-row">
+          <span class="card-label">Phone</span>
+          <span class="card-value">${b.phone}</span>
+        </div>
+        <div class="card-row">
+          <span class="card-label">City</span>
+          <span class="card-value">${b.city}</span>
+        </div>
+        <div class="card-row">
+          <span class="card-label">Plan</span>
+          <span class="card-value">${planLabel}</span>
+        </div>
+        <div class="card-row">
+          <span class="card-label">Date</span>
+          <span class="card-value">${b.booking_date}</span>
+        </div>
+        <div class="card-row">
+          <span class="card-label">Time</span>
+          <span class="card-value">${b.start_time} → ${b.end_time}</span>
+        </div>
+        ${b.controller_added ? `
+        <div class="card-row">
+          <span class="card-label">Extra Controller</span>
+          <span class="card-value">✅ Added</span>
+        </div>` : ''}
+        <div class="card-row">
+          <span class="card-label">Total Amount</span>
+          <span class="card-value big">₹${b.total_amount}</span>
+        </div>
+      `;
+
+      // Games
+      if (b.games && b.games.trim()) {
+        const games = b.games.split(',').map(g => g.trim()).filter(Boolean);
+        document.getElementById('gamesWrap').innerHTML =
+          games.map(g => `<span class="game-chip">🎮 ${g}</span>`).join('');
+      } else {
+        document.getElementById('gamesSection').style.display = 'none';
+      }
+
+      // Address
+      document.getElementById('addressLine').textContent = b.address || '—';
+
+      // Payment
+      const payStatus = b.payment_status;
+      const payMethod = b.payment_method === 'prepaid' ? 'Online (Prepaid)' : 'Cash on Delivery';
+      const payBadgeClass = payStatus === 'paid' ? 'pay-paid' : payStatus === 'failed' ? 'pay-failed' : 'pay-pending';
+      const payIcon = payStatus === 'paid' ? '✅' : payStatus === 'failed' ? '❌' : '⏳';
+      document.getElementById('paymentCard').innerHTML = `
+        <div class="card-row">
+          <span class="card-label">Method</span>
+          <span class="card-value">${payMethod}</span>
+        </div>
+        <div class="card-row">
+          <span class="card-label">Payment Status</span>
+          <span class="pay-badge ${payBadgeClass}">${payIcon} ${payStatus.charAt(0).toUpperCase() + payStatus.slice(1)}</span>
+        </div>
+        ${b.coupon_code && b.coupon_code !== 'none' ? `
+        <div class="card-row">
+          <span class="card-label">Coupon Used</span>
+          <span class="card-value">${b.coupon_code}</span>
+        </div>` : ''}
+      `;
+    }
+
+    function renderStatusTrack(opStatus, payStatus) {
+      const steps = [
+        {
+          key: 'booked',
+          icon: '📋',
+          title: 'Booking Received',
+          desc: 'Your booking is confirmed in our system',
+          done: true,
+          active: false
+        },
+        {
+          key: 'paid',
+          icon: '💳',
+          title: 'Payment',
+          desc: payStatus === 'paid' ? 'Payment received successfully' : payStatus === 'failed' ? 'Payment failed — please contact us' : 'Advance payment pending',
+          done: payStatus === 'paid',
+          active: payStatus !== 'paid' && payStatus !== 'failed'
+        },
+        {
+          key: 'delivered',
+          icon: '🚗',
+          title: 'PS5 Delivered',
+          desc: opStatus === 'delivered' || opStatus === 'returned' ? 'PS5 delivered to your address' : 'Operator will deliver at scheduled time',
+          done: opStatus === 'delivered' || opStatus === 'returned',
+          active: opStatus === 'new' && payStatus === 'paid'
+        },
+        {
+          key: 'returned',
+          icon: '🏁',
+          title: 'Session Complete',
+          desc: opStatus === 'returned' ? 'PS5 returned. Thanks for playing!' : 'PS5 will be picked up after your session',
+          done: opStatus === 'returned',
+          active: opStatus === 'delivered'
+        }
+      ];
+
+      document.getElementById('statusTrack').innerHTML = steps.map((s, i) => `
+        <div class="status-step ${s.done ? 'done' : s.active ? 'active' : ''}">
+          <div class="step-dot">${s.done ? '✓' : s.icon}</div>
+          <div class="step-info">
+            <h4 style="color: ${s.done ? 'var(--white)' : s.active ? 'var(--yellow)' : '#555'}">${s.title}</h4>
+            <p>${s.desc}</p>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function showError() {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('errorState').style.display = 'flex';
+    }
+
+    loadBooking();
+  </script>
 </body>
 </html>
-
-
-
-
-
