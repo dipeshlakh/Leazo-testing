@@ -3,443 +3,511 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Booking Confirmed – Leazo</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <title>Order Details – Leazo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="favicon.png" type="image/png" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: 'DM Sans', sans-serif; padding-bottom: 96px; }
+    .anton { font-family: 'Anton', sans-serif; letter-spacing: 1.5px; }
 
-    :root {
-      --yellow: #FFE000;
-      --yellow-dark: #E6C800;
-      --black: #0A0A0A;
-      --white: #FFFFFF;
-      --gray: #F5F5F5;
-      --gray-mid: #E0E0E0;
-      --text-muted: #6B6B6B;
-      --green: #00C853;
-      --red: #FF3B30;
-      --blue: #007AFF;
-    }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+    .fade-up { animation: fadeUp 0.45s ease forwards; opacity: 0; }
+    .d1{animation-delay:.05s} .d2{animation-delay:.12s} .d3{animation-delay:.18s}
+    .d4{animation-delay:.24s} .d5{animation-delay:.30s} .d6{animation-delay:.36s}
+    .d7{animation-delay:.42s} .d8{animation-delay:.48s} .d9{animation-delay:.54s}
+    .d10{animation-delay:.60s} .d11{animation-delay:.66s}
 
-    body {
-      font-family: 'DM Sans', sans-serif;
-      background: var(--black);
-      color: var(--white);
-      min-height: 100vh;
-    }
+    @keyframes pulseDot { 0%,100%{opacity:1} 50%{opacity:.2} }
+    .pulse-dot { animation: pulseDot 1.6s ease infinite; }
 
-    /* ── HEADER ── */
-    .header {
-      background: var(--yellow);
-      padding: 16px 20px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      border-bottom: 3px solid var(--black);
-    }
-    .logo {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 28px;
-      color: var(--black);
-      letter-spacing: 3px;
-    }
-    .header-right a {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--black);
-      text-decoration: none;
-      background: var(--black);
-      color: var(--white);
-      padding: 6px 14px;
-      border-radius: 20px;
-    }
+    @keyframes pulseGlow { 0%,100%{opacity:.4;transform:scale(1)} 50%{opacity:.8;transform:scale(1.15)} }
+    .pulse-glow { animation: pulseGlow 3s ease-in-out infinite; }
 
-    /* ── LOADING ── */
-    #loadingState {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 70vh;
-      gap: 16px;
+    @keyframes pulseRing {
+      0%  { box-shadow: 0 0 0 0   rgba(57,59,229,.5); }
+      70% { box-shadow: 0 0 0 10px rgba(57,59,229,0); }
+      100%{ box-shadow: 0 0 0 0   rgba(57,59,229,0); }
     }
-    .spinner {
-      width: 40px; height: 40px;
-      border: 3px solid rgba(255,224,0,0.2);
-      border-top-color: var(--yellow);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    .ring-pulse { animation: pulseRing 2s ease infinite; }
 
-    /* ── ERROR ── */
-    #errorState {
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 70vh;
-      gap: 12px;
-      padding: 24px;
-      text-align: center;
-    }
-    .error-icon { font-size: 48px; }
+    @keyframes timerTick { 0%,100%{opacity:1} 50%{opacity:.5} }
+    .timer-colon { animation: timerTick 1s step-start infinite; }
 
-    /* ── MAIN CONTENT ── */
-    #mainContent { display: none; padding-bottom: 40px; }
+    @keyframes statusPulse {
+      0%,100%{ background-color:rgba(57,59,229,.10); }
+      50%    { background-color:rgba(57,59,229,.22); }
+    }
+    .status-badge-pulse { animation: statusPulse 2.5s ease infinite; }
 
-    /* ── HERO BANNER ── */
-    .hero {
-      background: var(--yellow);
-      color: var(--black);
-      padding: 32px 20px 28px;
-      text-align: center;
-      position: relative;
-      overflow: hidden;
-    }
-    .hero::before {
-      content: '';
-      position: absolute;
-      top: -30px; right: -30px;
-      width: 120px; height: 120px;
-      background: rgba(0,0,0,0.06);
-      border-radius: 50%;
-    }
-    .hero::after {
-      content: '';
-      position: absolute;
-      bottom: -20px; left: -20px;
-      width: 80px; height: 80px;
-      background: rgba(0,0,0,0.04);
-      border-radius: 50%;
-    }
-    .success-icon {
-      width: 64px; height: 64px;
-      background: var(--black);
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      margin: 0 auto 16px;
-      font-size: 28px;
-    }
-    .hero h1 {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 36px;
-      letter-spacing: 2px;
-      margin-bottom: 6px;
-    }
-    .hero p {
-      font-size: 14px;
-      font-weight: 500;
-      opacity: 0.75;
-    }
-    .ref-badge {
-      display: inline-block;
-      margin-top: 14px;
-      background: var(--black);
-      color: var(--yellow);
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 15px;
-      letter-spacing: 2px;
-      padding: 6px 16px;
-      border-radius: 20px;
-    }
+    @keyframes slideIn { from{opacity:0;transform:translateX(18px)} to{opacity:1;transform:translateX(0)} }
+    .game-card { animation: slideIn .4s ease forwards; opacity:0; flex-shrink:0; }
+    .game-card:nth-child(1){animation-delay:.32s}
+    .game-card:nth-child(2){animation-delay:.44s}
+    .game-card:nth-child(3){animation-delay:.56s}
+    .game-card:nth-child(4){animation-delay:.68s}
+    .game-card:nth-child(5){animation-delay:.80s}
 
-    /* ── STATUS TRACKER ── */
-    .section { padding: 20px; }
-    .section-title {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--text-muted);
-      margin-bottom: 14px;
-    }
+    .accordion-body { max-height:0; overflow:hidden; transition:max-height .35s ease,opacity .3s ease; opacity:0; }
+    .accordion-body.open { max-height:480px; opacity:1; }
+    .chevron { transition: transform .3s ease; }
+    .chevron.open { transform: rotate(180deg); }
 
-    .status-track {
-      background: #161616;
-      border-radius: 16px;
-      padding: 20px;
-      border: 1px solid #222;
-    }
-    .status-step {
-      display: flex;
-      align-items: flex-start;
-      gap: 14px;
-      position: relative;
-    }
-    .status-step:not(:last-child)::after {
-      content: '';
-      position: absolute;
-      left: 15px;
-      top: 32px;
-      bottom: -12px;
-      width: 2px;
-      background: #2a2a2a;
-    }
-    .status-step.done::after { background: var(--yellow); }
-    .step-dot {
-      width: 32px; height: 32px;
-      border-radius: 50%;
-      border: 2px solid #333;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 14px;
-      flex-shrink: 0;
-      background: #161616;
-    }
-    .status-step.done .step-dot {
-      background: var(--yellow);
-      border-color: var(--yellow);
-    }
-    .status-step.active .step-dot {
-      background: transparent;
-      border-color: var(--yellow);
-      animation: pulse-border 1.5s ease infinite;
-    }
-    @keyframes pulse-border {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(255,224,0,0.4); }
-      50% { box-shadow: 0 0 0 6px rgba(255,224,0,0); }
-    }
-    .step-info { padding-bottom: 20px; }
-    .step-info h4 { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
-    .step-info p { font-size: 12px; color: var(--text-muted); }
+    .games-scroll { display:flex; gap:12px; overflow-x:auto; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; scrollbar-width:none; padding-bottom:6px; }
+    .games-scroll::-webkit-scrollbar { display:none; }
+    .game-card { scroll-snap-align:start; }
 
-    /* ── CARD ── */
-    .card {
-      background: #161616;
-      border-radius: 16px;
-      border: 1px solid #222;
-      overflow: hidden;
-    }
-    .card-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 14px 18px;
-      border-bottom: 1px solid #1e1e1e;
-    }
-    .card-row:last-child { border-bottom: none; }
-    .card-label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
-    .card-value { font-size: 14px; font-weight: 600; text-align: right; max-width: 60%; }
-    .card-value.big { font-size: 20px; font-weight: 700; color: var(--yellow); }
+    .scroll-fade { -webkit-mask-image:linear-gradient(to right,black 83%,transparent 100%); mask-image:linear-gradient(to right,black 83%,transparent 100%); }
 
-    /* ── PAYMENT BADGE ── */
-    .pay-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-size: 12px;
-      font-weight: 700;
-    }
-    .pay-paid { background: rgba(0,200,83,0.15); color: var(--green); }
-    .pay-pending { background: rgba(255,224,0,0.15); color: var(--yellow); }
-    .pay-failed { background: rgba(255,59,48,0.15); color: var(--red); }
+    .cover-wrap { position:relative; border-radius:14px; overflow:hidden; }
+    .cover-wrap::after { content:''; position:absolute; bottom:0; left:0; right:0; height:45%; background:linear-gradient(to top,rgba(0,0,0,.72) 0%,transparent 100%); pointer-events:none; }
+    .cover-wrap img { width:100%; height:100%; object-fit:cover; display:block; }
 
-    /* ── OPERATOR STATUS ── */
-    .op-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 5px 12px;
-      border-radius: 12px;
-      font-size: 12px;
-      font-weight: 700;
-    }
-    .op-new { background: rgba(255,224,0,0.12); color: var(--yellow); }
-    .op-delivered { background: rgba(0,200,83,0.12); color: var(--green); }
-    .op-returned { background: rgba(0,122,255,0.12); color: var(--blue); }
-    .op-cancelled { background: rgba(255,59,48,0.12); color: var(--red); }
+    .live-gradient { background:linear-gradient(135deg,#1e1b4b 0%,#312e81 50%,#1e40af 100%); }
+    .sec-div { height:8px; background:#f3f4f6; border-top:1px solid #e5e7eb; border-bottom:1px solid #e5e7eb; }
 
-    /* ── GAMES CHIPS ── */
-    .games-wrap {
-      padding: 14px 18px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-    .game-chip {
-      background: #222;
-      border-radius: 20px;
-      padding: 5px 12px;
-      font-size: 12px;
-      font-weight: 500;
-      color: #ccc;
-    }
+    .sticky-cta { position:fixed; bottom:0; left:0; right:0; z-index:90; background:white; border-top:2px solid #e5e7eb; padding:12px 16px; display:flex; gap:10px; }
 
-    /* ── HELP SECTION ── */
-    .help-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-    .help-btn {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 18px 12px;
-      border-radius: 16px;
-      text-decoration: none;
-      font-size: 13px;
-      font-weight: 600;
-      transition: transform 0.15s, opacity 0.15s;
-    }
-    .help-btn:active { transform: scale(0.97); opacity: 0.85; }
-    .help-btn-icon { font-size: 24px; }
-    .btn-call { background: var(--yellow); color: var(--black); }
-    .btn-whatsapp { background: #25D366; color: var(--white); }
-    .btn-book { background: #161616; border: 1px solid #333; color: var(--white); }
-
-    /* ── FOOTER NOTE ── */
-    .footer-note {
-      text-align: center;
-      padding: 20px;
-      font-size: 12px;
-      color: var(--text-muted);
-      line-height: 1.6;
-    }
-
-    /* ── ANIMATIONS ── */
-    .fade-up {
-      opacity: 0;
-      transform: translateY(16px);
-      animation: fadeUp 0.4s ease forwards;
-    }
-    @keyframes fadeUp {
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .delay-1 { animation-delay: 0.1s; }
-    .delay-2 { animation-delay: 0.2s; }
-    .delay-3 { animation-delay: 0.3s; }
-    .delay-4 { animation-delay: 0.4s; }
-    .delay-5 { animation-delay: 0.5s; }
+    /* Loading skeleton */
+    @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+    .skeleton { background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:8px; }
   </style>
 </head>
-<body>
 
-  <!-- Header -->
-  <div class="header">
-    <span class="logo">LEAZO</span>
-    <div class="header-right">
-      <a href="index.html">Book Again</a>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+
+  <!-- HEADER -->
+  <header class="w-full fixed top-0 z-50 bg-[#FFD345] py-2 px-4 shadow-md border-b-4 border-[#393be5]">
+    <div class="container mx-auto flex justify-between items-center">
+      <a href="/" class="anton text-2xl md:text-4xl italic mx-auto md:mx-0" style="letter-spacing:3px;">LEAZO</a>
+      <div class="relative md:hidden absolute right-4">
+        <button id="menu-toggle" class="text-lg font-medium focus:outline-none">☰</button>
+        <div id="mobile-menu" class="absolute right-0 mt-2 w-48 bg-white border rounded shadow-md hidden">
+          <a href="/" class="block px-4 py-2 hover:bg-gray-100">Home</a>
+          <a href="/#booknow" class="block px-4 py-2 hover:bg-gray-100">Book Now</a>
+          <a href="referral-portal.html" class="block px-4 py-2 hover:bg-gray-100">Refer &amp; Earn</a>
+          <a href="#contact" class="block px-4 py-2 hover:bg-gray-100">Contact Us</a>
+        </div>
+      </div>
+      <nav class="hidden md:flex space-x-4 text-lg font-medium">
+        <a href="/" class="hover:underline">Home</a>
+        <a href="/#booknow" class="hover:underline">Book Now</a>
+        <a href="referral-portal.html" class="hover:underline">Refer &amp; Earn</a>
+        <a href="#contact" class="hover:underline">Contact Us</a>
+      </nav>
+    </div>
+  </header>
+  <script>
+    document.getElementById('menu-toggle').addEventListener('click', () =>
+      document.getElementById('mobile-menu').classList.toggle('hidden'));
+    document.querySelectorAll('#mobile-menu a').forEach(l =>
+      l.addEventListener('click', () =>
+        document.getElementById('mobile-menu').classList.add('hidden')));
+  </script>
+
+  <!-- LOADING STATE -->
+  <div id="loadingState" class="pt-[72px]">
+    <div class="max-w-lg mx-auto px-4 py-10 text-center">
+      <div class="skeleton w-40 h-40 rounded-full mx-auto mb-6"></div>
+      <div class="skeleton w-48 h-8 mx-auto mb-3"></div>
+      <div class="skeleton w-32 h-5 mx-auto mb-4"></div>
+      <div class="skeleton w-40 h-7 mx-auto rounded-full"></div>
+    </div>
+    <div class="max-w-lg mx-auto px-4 space-y-4">
+      <div class="skeleton h-28 w-full rounded-2xl"></div>
+      <div class="skeleton h-20 w-full rounded-2xl"></div>
+      <div class="skeleton h-36 w-full rounded-2xl"></div>
     </div>
   </div>
 
-  <!-- Loading -->
-  <div id="loadingState">
-    <div class="spinner"></div>
-    <p style="color: var(--text-muted); font-size: 14px;">Loading your booking...</p>
+  <!-- ERROR STATE -->
+  <div id="errorState" class="hidden pt-[80px]">
+    <div class="max-w-lg mx-auto px-4 py-20 text-center">
+      <div class="text-7xl mb-4">😕</div>
+      <h2 class="anton text-3xl text-black mb-2">Booking Not Found</h2>
+      <p class="text-sm text-gray-500 mb-6">We couldn't find a booking with this reference.<br>Please check your link or contact support.</p>
+      <a href="/" class="inline-block bg-[#FFD345] border-b-4 border-black text-black font-bold px-6 py-3 rounded-xl text-sm mb-3">Go to Homepage</a>
+      <br>
+      <a href="https://wa.me/919202227070" class="text-sm text-[#393be5] font-semibold">Need help? WhatsApp us →</a>
+    </div>
   </div>
 
-  <!-- Error -->
-  <div id="errorState">
-    <div class="error-icon">😕</div>
-    <h2 style="font-family: 'Bebas Neue'; font-size: 28px; letter-spacing: 2px;">Booking Not Found</h2>
-    <p style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">We couldn't find a booking with this reference.<br>Please check your link or contact support.</p>
-    <a href="index.html" style="margin-top: 20px; background: var(--yellow); color: var(--black); font-weight: 700; padding: 12px 28px; border-radius: 12px; text-decoration: none; font-size: 14px;">Go to Homepage</a>
-    <a href="https://wa.me/919202227070" style="margin-top: 10px; color: var(--text-muted); font-size: 13px;">Need help? WhatsApp us</a>
-  </div>
+  <!-- MAIN CONTENT -->
+  <div id="mainContent" class="hidden">
 
-  <!-- Main Content -->
-  <div id="mainContent">
-
-    <!-- Hero -->
-    <div class="hero fade-up">
-      <div class="success-icon">🎮</div>
-      <h1 id="heroTitle">Booking Confirmed!</h1>
-      <p id="heroSubtitle">Your PS5 is being prepared for delivery</p>
-      <div class="ref-badge" id="refBadge">REF: —</div>
-    </div>
-
-    <!-- Order Status -->
-    <div class="section fade-up delay-1">
-      <div class="section-title">Order Status</div>
-      <div class="status-track" id="statusTrack">
-        <!-- injected by JS -->
+    <!-- HERO BANNER -->
+    <section class="pt-[72px] bg-white border-b border-gray-100">
+      <div class="max-w-lg mx-auto px-4 py-10 text-center fade-up d1">
+        <div class="relative w-fit mx-auto mb-5">
+          <div class="absolute inset-0 rounded-full bg-gradient-to-r from-[#FFD345] via-white to-[#393be5] blur-2xl opacity-60 scale-125 z-0 pulse-glow"></div>
+          <img src="ps5-slim.webp" alt="PS5 Slim" class="relative z-10 w-44 md:w-56"
+            onerror="this.outerHTML='<div class=\'relative z-10 text-7xl\'>🎮</div>'" />
+        </div>
+        <h1 id="heroTitle" class="anton text-3xl md:text-5xl text-black mb-1">Order Details</h1>
+        <p id="heroSubtitle" class="text-base font-semibold text-gray-500 mb-4">Loading your booking...</p>
+        <span id="refBadge" class="inline-block bg-[#393be5] text-white text-xs font-bold tracking-widest uppercase px-4 py-1.5 rounded-full">REF: —</span>
       </div>
-    </div>
+    </section>
 
-    <!-- Booking Summary -->
-    <div class="section fade-up delay-2">
-      <div class="section-title">Booking Summary</div>
-      <div class="card" id="summaryCard">
-        <!-- injected by JS -->
+    <main class="max-w-lg mx-auto px-4">
+
+      <!-- SECTION 1 · ORDER SUMMARY CARD -->
+      <div class="fade-up d2 mt-7">
+        <p class="text-[11px] font-bold tracking-[2px] uppercase text-gray-400 mb-3">Order Summary</p>
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+
+          <!-- Product row -->
+          <div class="flex items-center gap-3 px-4 py-4 bg-gray-50 border-b border-gray-100">
+            <div class="w-12 h-12 rounded-xl bg-[#FFD345] border-2 border-black flex items-center justify-center text-2xl flex-shrink-0">🎮</div>
+            <div class="flex-1 min-w-0">
+              <h2 class="anton text-[19px] text-black leading-tight">PS5 Console</h2>
+              <div class="flex items-center gap-1.5 mt-0.5">
+                <span class="pulse-dot inline-block w-2 h-2 rounded-full bg-[#393be5]"></span>
+                <span id="planBadge" class="text-[11px] font-bold tracking-widest uppercase text-[#393be5]">—</span>
+              </div>
+            </div>
+            <div class="text-right flex-shrink-0">
+              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total</p>
+              <p id="totalAmountHero" class="anton text-2xl text-black leading-tight">₹—</p>
+            </div>
+          </div>
+
+          <!-- Start / End grid -->
+          <div class="grid grid-cols-2 divide-x divide-gray-100">
+            <div class="px-4 py-4">
+              <div class="flex items-center gap-1.5 mb-1.5">
+                <span class="w-2 h-2 rounded-full bg-green-500 inline-block flex-shrink-0"></span>
+                <p class="text-[10px] font-bold tracking-widest uppercase text-gray-400">Start</p>
+              </div>
+              <p id="bookingDate" class="text-xs font-semibold text-gray-500 mb-0.5">—</p>
+              <p id="startTime" class="anton text-[22px] text-black leading-tight">—</p>
+            </div>
+            <div class="px-4 py-4">
+              <div class="flex items-center gap-1.5 mb-1.5">
+                <span class="w-2 h-2 rounded-full bg-red-500 inline-block flex-shrink-0"></span>
+                <p class="text-[10px] font-bold tracking-widest uppercase text-gray-400">End</p>
+              </div>
+              <p class="text-xs font-semibold text-gray-500 mb-0.5">—</p>
+              <p id="endTime" class="anton text-[22px] text-black leading-tight">—</p>
+            </div>
+          </div>
+
+          <!-- Controller add-on row (shown if applicable) -->
+          <div id="controllerRow" class="hidden flex items-center gap-3 px-4 py-3 border-t border-gray-100">
+            <div class="w-10 h-10 rounded-xl bg-[#FFD345] border-2 border-black flex items-center justify-center text-xl flex-shrink-0">🎮</div>
+            <div class="flex-1">
+              <p class="text-sm font-bold text-gray-900">Extra Controller</p>
+              <p class="text-xs text-gray-500">DualSense Wireless · Included</p>
+            </div>
+            <span class="bg-[#393be5] text-white text-xs font-bold px-3 py-1 rounded-full">×1</span>
+          </div>
+
+        </div>
       </div>
-    </div>
 
-    <!-- Games -->
-    <div class="section fade-up delay-3" id="gamesSection">
-      <div class="section-title">Selected Games</div>
-      <div class="card">
-        <div class="games-wrap" id="gamesWrap"></div>
-      </div>
-    </div>
+      <div class="sec-div mt-6"></div>
 
-    <!-- Delivery Address -->
-    <div class="section fade-up delay-3">
-      <div class="section-title">Delivery Address</div>
-      <div class="card">
-        <div class="card-row">
+      <!-- SECTION 2 · GAMES -->
+      <div id="gamesSection" class="fade-up d3 mt-6 hidden">
+        <div class="flex items-end justify-between mb-1">
           <div>
-            <div class="card-label">📍 Delivering to</div>
-            <div style="font-size: 14px; font-weight: 600; margin-top: 4px; line-height: 1.5;" id="addressLine">—</div>
+            <p class="text-[11px] font-bold tracking-[2px] uppercase text-gray-400">Your Games</p>
+            <h2 class="anton text-[24px] text-black leading-tight">Get ready to play <span class="text-[#393be5]">🎮</span></h2>
+          </div>
+          <span id="gameCount" class="inline-block bg-[#FFD345] text-black text-xs font-extrabold px-3 py-1 rounded-full border-2 border-black mb-0.5">0 Games</span>
+        </div>
+        <div class="flex items-center gap-1.5 mb-3 mt-1">
+          <span class="pulse-dot inline-block w-1.5 h-1.5 rounded-full bg-[#393be5]"></span>
+          <span class="text-[11px] text-gray-400 font-medium">Swipe to see all games</span>
+        </div>
+        <div class="scroll-fade">
+          <div class="games-scroll" id="gamesScroll"></div>
+        </div>
+      </div>
+
+      <div class="sec-div mt-6"></div>
+
+      <!-- SECTION 3 · LIVE STATUS (only when delivered) -->
+      <div id="liveSection" class="fade-up d4 mt-6 hidden">
+        <div class="live-gradient rounded-2xl overflow-hidden shadow-lg">
+          <div class="flex items-center justify-between px-4 pt-4 pb-2">
+            <div class="flex items-center gap-2">
+              <span class="pulse-dot inline-block w-2.5 h-2.5 rounded-full bg-green-400 flex-shrink-0"></span>
+              <span class="text-[10px] font-bold tracking-[2px] uppercase text-green-300">Rental Active</span>
+            </div>
+            <span class="text-[10px] font-bold text-blue-300 tracking-widest uppercase">Live</span>
+          </div>
+          <div class="px-4 pb-2 pt-1">
+            <p class="text-white/60 text-xs font-semibold mb-1">Session ends at</p>
+            <p id="liveEndTime" class="anton text-3xl text-white"></p>
+          </div>
+          <div class="px-4 pb-4 pt-2">
+            <button onclick="window.open('https://wa.me/919202227070?text=Hi+Leazo,+I+want+to+extend+my+rental','_blank')"
+              class="w-full bg-[#FFD345] text-black font-extrabold text-sm py-3.5 rounded-xl flex items-center justify-center gap-2 hover:bg-yellow-400 active:scale-[.98] transition shadow-lg">
+              <span>⚡</span> Extend Rental — Contact Us
+            </button>
+          </div>
+        </div>
+        <div class="sec-div mt-6"></div>
+      </div>
+
+      <!-- SECTION 4 · DELIVERY & PICKUP DETAILS -->
+      <div class="fade-up d5 mt-6">
+        <p class="text-[11px] font-bold tracking-[2px] uppercase text-gray-400 mb-3">Delivery &amp; Pickup</p>
+
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-3">
+          <div class="flex items-center gap-2.5 px-4 py-3 bg-[#393be5]">
+            <span class="text-lg">🚗</span>
+            <span class="anton text-[15px] text-white">Delivery Details</span>
+            <span id="deliveryStatusBadge" class="ml-auto text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-widest bg-yellow-400/20 text-yellow-300">Scheduled</span>
+          </div>
+          <div class="px-4 py-3.5 border-b border-gray-100">
+            <div class="flex gap-3">
+              <span class="text-xl mt-0.5 flex-shrink-0">📍</span>
+              <div>
+                <p class="text-[10px] font-bold tracking-widest uppercase text-gray-400 mb-1">Delivering To</p>
+                <p id="deliveryAddress" class="text-sm font-bold text-gray-900 leading-snug">—</p>
+                <p id="deliveryCity" class="text-xs text-gray-500 mt-0.5">—</p>
+              </div>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 divide-x divide-gray-100">
+            <div class="px-4 py-3">
+              <p class="text-[10px] font-bold tracking-widest uppercase text-gray-400 mb-1">📅 Date</p>
+              <p id="deliveryDate" class="text-sm font-bold text-gray-900">—</p>
+            </div>
+            <div class="px-4 py-3">
+              <p class="text-[10px] font-bold tracking-widest uppercase text-gray-400 mb-1">🕙 Time Slot</p>
+              <p id="deliveryTime" class="text-sm font-bold text-gray-900">—</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="flex items-center gap-2.5 px-4 py-3 bg-gray-800">
+            <span class="text-lg">🏁</span>
+            <span class="anton text-[15px] text-white">Pickup Details</span>
+            <span id="pickupStatusBadge" class="ml-auto text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-widest bg-yellow-400/20 text-yellow-300">Upcoming</span>
+          </div>
+          <div class="grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100">
+            <div class="px-4 py-3.5">
+              <p class="text-[10px] font-bold tracking-widest uppercase text-gray-400 mb-1">📅 Pickup Date</p>
+              <p id="pickupDate" class="text-sm font-bold text-gray-900">—</p>
+            </div>
+            <div class="px-4 py-3.5">
+              <p class="text-[10px] font-bold tracking-widest uppercase text-gray-400 mb-1">🕑 Pickup Time</p>
+              <p id="pickupTime" class="text-sm font-bold text-gray-900">—</p>
+            </div>
+          </div>
+          <div class="px-4 py-3 flex items-start gap-3 bg-amber-50">
+            <span class="text-lg mt-0.5 flex-shrink-0">⏰</span>
+            <p class="text-xs text-amber-800 font-semibold leading-relaxed">
+              Be ready <span class="font-extrabold">15 minutes before pickup.</span> Keep all accessories packed — controller, headset, cables &amp; box.
+            </p>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Payment -->
-    <div class="section fade-up delay-3">
-      <div class="section-title">Payment</div>
-      <div class="card" id="paymentCard"></div>
-    </div>
+      <div class="sec-div mt-6"></div>
 
-    <!-- Need Help -->
-    <div class="section fade-up delay-4">
-      <div class="section-title">Need Help?</div>
-      <div class="help-grid">
-        <a href="tel:9202227070" class="help-btn btn-call">
-          <span class="help-btn-icon">📞</span>
-          Call Us
-        </a>
-        <a id="waLink" href="https://wa.me/919202227070" target="_blank" class="help-btn btn-whatsapp">
-          <span class="help-btn-icon">💬</span>
-          WhatsApp
-        </a>
+      <!-- SECTION 5 · PAYMENT DETAILS -->
+      <div class="fade-up d6 mt-6">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-[11px] font-bold tracking-[2px] uppercase text-gray-400">Payment Details</p>
+          <span id="paymentStatusBadge" class="status-badge-pulse text-[10px] font-bold text-[#393be5] px-3 py-1 rounded-full border border-[#393be5]/30 uppercase tracking-widest">—</span>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden" id="paymentCard">
+          <!-- injected by JS -->
+        </div>
       </div>
-      <a href="index.html" class="help-btn btn-book" style="margin-top: 10px; width: 100%;">
-        <span class="help-btn-icon">🎮</span>
-        Book Another Session
-      </a>
-    </div>
 
-    <div class="footer-note fade-up delay-5">
-      Leazo — PS5 on Rent<br>
-      <span style="color: #444;">Questions? Call or WhatsApp 9202227070</span>
-    </div>
+      <div class="sec-div mt-6"></div>
 
+      <!-- SECTION 6 · RENTAL TIMELINE -->
+      <div class="fade-up d7 mt-6">
+        <p class="text-[11px] font-bold tracking-[2px] uppercase text-gray-400 mb-4">Rental Timeline</p>
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm px-4 py-4">
+          <div class="relative">
+            <div class="absolute left-[19px] top-6 bottom-6 w-0.5 bg-gray-100" id="timelineSpine"></div>
+            <div class="space-y-0" id="timeline"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec-div mt-6"></div>
+
+      <!-- SECTION 7 · QUICK ACTIONS -->
+      <div class="fade-up d8 mt-6">
+        <p class="text-[11px] font-bold tracking-[2px] uppercase text-gray-400 mb-3">Quick Actions</p>
+
+        <button onclick="window.open('https://wa.me/919202227070?text=Hi+Leazo,+I+want+to+extend+my+rental','_blank')"
+          class="w-full bg-[#393be5] text-white font-extrabold text-sm py-4 rounded-2xl flex items-center justify-between px-5 hover:bg-blue-700 active:scale-[.98] transition shadow-lg mb-3 ring-pulse">
+          <div class="text-left">
+            <p class="text-base font-extrabold">⚡ Extend Rental</p>
+            <p class="text-[11px] font-normal text-blue-200 mt-0.5">Contact us to add more time</p>
+          </div>
+          <span class="text-2xl">→</span>
+        </button>
+
+        <div class="grid grid-cols-2 gap-3">
+          <a href="/#booknow" class="bg-white border border-gray-200 rounded-2xl px-4 py-4 flex flex-col items-start gap-1.5 hover:border-[#393be5]/40 hover:bg-blue-50/30 active:scale-[.97] transition">
+            <span class="text-xl">🎮</span>
+            <p class="text-sm font-bold text-gray-900">Book Again</p>
+            <p class="text-[10px] text-gray-400 leading-snug">Start a new session</p>
+          </a>
+          <a id="waActionLink" href="https://wa.me/919202227070" target="_blank" class="bg-white border border-gray-200 rounded-2xl px-4 py-4 flex flex-col items-start gap-1.5 hover:border-[#393be5]/40 hover:bg-blue-50/30 active:scale-[.97] transition">
+            <span class="text-xl">📅</span>
+            <p class="text-sm font-bold text-gray-900">Reschedule</p>
+            <p class="text-[10px] text-gray-400 leading-snug">Change delivery time</p>
+          </a>
+          <a href="https://wa.me/919202227070" target="_blank" class="bg-white border border-gray-200 rounded-2xl px-4 py-4 flex flex-col items-start gap-1.5 hover:border-gray-300 active:scale-[.97] transition">
+            <span class="text-xl">💬</span>
+            <p class="text-sm font-bold text-gray-900">Support</p>
+            <p class="text-[10px] text-gray-400 leading-snug">Chat or call us</p>
+          </a>
+          <button id="cancelBtn" class="bg-white border border-red-100 rounded-2xl px-4 py-4 flex flex-col items-start gap-1.5 hover:bg-red-50 active:scale-[.97] transition text-left">
+            <span class="text-xl">🚫</span>
+            <p class="text-sm font-bold text-red-500">Cancel Order</p>
+            <p class="text-[10px] text-red-300 leading-snug">Cancellation policy applies</p>
+          </button>
+        </div>
+      </div>
+
+      <div class="sec-div mt-6"></div>
+
+      <!-- SECTION 8 · PRICE BREAKDOWN (Accordion) -->
+      <div class="fade-up d10 mt-6">
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+          <button id="price-toggle"
+            class="w-full flex items-center justify-between px-4 py-4 hover:bg-gray-50 active:bg-gray-100 transition"
+            onclick="toggleAccordion()">
+            <div class="flex items-center gap-2.5">
+              <span class="text-xl">🧾</span>
+              <div class="text-left">
+                <p class="text-sm font-bold text-gray-900">Price Breakdown</p>
+                <p class="text-[11px] text-gray-400">Tap to see full details</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <span id="priceBreakdownTotal" class="anton text-lg text-black">₹—</span>
+              <svg id="chevron" class="chevron w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </button>
+          <div id="price-body" class="accordion-body border-t border-gray-100">
+            <div id="priceBreakdownRows" class="divide-y divide-gray-100"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec-div mt-6"></div>
+
+      <!-- SECTION 9 · SUPPORT -->
+      <div class="fade-up d9 mt-6">
+        <p class="text-[11px] font-bold tracking-[2px] uppercase text-gray-400 mb-0.5">Need Help?</p>
+        <p class="text-xs text-gray-400 mb-3 font-medium">Support for your gaming experience 🎮</p>
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden divide-y divide-gray-100">
+          <a id="waSupportLink" href="https://wa.me/919202227070" target="_blank"
+            class="flex items-center gap-3 px-4 py-4 hover:bg-green-50 active:bg-green-100 transition">
+            <div class="w-10 h-10 rounded-xl bg-[#25D366] flex items-center justify-center text-white text-xl flex-shrink-0">💬</div>
+            <div class="flex-1">
+              <p class="text-sm font-bold text-gray-900">Chat on WhatsApp</p>
+              <p class="text-[11px] text-gray-400">Usually replies in &lt; 5 mins</p>
+            </div>
+            <span class="text-gray-300 font-bold text-lg">›</span>
+          </a>
+          <a href="tel:919202227070"
+            class="flex items-center gap-3 px-4 py-4 hover:bg-yellow-50 active:bg-yellow-100 transition">
+            <div class="w-10 h-10 rounded-xl bg-[#FFD345] border-2 border-black flex items-center justify-center text-black text-xl flex-shrink-0">📞</div>
+            <div class="flex-1">
+              <p class="text-sm font-bold text-gray-900">Call Support</p>
+              <p class="text-[11px] text-gray-400">+91 9202227070 · Available 9AM–11PM</p>
+            </div>
+            <span class="text-gray-300 font-bold text-lg">›</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Contact / Footer -->
+      <section id="contact" class="w-full bg-black rounded-2xl mt-6 py-8">
+        <div class="px-5 text-center">
+          <h2 class="text-xl font-bold text-white mb-4">Contact Us</h2>
+          <a href="https://wa.me/919202227070" target="_blank"
+            class="inline-block bg-[#25D366] text-white px-6 py-2.5 rounded-full font-semibold text-sm shadow hover:scale-105 transition">
+            💬 Chat on WhatsApp
+          </a>
+          <p class="text-gray-400 text-xs mt-3 mb-4">
+            Email: <a href="mailto:contact@leazo.in" class="text-blue-400">contact@leazo.in</a>
+            &nbsp;·&nbsp; +91 9202227070
+          </p>
+          <div class="flex flex-col items-center gap-1.5 text-sm">
+            <a href="TnC.html" class="text-gray-400 hover:text-[#FFD345] transition">Terms &amp; Conditions</a>
+            <a href="privacy-policy.html" class="text-gray-400 hover:text-[#FFD345] transition">Privacy Policy</a>
+            <a href="cancellation&refund-policy.html" class="text-gray-400 hover:text-[#FFD345] transition">Cancellation &amp; Refund Policy</a>
+          </div>
+          <div class="flex justify-center gap-5 mt-4">
+            <a href="https://instagram.com/leazo.in" target="_blank"><img src="instagramicon.webp" alt="Instagram" class="w-6 h-6" /></a>
+            <a href="https://www.facebook.com/profile.php?id=61577716333704" target="_blank"><img src="facebookicon.webp" alt="Facebook" class="w-6 h-6" /></a>
+          </div>
+        </div>
+      </section>
+
+      <footer class="text-center py-4 text-xs text-gray-400">&copy; 2025 Leazo. All rights reserved.</footer>
+
+    </main>
+  </div><!-- /mainContent -->
+
+  <!-- STICKY BOTTOM CTA -->
+  <div class="sticky-cta">
+    <div class="max-w-lg mx-auto flex gap-2.5 w-full">
+      <button onclick="window.open('https://wa.me/919202227070?text=Hi+Leazo,+I+want+to+extend+my+rental','_blank')"
+        class="flex-1 bg-[#393be5] text-white font-extrabold text-sm py-3.5 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 active:scale-[.98] transition shadow">
+        ⚡ Extend Rental
+      </button>
+      <button onclick="window.open('https://wa.me/919202227070','_blank')"
+        class="w-14 bg-[#25D366] text-white text-xl py-3.5 rounded-xl flex items-center justify-center hover:bg-green-600 active:scale-[.98] transition flex-shrink-0">
+        💬
+      </button>
+      <button onclick="window.location.href='tel:919202227070'"
+        class="w-14 bg-[#FFD345] border-2 border-black text-black text-xl py-3.5 rounded-xl flex items-center justify-center hover:bg-yellow-400 active:scale-[.98] transition flex-shrink-0">
+        📞
+      </button>
+    </div>
   </div>
 
+  <!-- GAME COVER MAP — maps game names to PlayStation cover image URLs -->
   <script>
+    const GAME_COVERS = {
+      "Spider-Man 2": "https://image.api.playstation.com/vulcan/ap/rnd/202306/1219/1c7b75d8ob3plnntxXGECTNh.png",
+      "God of War Ragnarök": "https://image.api.playstation.com/vulcan/ap/rnd/202207/1210/4xJ8XB3bi888QTLZYdl7Oi0s.png",
+      "EA Sports FC 25": "https://image.api.playstation.com/vulcan/ap/rnd/202408/1421/dcHIJCfMHHKXTBzF1LhcUFiH.png",
+      "Mortal Kombat 1": "https://image.api.playstation.com/vulcan/ap/rnd/202306/0912/d0b31aadbd2e39a2bf6d10c15c40e95b0765f4aa5c6c9f66.png",
+      "WWE 2K24": "https://image.api.playstation.com/vulcan/ap/rnd/202401/2322/ef48e6c8e930f1edde9e2b94b7e9af8b95e9a3de58ddf6bd.png",
+      "GTA V": "https://image.api.playstation.com/vulcan/ap/rnd/202202/2816/mAT3JqT1kjpkCPABxmSfFpyC.png",
+      "FIFA 24": "https://image.api.playstation.com/vulcan/ap/rnd/202307/2811/0aa2a11b3a62614d86c56a4cb5640b6a93f8430e10af9e10.png",
+      "Hogwarts Legacy": "https://image.api.playstation.com/vulcan/ap/rnd/202212/0821/lJCOz6oUAGrEFcgiuBnXjnBn.png",
+      "Tekken 8": "https://image.api.playstation.com/vulcan/ap/rnd/202310/2321/b33dd6f4d40de56e7eb3e7e2e9e4e929fa9dd13ecbaf8e8c.png",
+      "Call of Duty": "https://image.api.playstation.com/vulcan/ap/rnd/202308/1716/5c4d8e6e6eef5e8c3e2e3e1e0e9e8e7e6e5e4e3e2e1e0e9.png",
+      "The Last of Us Part I": "https://image.api.playstation.com/vulcan/ap/rnd/202206/0720/jqVMfNpgr1czjHCkFCHj8LBY.png",
+      "Horizon Forbidden West": "https://image.api.playstation.com/vulcan/ap/rnd/202107/3100/ki3EsQcp7dClAZKqxjEbfRbu.png",
+      "SW Jedi: Fallen Order": "https://image.api.playstation.com/vulcan/ap/rnd/202011/0402/RrPqgrgHAqQCfExPMCCN3Giu.png",
+    };
+
     const SUPABASE_URL = 'https://rohybhpktpfmeashdlzz.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvaHliaHBrdHBmbWVhc2hkbHp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3MzcwMTYsImV4cCI6MjA5MzMxMzAxNn0.NhM9DnXOl_7h3NHh1r78cPNvbogO_qOEhPfQauyKHJE';
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // Get ref from URL
     const params = new URLSearchParams(window.location.search);
     const ref = params.get('ref');
 
     async function loadBooking() {
       if (!ref) { showError(); return; }
 
-      // Try matching full ref or just the order part (before _cfPaymentId)
       const { data, error } = await db
         .from('bookings')
         .select('*')
@@ -447,160 +515,245 @@
         .limit(1);
 
       if (error || !data || data.length === 0) { showError(); return; }
-
       renderBooking(data[0]);
     }
 
     function renderBooking(b) {
-      document.getElementById('loadingState').style.display = 'none';
-      document.getElementById('mainContent').style.display = 'block';
+      document.getElementById('loadingState').classList.add('hidden');
+      document.getElementById('mainContent').classList.remove('hidden');
 
-      // Hero
-      const isReturned = b.operator_status === 'returned';
-      const isCancelled = b.operator_status === 'cancelled';
-      document.getElementById('heroTitle').textContent =
-        isCancelled ? 'Booking Cancelled' :
-        isReturned  ? 'Session Complete!' :
-        'Booking Confirmed!';
-      document.getElementById('heroSubtitle').textContent =
-        isCancelled ? 'This booking was cancelled. Please rebook or contact us.' :
-        isReturned  ? 'Hope you had a great gaming session!' :
-        b.operator_status === 'delivered' ? 'Your PS5 has been delivered. Enjoy!' :
-        'Your PS5 is being prepared for delivery.';
+      const opStatus = b.operator_status; // new | delivered | returned | cancelled
+      const payStatus = b.payment_status; // pending | paid | failed | dropped
+      const isPrepaid = b.payment_method === 'prepaid';
+      const advance = Math.max(1, Math.round(b.total_amount * 0.10));
+      const remaining = b.total_amount - advance;
+
+      // ── Hero ──
+      const heroTitles = {
+        new: 'Booking Confirmed!',
+        delivered: 'PS5 Delivered! 🎮',
+        returned: 'Session Complete!',
+        cancelled: 'Order Cancelled'
+      };
+      const heroSubs = {
+        new: 'Your PS5 is being prepared for delivery',
+        delivered: 'Enjoy your gaming session!',
+        returned: 'Hope you had a blast! Book again anytime.',
+        cancelled: 'This booking was cancelled. Rebook or contact us.'
+      };
+      document.getElementById('heroTitle').textContent = heroTitles[opStatus] || 'Order Details';
+      document.getElementById('heroSubtitle').textContent = heroSubs[opStatus] || '';
       document.getElementById('refBadge').textContent = `REF: ${b.reference_number}`;
 
-      // WhatsApp link with ref
-      document.getElementById('waLink').href =
-        `https://wa.me/919202227070?text=Hi%20Leazo%2C%20I%20need%20help%20with%20my%20booking%20${encodeURIComponent(b.reference_number)}`;
+      // ── WhatsApp links with ref pre-filled ──
+      const waMsg = encodeURIComponent(`Hi Leazo, I need help with my booking ${b.reference_number}`);
+      document.getElementById('waSupportLink').href = `https://wa.me/919202227070?text=${waMsg}`;
+      document.getElementById('waActionLink').href = `https://wa.me/919202227070?text=${waMsg}`;
 
-      // Status tracker
-      renderStatusTrack(b.operator_status, b.payment_status);
+      // ── Order summary ──
+      const planLabels = { hourly: 'Hourly Plan', daily: 'Full Day Plan', weekly: 'Weekly Plan', night: 'Night Plan' };
+      document.getElementById('planBadge').textContent = planLabels[b.plan] || b.plan;
+      document.getElementById('totalAmountHero').textContent = `₹${b.total_amount}`;
+      document.getElementById('bookingDate').textContent = b.booking_date || '—';
+      document.getElementById('startTime').textContent = b.start_time || '—';
+      document.getElementById('endTime').textContent = b.end_time || '—';
 
-      // Summary card
-      const planLabel = { hourly: 'Hourly', daily: 'Full Day', weekly: 'Weekly' }[b.plan] || b.plan;
-      document.getElementById('summaryCard').innerHTML = `
-        <div class="card-row">
-          <span class="card-label">Customer</span>
-          <span class="card-value">${b.customer_name}</span>
-        </div>
-        <div class="card-row">
-          <span class="card-label">Phone</span>
-          <span class="card-value">${b.phone}</span>
-        </div>
-        <div class="card-row">
-          <span class="card-label">City</span>
-          <span class="card-value">${b.city}</span>
-        </div>
-        <div class="card-row">
-          <span class="card-label">Plan</span>
-          <span class="card-value">${planLabel}</span>
-        </div>
-        <div class="card-row">
-          <span class="card-label">Date</span>
-          <span class="card-value">${b.booking_date}</span>
-        </div>
-        <div class="card-row">
-          <span class="card-label">Time</span>
-          <span class="card-value">${b.start_time} → ${b.end_time}</span>
-        </div>
-        ${b.controller_added ? `
-        <div class="card-row">
-          <span class="card-label">Extra Controller</span>
-          <span class="card-value">✅ Added</span>
-        </div>` : ''}
-        <div class="card-row">
-          <span class="card-label">Total Amount</span>
-          <span class="card-value big">₹${b.total_amount}</span>
-        </div>
-      `;
-
-      // Games
-      if (b.games && b.games.trim()) {
-        const games = b.games.split(',').map(g => g.trim()).filter(Boolean);
-        document.getElementById('gamesWrap').innerHTML =
-          games.map(g => `<span class="game-chip">🎮 ${g}</span>`).join('');
-      } else {
-        document.getElementById('gamesSection').style.display = 'none';
+      if (b.controller_added) {
+        document.getElementById('controllerRow').classList.remove('hidden');
+        document.getElementById('controllerRow').classList.add('flex');
       }
 
-      // Address
-      document.getElementById('addressLine').textContent = b.address || '—';
+      // ── Games ──
+      if (b.games && b.games.trim()) {
+        const games = b.games.split(',').map(g => g.trim()).filter(Boolean);
+        document.getElementById('gamesSection').classList.remove('hidden');
+        document.getElementById('gameCount').textContent = `${games.length} Game${games.length !== 1 ? 's' : ''}`;
+        document.getElementById('gamesScroll').innerHTML = games.map(g => {
+          const cover = GAME_COVERS[g];
+          const imgHtml = cover
+            ? `<img src="${cover}" alt="${g}" onerror="this.parentNode.innerHTML='<div class=\\'w-full h-full bg-gray-100 flex items-center justify-center text-4xl\\'>🎮</div>'" />`
+            : `<div class='w-full h-full bg-gray-100 flex items-center justify-center text-4xl'>🎮</div>`;
+          return `
+            <div class="game-card w-[112px]">
+              <div class="cover-wrap w-[112px] h-[142px] border-2 border-gray-200">${imgHtml}</div>
+              <p class="text-[11px] font-semibold text-gray-800 mt-2 text-center leading-tight">${g}</p>
+            </div>`;
+        }).join('');
+      }
 
-      // Payment
-      const payStatus = b.payment_status;
-      const payMethod = b.payment_method === 'prepaid' ? 'Online (Prepaid)' : 'Cash on Delivery';
-      const payBadgeClass = payStatus === 'paid' ? 'pay-paid' : payStatus === 'failed' ? 'pay-failed' : 'pay-pending';
-      const payIcon = payStatus === 'paid' ? '✅' : payStatus === 'failed' ? '❌' : '⏳';
-      document.getElementById('paymentCard').innerHTML = `
-        <div class="card-row">
-          <span class="card-label">Method</span>
-          <span class="card-value">${payMethod}</span>
+      // ── Live section (only when delivered) ──
+      if (opStatus === 'delivered') {
+        document.getElementById('liveSection').classList.remove('hidden');
+        document.getElementById('liveEndTime').textContent = b.end_time || '—';
+      }
+
+      // ── Delivery & pickup ──
+      document.getElementById('deliveryAddress').textContent = b.address || '—';
+      document.getElementById('deliveryCity').textContent = b.city || '—';
+      document.getElementById('deliveryDate').textContent = b.booking_date || '—';
+      document.getElementById('deliveryTime').textContent = b.start_time || '—';
+      document.getElementById('pickupDate').textContent = b.booking_date || '—';
+      document.getElementById('pickupTime').textContent = b.end_time || '—';
+
+      const deliveryBadge = document.getElementById('deliveryStatusBadge');
+      const pickupBadge = document.getElementById('pickupStatusBadge');
+      if (opStatus === 'delivered' || opStatus === 'returned') {
+        deliveryBadge.textContent = 'Delivered';
+        deliveryBadge.className = 'ml-auto text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-widest bg-green-400/20 text-green-300';
+      }
+      if (opStatus === 'returned') {
+        pickupBadge.textContent = 'Completed';
+        pickupBadge.className = 'ml-auto text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-widest bg-green-400/20 text-green-300';
+      }
+
+      // ── Payment card ──
+      const payBadgeText = payStatus === 'paid'
+        ? (isPrepaid ? 'Fully Paid' : 'Partially Paid')
+        : payStatus === 'failed' ? 'Payment Failed'
+        : payStatus === 'dropped' ? 'Payment Dropped'
+        : 'Payment Pending';
+      document.getElementById('paymentStatusBadge').textContent = payBadgeText;
+
+      let paymentHTML = '';
+      if (isPrepaid) {
+        paymentHTML = `
+          <div class="flex items-center justify-between px-4 py-3.5 border-b border-gray-100">
+            <div class="flex items-center gap-2.5">
+              <span class="w-8 h-8 rounded-lg bg-green-50 border border-green-100 flex items-center justify-center text-base flex-shrink-0">${payStatus === 'paid' ? '✅' : '⏳'}</span>
+              <div>
+                <p class="text-sm font-bold text-gray-900">Full Payment</p>
+                <p class="text-[11px] text-gray-400">Online · Cashfree</p>
+              </div>
+            </div>
+            <p class="anton text-xl ${payStatus === 'paid' ? 'text-green-600' : 'text-gray-400'}">₹${b.total_amount}</p>
+          </div>
+          <div class="flex items-center justify-between px-4 py-3.5 bg-gray-50">
+            <p class="text-sm font-bold text-gray-500 uppercase tracking-wider">Total</p>
+            <p class="anton text-2xl text-black">₹${b.total_amount}</p>
+          </div>`;
+      } else {
+        paymentHTML = `
+          <div class="flex items-center justify-between px-4 py-3.5 border-b border-gray-100">
+            <div class="flex items-center gap-2.5">
+              <span class="w-8 h-8 rounded-lg bg-green-50 border border-green-100 flex items-center justify-center text-base flex-shrink-0">${payStatus === 'paid' ? '✅' : '⏳'}</span>
+              <div>
+                <p class="text-sm font-bold text-gray-900">Advance Paid</p>
+                <p class="text-[11px] text-gray-400">10% · Online (Cashfree)</p>
+              </div>
+            </div>
+            <p class="text-sm font-extrabold text-green-600">₹${advance}</p>
+          </div>
+          <div class="flex items-center justify-between px-4 py-3.5 border-b border-gray-100 bg-red-50/40">
+            <div class="flex items-center gap-2.5">
+              <span class="w-8 h-8 rounded-lg bg-red-50 border border-red-100 flex items-center justify-center text-base flex-shrink-0">💵</span>
+              <div>
+                <p class="text-sm font-bold text-gray-900">Remaining Amount</p>
+                <p class="text-[11px] text-red-400 font-semibold">Cash on Delivery</p>
+              </div>
+            </div>
+            <p class="anton text-xl text-red-600">₹${remaining}</p>
+          </div>
+          <div class="flex items-center justify-between px-4 py-3.5 bg-gray-50 border-b border-gray-200">
+            <p class="text-sm font-bold text-gray-500 uppercase tracking-wider">Total</p>
+            <p class="anton text-2xl text-black">₹${b.total_amount}</p>
+          </div>`;
+      }
+
+      if (b.coupon_code && b.coupon_code !== 'none') {
+        paymentHTML += `
+          <div class="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+            <p class="text-xs text-gray-500 font-semibold">🎟️ Coupon Applied</p>
+            <span class="bg-[#FFD345] text-black text-xs font-bold px-3 py-1 rounded-full">${b.coupon_code}</span>
+          </div>`;
+      }
+
+      document.getElementById('paymentCard').innerHTML = paymentHTML;
+
+      // ── Price breakdown ──
+      document.getElementById('priceBreakdownTotal').textContent = `₹${b.total_amount}`;
+      const planPrice = b.controller_added ? b.total_amount - 100 : b.total_amount;
+      document.getElementById('priceBreakdownRows').innerHTML = `
+        <div class="flex items-center justify-between px-4 py-3.5">
+          <div>
+            <p class="text-sm font-semibold text-gray-800">Base Rental</p>
+            <p class="text-[11px] text-gray-400">${planLabels[b.plan] || b.plan}</p>
+          </div>
+          <p class="text-sm font-bold text-gray-900">₹${planPrice}</p>
         </div>
-        <div class="card-row">
-          <span class="card-label">Payment Status</span>
-          <span class="pay-badge ${payBadgeClass}">${payIcon} ${payStatus.charAt(0).toUpperCase() + payStatus.slice(1)}</span>
-        </div>
-        ${b.coupon_code && b.coupon_code !== 'none' ? `
-        <div class="card-row">
-          <span class="card-label">Coupon Used</span>
-          <span class="card-value">${b.coupon_code}</span>
+        ${b.controller_added ? `
+        <div class="flex items-center justify-between px-4 py-3.5">
+          <div>
+            <p class="text-sm font-semibold text-gray-800">Extra Controller</p>
+            <p class="text-[11px] text-gray-400">DualSense Wireless</p>
+          </div>
+          <p class="text-sm font-bold text-gray-900">₹100</p>
         </div>` : ''}
-      `;
+        ${isPrepaid ? `
+        <div class="flex items-center justify-between px-4 py-3.5">
+          <div>
+            <p class="text-sm font-semibold text-green-700">Prepaid Discount</p>
+            <p class="text-[11px] text-gray-400">5% off for online payment</p>
+          </div>
+          <p class="text-sm font-bold text-green-600">–₹${Math.round(b.total_amount / 0.95 * 0.05)}</p>
+        </div>` : ''}
+        <div class="flex items-center justify-between px-4 py-4 bg-gray-50">
+          <p class="text-sm font-extrabold text-gray-900 uppercase tracking-wider">Total</p>
+          <p class="anton text-2xl text-black">₹${b.total_amount}</p>
+        </div>`;
+
+      // ── Timeline ──
+      renderTimeline(opStatus, payStatus, b);
+
+      // ── Cancel button ──
+      document.getElementById('cancelBtn').addEventListener('click', () => {
+        if (opStatus === 'delivered' || opStatus === 'returned') {
+          alert('This order cannot be cancelled as the PS5 has already been delivered.');
+          return;
+        }
+        const msg = encodeURIComponent(`Hi Leazo, I want to cancel my booking ${b.reference_number}`);
+        window.open(`https://wa.me/919202227070?text=${msg}`, '_blank');
+      });
     }
 
-    function renderStatusTrack(opStatus, payStatus) {
+    function renderTimeline(opStatus, payStatus, b) {
       const steps = [
-        {
-          key: 'booked',
-          icon: '📋',
-          title: 'Booking Received',
-          desc: 'Your booking is confirmed in our system',
-          done: true,
-          active: false
-        },
-        {
-          key: 'paid',
-          icon: '💳',
-          title: 'Payment',
-          desc: payStatus === 'paid' ? 'Payment received successfully' : payStatus === 'failed' ? 'Payment failed — please contact us' : 'Advance payment pending',
-          done: payStatus === 'paid',
-          active: payStatus !== 'paid' && payStatus !== 'failed'
-        },
-        {
-          key: 'delivered',
-          icon: '🚗',
-          title: 'PS5 Delivered',
-          desc: opStatus === 'delivered' || opStatus === 'returned' ? 'PS5 delivered to your address' : 'Operator will deliver at scheduled time',
-          done: opStatus === 'delivered' || opStatus === 'returned',
-          active: opStatus === 'new' && payStatus === 'paid'
-        },
-        {
-          key: 'returned',
-          icon: '🏁',
-          title: 'Session Complete',
-          desc: opStatus === 'returned' ? 'PS5 returned. Thanks for playing!' : 'PS5 will be picked up after your session',
-          done: opStatus === 'returned',
-          active: opStatus === 'delivered'
-        }
+        { icon: '📋', label: 'Order Placed', desc: `Booked on ${b.booking_date}`, done: true, active: false },
+        { icon: '💳', label: 'Payment', desc: payStatus === 'paid' ? 'Advance payment received' : 'Awaiting payment confirmation', done: payStatus === 'paid', active: payStatus === 'pending' },
+        { icon: '🚗', label: 'Dispatched', desc: opStatus === 'new' ? 'Will be dispatched on delivery date' : 'PS5 dispatched to your address', done: opStatus !== 'new', active: opStatus === 'new' && payStatus === 'paid' },
+        { icon: '🎮', label: 'Delivered', desc: opStatus === 'delivered' || opStatus === 'returned' ? 'PS5 delivered — enjoy!' : 'Delivery at your scheduled time', done: opStatus === 'delivered' || opStatus === 'returned', active: false },
+        { icon: '🏆', label: 'Completed', desc: opStatus === 'returned' ? 'Session complete. Thanks for playing!' : 'After pickup by operator', done: opStatus === 'returned', active: opStatus === 'delivered' }
       ];
 
-      document.getElementById('statusTrack').innerHTML = steps.map((s, i) => `
-        <div class="status-step ${s.done ? 'done' : s.active ? 'active' : ''}">
-          <div class="step-dot">${s.done ? '✓' : s.icon}</div>
-          <div class="step-info">
-            <h4 style="color: ${s.done ? 'var(--white)' : s.active ? 'var(--yellow)' : '#555'}">${s.title}</h4>
-            <p>${s.desc}</p>
+      document.getElementById('timeline').innerHTML = steps.map(s => `
+        <div class="flex gap-4 relative">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 z-10 ${
+            s.done ? 'bg-[#393be5] border-2 border-[#393be5] text-white' :
+            s.active ? 'bg-white border-2 border-[#393be5] text-[#393be5] ring-pulse' :
+            'bg-white border-2 border-gray-200 text-gray-300'
+          }">${s.done ? '✓' : s.icon}</div>
+          <div class="pb-5 pt-1.5 flex-1">
+            <div class="flex items-center gap-2">
+              <p class="text-sm font-bold ${s.done ? 'text-gray-900' : s.active ? 'text-[#393be5]' : 'text-gray-400'}">${s.label}</p>
+              ${s.active ? '<span class="pulse-dot inline-block w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0"></span>' : ''}
+            </div>
+            <p class="text-[11px] text-gray-400 mt-0.5">${s.desc}</p>
           </div>
         </div>
       `).join('');
     }
 
     function showError() {
-      document.getElementById('loadingState').style.display = 'none';
-      document.getElementById('errorState').style.display = 'flex';
+      document.getElementById('loadingState').classList.add('hidden');
+      document.getElementById('errorState').classList.remove('hidden');
+    }
+
+    function toggleAccordion() {
+      document.getElementById('price-body').classList.toggle('open');
+      document.getElementById('chevron').classList.toggle('open');
     }
 
     loadBooking();
   </script>
+
 </body>
 </html>
