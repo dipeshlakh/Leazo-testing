@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Referral Portal - Leazo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">
+  <link rel="icon" href="favicon.png" type="image/png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
+  <link rel="dns-prefetch" href="//fonts.googleapis.com">
+  <link rel="dns-prefetch" href="//fonts.gstatic.com">
+  <style>
+    .loader {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #2563eb;
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      animation: spin 1s linear infinite;
+      margin: auto;
+    }
+
+    @keyframes spin {
+      100% {
+        transform: rotate(360deg)
+      }
+    }
+  </style>
+</head>
+
+<body class="flex flex-col min-h-screen">
+
+  <!-- ===== HEADER copied from TnC.html ===== -->
+  <header class="w-full fixed top-0 z-50 bg-[#FFD345] py-2 px-4 shadow-md border-b-4 border-[#393be5]">
+    <div class="container mx-auto flex justify-between items-center">
+      <a href="index.html" class="text-2xl md:text-4xl font-extrabold italic mx-auto md:mx-0"
+        style="font-family: 'Anton', sans-serif; letter-spacing: 3px;">LEAZO</a>
+      <div class="relative md:hidden">
+        <button id="menu-toggle" class="text-lg font-medium focus:outline-none">
+          ☰
+        </button>
+        <div id="mobile-menu" class="absolute right-0 mt-2 w-48 bg-white border rounded shadow-md hidden">
+          <a href="/" class="block px-4 py-2 hover:bg-gray-100">Home</a>
+          <a href="/#booknow" class="block px-4 py-2 hover:bg-gray-100">Book Now</a>
+          <!--<a href="/#how" class="block px-4 py-2 hover:bg-gray-100">How It Works</a>-->
+          <a href="referral-portal.html" class="block px-4 py-2 hover:bg-gray-100">Refer & Earn</a>
+          <a href="#/contact" class="block px-4 py-2 hover:bg-gray-100">Contact Us</a>
+        </div>
+      </div>
+      <nav class="hidden md:flex space-x-4 text-lg font-medium justify-center md:justify-end">
+        <a href="/" class="hover:underline">Home</a>
+        <a href="/#booknow" class="hover:underline">Book Now</a>
+        <a href="referral-portal.html" class="hover:underline">Refer & Earn</a>
+        <!--<a href="#/how" class="hover:underline">How It Works</a>-->
+        <a href="#/contact" class="hover:underline">Contact Us</a>
+      </nav>
+      <script>
+        document.getElementById('menu-toggle').addEventListener('click', function () {
+          const menu = document.getElementById('mobile-menu');
+          menu.classList.toggle('hidden');
+        });
+
+        document.querySelectorAll('#mobile-menu a').forEach(link => {
+          link.addEventListener('click', () => {
+            document.getElementById('mobile-menu').classList.add('hidden');
+          });
+        });
+      </script>
+    </div>
+  </header>
+
+  <main class="flex-grow flex items-center justify-center p-4 bg-gray-50 mt-7">
+    <div class="w-full max-w-md bg-white rounded-xl shadow p-6">
+      <div class="border-b text-center">
+        <p class="font-medium">Refer & Earn! Join now and get rewarded.</p>
+        <a href="referral-register.html"
+          class="inline-block mt-3 mb-6 bg-green-600 text-white px-6 py-2 rounded font-medium hover:bg-green-700">
+          Register Now
+        </a>
+      </div>
+      <h1 class="text-xl font-bold text-center mt-4">Referrer Login</h1>
+      <div class="mt-6 space-y-3">
+        <input id="identifier" type="text" placeholder="Mobile or Referral Code"
+          class="w-full border rounded px-4 py-2 focus:ring-2 focus:ring-blue-500" />
+        <input id="pass" type="password" placeholder="Password"
+          class="w-full border rounded px-4 py-2 focus:ring-2 focus:ring-blue-500" />
+        <button onclick="login()" class="w-full bg-blue-600 text-white rounded py-2 font-medium hover:bg-blue-700">
+          Login
+        </button>
+      </div>
+
+      <div id="loading" class="hidden mt-4">
+        <div class="loader"></div>
+      </div>
+      <p id="error" class="text-red-600 text-sm mt-3 hidden"></p>
+
+      <div class="mt-6 text-center text-sm">
+        <p>Need help in login?</p>
+        <a href="https://wa.me/919202227070?text=I%20need%20help%20in%20referral%20portal%20login"
+          class="text-blue-600 underline">Click here</a>
+      </div>
+
+
+    </div>
+  </main>
+
+  <!-- ===== FOOTER copied from TnC.html ===== -->
+  <footer class="bg-black text-white text-center py-4 text-sm text-gray-600">
+    &copy; 2025 Leazo. All rights reserved.
+  </footer>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbz9Ycl82Ppa-2myhA8QaOjf7lofE6tf3pITDtkjUtCqsQZE4iiNFhQQzdePqGtYchSl1Q/exec";
+
+    async function login() {
+      document.getElementById("loading").classList.remove("hidden");
+      document.getElementById("error").classList.add("hidden");
+
+      let identifier = document.getElementById("identifier").value.trim();
+      const pass = document.getElementById("pass").value.trim();
+
+      if (!identifier || !pass) {
+        showError("Enter referral code or mobile, and password");
+        hideLoading();
+        return;
+      }
+
+      // If it's 10 digits, treat as mobile
+      const isMobile = /^\d{10}$/.test(identifier);
+      if (!isMobile) {
+        identifier = identifier.toUpperCase(); // ✅ normalize referral code to uppercase
+      }
+
+      const url = `${API_URL}?action=login&ref=${encodeURIComponent(isMobile ? "" : identifier)}&mobile=${encodeURIComponent(isMobile ? identifier : "")}&pass=${encodeURIComponent(pass)}`;
+
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.status !== "success") {
+          showError(data.message || "Login failed");
+        } else {
+          localStorage.setItem("refData", JSON.stringify({ ref: isMobile ? "" : identifier, mobile: isMobile ? identifier : "", pass }));
+          window.location.href = "referral-dashboard.html";
+        }
+      } catch {
+        showError("Server error");
+      }
+      hideLoading();
+    }
+
+    function hideLoading() { document.getElementById("loading").classList.add("hidden"); }
+    function showError(msg) { const el = document.getElementById("error"); el.textContent = msg; el.classList.remove("hidden"); }
+  </script>
+</body>
+
+</html>

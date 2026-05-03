@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Referral Portal - Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">
+  <link rel="icon" href="favicon.png" type="image/png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
+  <link rel="dns-prefetch" href="//fonts.googleapis.com">
+  <link rel="dns-prefetch" href="//fonts.gstatic.com">
+  <style>.loader{border:4px solid #f3f3f3;border-top:4px solid #2563eb;border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite;margin:auto}@keyframes spin{100%{transform:rotate(360deg)}}</style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+  <!-- HEADER -->
+  <header class="w-full fixed top-0 z-50 bg-[#FFD345] py-2 px-4 shadow-md border-b-4 border-[#393be5]">
+    <div class="container mx-auto flex justify-between items-center">
+      <a href="index.html" class="text-2xl md:text-4xl font-extrabold italic mx-auto md:mx-0"
+        style="font-family: 'Anton', sans-serif; letter-spacing: 3px;">LEAZO</a>
+      <div class="relative md:hidden">
+        <button id="menu-toggle" class="text-lg font-medium focus:outline-none">
+          ☰
+        </button>
+        <div id="mobile-menu" class="absolute right-0 mt-2 w-48 bg-white border rounded shadow-md hidden">
+          <a href="/" class="block px-4 py-2 hover:bg-gray-100">Home</a>
+          <a href="/#booknow" class="block px-4 py-2 hover:bg-gray-100">Book Now</a>
+          <!--<a href="/#how" class="block px-4 py-2 hover:bg-gray-100">How It Works</a>-->
+          <a href="referral-portal.html" class="block px-4 py-2 hover:bg-gray-100">Refer & Earn</a>
+          <a href="#/contact" class="block px-4 py-2 hover:bg-gray-100">Contact Us</a>
+        </div>
+      </div>
+      <nav class="hidden md:flex space-x-4 text-lg font-medium justify-center md:justify-end">
+        <a href="/" class="hover:underline">Home</a>
+        <a href="/#booknow" class="hover:underline">Book Now</a>
+        <a href="referral-portal.html" class="hover:underline">Refer & Earn</a>
+        <!--<a href="#/how" class="hover:underline">How It Works</a>-->
+        <a href="#/contact" class="hover:underline">Contact Us</a>
+      </nav>
+      <script>
+        document.getElementById('menu-toggle').addEventListener('click', function () {
+          const menu = document.getElementById('mobile-menu');
+          menu.classList.toggle('hidden');
+        });
+
+        document.querySelectorAll('#mobile-menu a').forEach(link => {
+          link.addEventListener('click', () => {
+            document.getElementById('mobile-menu').classList.add('hidden');
+          });
+        });
+      </script>
+    </div>
+  </header>
+
+  <section class="flex-grow bg-gray-50 p-4 mt-20">
+    <div class="max-w-4xl mx-auto bg-white rounded-xl shadow p-6">
+      <h1 class="text-2xl font-bold text-center">Referral Dashboard</h1>
+      <p id="profile" class="text-center text-gray-600 mt-1"></p>
+
+      <!-- Loading -->
+      <div id="loading" class="mt-6 text-center"><div class="loader"></div></div>
+
+      <div id="content" class="hidden">
+        <!-- Rewards row -->
+        <div class="grid grid-cols-2 gap-4 mt-6 text-center">
+          <div class="p-4 border rounded-lg"><div>Withdrawable</div><div id="confirmed" class="text-xl font-bold">₹0</div></div>
+          <div class="p-4 border rounded-lg"><div>Expected</div><div id="pending" class="text-xl font-bold">₹0</div></div>
+        </div>
+
+        <!-- Totals -->
+        <div class="mt-4 text-center">
+          <div>Total Referrals: <b id="total">0</b></div>
+          <div class="flex justify-around text-sm mt-2">
+            <span>Confirmed: <b id="cntConfirmed">0</b></span>
+            <span>Pending: <b id="cntPending">0</b></span>
+            <span>Rejected: <b id="cntRejected">0</b></span>
+          </div>
+        </div>
+
+        <!-- Referrals list -->
+        <div id="refList" class="mt-6 space-y-3"></div>
+
+        <!-- Buttons -->
+        <div class="mt-6 flex flex-col md:flex-row gap-3 justify-center">
+          <button onclick="loadData()" class="bg-blue-600 text-white px-6 py-2 rounded font-medium hover:bg-blue-700">Refresh</button>
+          <a href="https://wa.me/919202227070?text=I%20need%20help%20in%20referral%20details" class="bg-green-600 text-white px-6 py-2 rounded font-medium hover:bg-green-700 text-center">Contact Us</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="bg-black text-white text-center py-4 text-sm text-gray-600">
+    &copy; 2025 Leazo. All rights reserved.
+  </footer>
+
+  <script>
+    const API_URL="https://script.google.com/macros/s/AKfycbz9Ycl82Ppa-2myhA8QaOjf7lofE6tf3pITDtkjUtCqsQZE4iiNFhQQzdePqGtYchSl1Q/exec";
+
+    async function loadData(){
+      const stored=JSON.parse(localStorage.getItem("refData")||"{}");
+      if((!stored.ref&&!stored.mobile)||!stored.pass){window.location.href="referral-portal.html";return;}
+      try{
+        const res=await fetch(`${API_URL}?action=login&ref=${encodeURIComponent(stored.ref||"")}&mobile=${encodeURIComponent(stored.mobile||"")}&pass=${encodeURIComponent(stored.pass)}`);
+        const data=await res.json();
+        if(data.status!=="success"){localStorage.removeItem("refData");window.location.href="referral-portal.html";return;}
+        document.getElementById("profile").textContent=`${data.profile.fullName} (Code: ${data.profile.referralCode})`;
+        document.getElementById("confirmed").textContent="₹"+data.totalConfirmed;
+        document.getElementById("pending").textContent="₹"+data.totalPending;
+        document.getElementById("total").textContent=data.usageCount;
+        document.getElementById("cntConfirmed").textContent=data.counts.confirmed;
+        document.getElementById("cntPending").textContent=data.counts.pending;
+        document.getElementById("cntRejected").textContent=data.counts.rejected;
+
+        const list=document.getElementById("refList");list.innerHTML="";
+        (data.referrals||[]).forEach(r=>{
+          let statusClass="bg-yellow-100 text-yellow-800";
+          if(r.status.toLowerCase()==="confirmed")statusClass="bg-green-100 text-green-800";
+          if(r.status.toLowerCase()==="rejected")statusClass="bg-red-100 text-red-800";
+          const card=document.createElement("div");
+          card.className="border rounded-lg p-3 shadow-sm";
+          card.innerHTML=`
+            <div class="flex justify-between"><span class="font-medium">${r.customerMasked}</span><span class="px-2 py-1 rounded ${statusClass}">${r.status}</span></div>
+            <div class="mt-1 text-lg">Reward: <b>₹${r.rewardAmount}</b></div>
+            <div class="text-sm">Plan: ${r.plan}</div>
+            <div class="text-sm">Rental Date: ${r.bookingDate}</div>`;
+          list.appendChild(card);
+        });
+        document.getElementById("loading").classList.add("hidden");
+        document.getElementById("content").classList.remove("hidden");
+      }catch{document.getElementById("profile").textContent="Error loading data";}
+    }
+    loadData();
+  </script>
+</body>
+</html>
