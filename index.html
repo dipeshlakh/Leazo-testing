@@ -808,6 +808,7 @@
   <!-- [UNCHANGED HTML ABOVE] -->
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const SUPABASE_URL = 'https://rohybhpktpfmeashdlzz.supabase.co';
@@ -1923,7 +1924,7 @@
               customer_name: customerName,
               customer_phone: customerPhone,
               customer_email: "customer@leazo.in",
-              return_url: `${window.location.origin}/booking-confirmation.html?ref=${encodeURIComponent(refNumber)}`
+              return_url: `https://leazo.in/booking-confirmation.html?ref=${encodeURIComponent(refNumber)}`
             })
           }
         );
@@ -1934,8 +1935,12 @@
           throw new Error(cfData.error || "Payment setup failed");
         }
 
-        // 3. Redirect to Cashfree payment page
-        window.location.href = cfData.payment_link;
+        // 3. Launch Cashfree checkout via SDK
+        const cashfree = Cashfree({ mode: "sandbox" }); // change to "production" when going live
+        cashfree.checkout({
+          paymentSessionId: cfData.payment_session_id,
+          returnUrl: `https://leazo.in/booking-confirmation.html?ref=${encodeURIComponent(refNumber)}`,
+        });
 
       } catch (err) {
         console.error("Booking error:", err);
