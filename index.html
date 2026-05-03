@@ -1073,6 +1073,40 @@
           setHiddenField("Total Amount", `₹${totalAmount}`);
 
 
+          // Capture lead silently to Supabase
+          (async () => {
+            try {
+              const selectedCity = localStorage.getItem("selectedCity") || "Not Selected";
+              const plan = localStorage.getItem("selectedRentalPlan") || "hourly";
+              const startTimeEl = document.getElementById("startTime");
+              const endTimeEl = document.getElementById("endTime");
+              const fixedStartEl = document.getElementById("fixedStartTime");
+              const fixedEndEl = document.getElementById("fixedEndTime");
+              const startTime = plan === "hourly"
+                ? (startTimeEl?.selectedOptions?.[0]?.textContent || "")
+                : (fixedStartEl?.value || "");
+              const endTime = plan === "hourly"
+                ? (endTimeEl?.selectedOptions?.[0]?.textContent || "")
+                : (fixedEndEl?.value || "");
+              const selectedGames = Array.from(document.querySelectorAll('input[name="Games[]"]:checked'))
+                .map(i => i.value).join(", ");
+              const totalAmount = parseInt(document.getElementById("totalAmount")?.textContent || "0");
+              await db.from("leads").insert([{
+                customer_name: document.getElementById("name")?.value || "",
+                phone: document.getElementById("phone")?.value || "",
+                city: selectedCity,
+                plan: plan,
+                booking_date: document.getElementById("booking-date")?.value || "",
+                start_time: startTime,
+                end_time: endTime,
+                total_amount: totalAmount,
+                games: selectedGames,
+                controller_added: document.getElementById("addController")?.checked || false,
+                converted: false
+              }]);
+            } catch (e) { /* silent fail */ }
+          })();
+
           // Finally, move to Step 3
           goToStep(3);
         }
