@@ -1091,7 +1091,7 @@
               const selectedGames = Array.from(document.querySelectorAll('input[name="Games[]"]:checked'))
                 .map(i => i.value).join(", ");
               const totalAmount = parseInt(document.getElementById("totalAmount")?.textContent || "0");
-              await db.from("leads").insert([{
+              const leadData = {
                 customer_name: document.getElementById("name")?.value || "",
                 phone: document.getElementById("phone")?.value || "",
                 city: selectedCity,
@@ -1103,7 +1103,18 @@
                 games: selectedGames,
                 controller_added: document.getElementById("addController")?.checked || false,
                 converted: false
-              }]);
+              };
+              await db.from("leads").insert([leadData]);
+
+              // Notify admin about new lead (silent)
+              fetch("https://rohybhpktpfmeashdlzz.supabase.co/functions/v1/send-notification", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+                },
+                body: JSON.stringify({ type: "new_lead", lead: leadData })
+              }).catch(() => {});
             } catch (e) { /* silent fail */ }
           })();
 
@@ -1943,7 +1954,17 @@
           throw new Error(dbError.message || "Booking save failed");
         }
 
-        // 2. Create Cashfree order via Edge Function
+        // 2. Send WhatsApp notifications (silent — don't block payment if this fails)
+        fetch("https://rohybhpktpfmeashdlzz.supabase.co/functions/v1/send-notification", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+          },
+          body: JSON.stringify({ type: "new_booking", booking: bookingData })
+        }).catch(e => console.log("Notification failed silently:", e));
+
+        // 3. Create Cashfree order via Edge Function
         const fnResponse = await fetch(
           "https://rohybhpktpfmeashdlzz.supabase.co/functions/v1/create-cashfree-order",
           {
