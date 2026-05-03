@@ -1970,7 +1970,7 @@
         }
 
         // 3. Launch Cashfree checkout via SDK
-        const cashfree = Cashfree({ mode: "sandbox" }); // change to "production" when going live
+        const cashfree = Cashfree({ mode: "production" }); // change to "production" when going live
         cashfree.checkout({
           paymentSessionId: cfData.payment_session_id,
           returnUrl: `https://leazo.in/orderdetail.html?ref=${encodeURIComponent(refNumber)}`,
