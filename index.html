@@ -1979,7 +1979,7 @@
               customer_name: customerName,
               customer_phone: customerPhone,
               customer_email: "customer@leazo.in",
-              return_url: `https://leazo.in/orderdetail.html?ref=${encodeURIComponent(refNumber)}`
+              return_url: `https://leazo.in/booking-confirmation.html?ref=${encodeURIComponent(refNumber)}`
             })
           }
         );
@@ -1994,7 +1994,7 @@
         const cashfree = Cashfree({ mode: "sandbox" }); // change to "production" when going live
         cashfree.checkout({
           paymentSessionId: cfData.payment_session_id,
-          returnUrl: `https://leazo.in/orderdetail.html?ref=${encodeURIComponent(refNumber)}`,
+          returnUrl: `https://leazo.in/booking-confirmation.html?ref=${encodeURIComponent(refNumber)}`,
         });
 
       } catch (err) {
