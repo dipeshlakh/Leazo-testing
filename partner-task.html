@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Leazo – Partner App</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { background: #f3f4f6; }
+    .status-pending_assignment, .status-assigned { background:#fef3c7; color:#92400e; }
+    .status-accepted, .status-packed_scanned, .status-out_for_delivery, .status-reached_customer { background:#dbeafe; color:#1e40af; }
+    .status-delivered, .status-active_rental { background:#d1fae5; color:#065f46; }
+    .status-out_for_pickup, .status-reached_pickup, .status-return_window_open { background:#ede9fe; color:#5b21b6; }
+    .status-completed, .status-rated { background:#e5e7eb; color:#374151; }
+    .status-dispute_flagged { background:#fee2e2; color:#991b1b; }
+  </style>
+</head>
+<body class="font-sans pb-20">
+
+  <!-- Login Screen -->
+  <div id="loginScreen" class="min-h-screen flex items-center justify-center px-4">
+    <div class="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm">
+      <div class="text-center mb-6">
+        <h1 class="text-3xl font-black italic tracking-widest text-gray-900">LEAZO</h1>
+        <p class="text-sm text-gray-500 mt-1">Partner App</p>
+      </div>
+      <input id="phoneInput" type="tel" placeholder="Phone number" maxlength="10"
+        class="w-full border-2 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:border-yellow-400 mb-3" />
+      <input id="pinInput" type="password" placeholder="4-digit PIN" maxlength="4" inputmode="numeric"
+        class="w-full border-2 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:border-yellow-400 mb-4" />
+      <button onclick="checkLogin()"
+        class="w-full bg-yellow-400 border-b-4 border-yellow-600 text-black font-bold py-3 rounded-xl hover:bg-yellow-500 transition">
+        Login
+      </button>
+      <p id="loginError" class="text-red-500 text-sm text-center mt-3 hidden">Invalid phone or PIN.</p>
+    </div>
+  </div>
+
+  <!-- Order List -->
+  <div id="dashboard" class="hidden">
+
+    <div class="bg-yellow-400 border-b-4 border-blue-600 px-4 py-3 flex justify-between items-center sticky top-0 z-10">
+      <span class="text-xl font-black italic tracking-widest">LEAZO</span>
+      <div class="flex items-center gap-3">
+        <span id="cityBadge" class="text-xs font-bold bg-black text-white px-3 py-1 rounded-full"></span>
+        <button onclick="logout()" class="text-xs text-gray-700 underline">Logout</button>
+      </div>
+    </div>
+
+    <div class="px-4 py-3">
+      <p class="text-sm text-gray-500">Welcome,</p>
+      <p id="partnerName" class="text-lg font-bold text-gray-900"></p>
+    </div>
+
+    <!-- Filter tabs -->
+    <div class="flex gap-2 px-3 pb-3 overflow-x-auto">
+      <button onclick="setFilter('active')" class="filter-btn px-4 py-1.5 rounded-full text-sm font-medium bg-black text-white whitespace-nowrap" data-filter="active">Active</button>
+      <button onclick="setFilter('all')" class="filter-btn px-4 py-1.5 rounded-full text-sm font-medium bg-white text-gray-700 border whitespace-nowrap" data-filter="all">All</button>
+      <button onclick="setFilter('completed')" class="filter-btn px-4 py-1.5 rounded-full text-sm font-medium bg-white text-gray-700 border whitespace-nowrap" data-filter="completed">Completed</button>
+    </div>
+
+    <div id="ordersList" class="px-3 space-y-3">
+      <p class="text-center text-gray-400 py-10" id="loadingMsg">Loading orders...</p>
+    </div>
+
+    <div class="fixed bottom-4 right-4">
+      <button onclick="loadOrders()" class="bg-black text-white w-14 h-14 rounded-full shadow-xl flex items-center justify-center text-2xl">↻</button>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://rohybhpktpfmeashdlzz.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvaHliaHBrdHBmbWVhc2hkbHp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3MzcwMTYsImV4cCI6MjA5MzMxMzAxNn0.NhM9DnXOl_7h3NHh1r78cPNvbogO_qOEhPfQauyKHJE';
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentPartner = null;   // { id, name, city, phone }
+    let currentFilter = "active";
+    let allOrders = [];
+
+    // Statuses considered "active" (not yet finished)
+    const ACTIVE_STATUSES = [
+      "assigned","accepted","packed_scanned","out_for_delivery","reached_customer",
+      "id_verified","items_verified_delivery","bundle_photo_done","condition_ack_delivery",
+      "payment_collected","otp_verified_delivery","delivered","active_rental",
+      "return_window_open","out_for_pickup","reached_pickup","items_verified_return",
+      "condition_photo_return","dispute_flagged","otp_verified_return"
+    ];
+    const COMPLETED_STATUSES = ["completed","rated"];
+
+    async function checkLogin() {
+      const phone = document.getElementById("phoneInput").value.trim();
+      const pin = document.getElementById("pinInput").value.trim();
+      const errEl = document.getElementById("loginError");
+      errEl.classList.add("hidden");
+
+      if (!phone || !pin) {
+        errEl.textContent = "Enter phone and PIN.";
+        errEl.classList.remove("hidden");
+        return;
+      }
+
+      const { data, error } = await db
+        .from("partners")
+        .select("id, name, city, phone, status")
+        .eq("phone", phone)
+        .eq("pin", pin)
+        .maybeSingle();
+
+      if (error || !data) {
+        errEl.textContent = "Invalid phone or PIN.";
+        errEl.classList.remove("hidden");
+        return;
+      }
+
+      if (data.status !== "active") {
+        errEl.textContent = "Your account is not active. Contact admin.";
+        errEl.classList.remove("hidden");
+        return;
+      }
+
+      currentPartner = data;
+      sessionStorage.setItem("partner_id", data.id);
+      sessionStorage.setItem("partner_phone", data.phone);
+      sessionStorage.setItem("partner_pin", pin);
+      showDashboard();
+    }
+
+    document.getElementById("pinInput").addEventListener("keydown", e => {
+      if (e.key === "Enter") checkLogin();
+    });
+
+    function showDashboard() {
+      document.getElementById("loginScreen").classList.add("hidden");
+      document.getElementById("dashboard").classList.remove("hidden");
+      document.getElementById("cityBadge").textContent = currentPartner.city;
+      document.getElementById("partnerName").textContent = currentPartner.name;
+      loadOrders();
+    }
+
+    function logout() {
+      sessionStorage.clear();
+      location.reload();
+    }
+
+    // Auto-login if session exists
+    window.addEventListener("DOMContentLoaded", async () => {
+      const pid = sessionStorage.getItem("partner_id");
+      const phone = sessionStorage.getItem("partner_phone");
+      const pin = sessionStorage.getItem("partner_pin");
+      if (pid && phone && pin) {
+        const { data } = await db
+          .from("partners")
+          .select("id, name, city, phone, status")
+          .eq("id", pid)
+          .eq("pin", pin)
+          .maybeSingle();
+        if (data && data.status === "active") {
+          currentPartner = data;
+          showDashboard();
+        } else {
+          sessionStorage.clear();
+        }
+      }
+    });
+
+    async function loadOrders() {
+      const { data, error } = await db
+        .from("bookings")
+        .select("*")
+        .eq("assigned_partner_id", currentPartner.id)
+        .order("assigned_at", { ascending: false });
+
+      if (error) {
+        console.error(error);
+        document.getElementById("ordersList").innerHTML =
+          `<p class="text-center text-red-400 py-10">Could not load orders. Pull to refresh.</p>`;
+        return;
+      }
+
+      allOrders = data || [];
+      renderOrders();
+    }
+
+    function setFilter(f) {
+      currentFilter = f;
+      document.querySelectorAll(".filter-btn").forEach(btn => {
+        const active = btn.dataset.filter === f;
+        btn.className = `filter-btn px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap border ${
+          active ? "bg-black text-white border-black" : "bg-white text-gray-700"
+        }`;
+      });
+      renderOrders();
+    }
+
+    function renderOrders() {
+      const list = document.getElementById("ordersList");
+      let filtered = allOrders;
+      if (currentFilter === "active") {
+        filtered = allOrders.filter(b => ACTIVE_STATUSES.includes(b.fulfillment_status));
+      } else if (currentFilter === "completed") {
+        filtered = allOrders.filter(b => COMPLETED_STATUSES.includes(b.fulfillment_status));
+      }
+
+      if (filtered.length === 0) {
+        list.innerHTML = `<p class="text-center text-gray-400 py-10">No orders here</p>`;
+        return;
+      }
+
+      list.innerHTML = filtered.map(orderCard).join("");
+    }
+
+    function statusLabel(s) {
+      return (s || "pending_assignment").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    function orderCard(b) {
+      const date = new Date(b.assigned_at || b.created_at).toLocaleDateString("en-IN", {
+        day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"
+      });
+      const needsAction = b.fulfillment_status === "assigned";
+
+      return `
+        <div class="bg-white rounded-2xl shadow-sm p-4 space-y-3 ${needsAction ? 'ring-2 ring-yellow-400' : ''}"
+             onclick="openOrder(${b.id})">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="font-bold text-gray-900 text-lg leading-tight">${b.customer_name || "Customer"}</p>
+              <p class="text-gray-500 text-sm">${date}</p>
+            </div>
+            <span class="status-${b.fulfillment_status || 'pending_assignment'} text-xs font-bold px-3 py-1 rounded-full">${statusLabel(b.fulfillment_status)}</span>
+          </div>
+          <div class="bg-gray-50 rounded-xl p-2 text-sm">
+            <p class="text-gray-400 text-xs mb-1">Address</p>
+            <p class="font-medium">${b.address || "—"}</p>
+          </div>
+          <div class="flex justify-between items-center text-sm">
+            <span class="text-gray-500">Ref: ${b.reference_number || b.id}</span>
+            ${needsAction ? `<span class="text-yellow-600 font-bold text-xs">⚠ Action needed</span>` : `<span class="text-gray-400 text-xs">Tap to continue →</span>`}
+          </div>
+        </div>`;
+    }
+
+    function openOrder(bookingId) {
+      // Part B: this will route into the step-by-step wizard for this booking
+      location.href = `partner-wizard.html?booking_id=${bookingId}`;
+    }
+  </script>
+</body>
+</html>
