@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Leazo – Order Task</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  body { background:#f3f4f6; }
+  .step-dot { width:8px; height:8px; border-radius:50%; background:#d1d5db; }
+  .step-dot.done { background:#22c55e; }
+  .step-dot.current { background:#facc15; width:10px; height:10px; }
+</style>
+</head>
+<body class="font-sans pb-24">
+
+<div id="app" class="max-w-md mx-auto min-h-screen bg-white">
+
+  <!-- Top bar -->
+  <div class="bg-yellow-400 border-b-4 border-blue-600 px-4 py-3 flex justify-between items-center sticky top-0 z-10">
+    <button onclick="goBackToList()" class="text-sm font-bold">← Orders</button>
+    <span class="text-base font-black italic tracking-widest">LEAZO</span>
+    <span id="refBadge" class="text-xs font-bold bg-black text-white px-2 py-1 rounded-full"></span>
+  </div>
+
+  <div id="loading" class="text-center text-gray-400 py-20">Loading order...</div>
+
+  <div id="wizard" class="hidden">
+    <!-- progress dots -->
+    <div class="flex gap-1.5 justify-center py-3" id="progressDots"></div>
+    <div id="stepTitle" class="text-center text-xs text-gray-400 mb-2"></div>
+
+    <div id="stepBody" class="px-4 pb-6"></div>
+  </div>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'https://rohybhpktpfmeashdlzz.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvaHliaHBrdHBmbWVhc2hkbHp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3MzcwMTYsImV4cCI6MjA5MzMxMzAxNn0.NhM9DnXOl_7h3NHh1r78cPNvbogO_qOEhPfQauyKHJE';
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const STORAGE_BUCKET = 'partner-uploads'; // create this bucket in Supabase Storage (private) before going live
+
+const params = new URLSearchParams(location.search);
+const bookingId = params.get('booking_id');
+
+let partner = null;
+let booking = null;
+let config = null;   // from booking_effective_config view
+let assets = [];      // partner's high-value assets for scan steps
+let steps = [];        // resolved step list for this booking
+let currentStepIndex = 0;
+let pendingGeo = null;
+
+// ---------- AUTH GUARD ----------
+window.addEventListener('DOMContentLoaded', async () => {
+  const pid = sessionStorage.getItem('partner_id');
+  const pin = sessionStorage.getItem('partner_pin');
+  if (!pid || !pin) { location.href = 'partner-task.html'; return; }
+
+  const { data: p } = await db.from('partners').select('*').eq('id', pid).eq('pin', pin).maybeSingle();
+  if (!p || p.status !== 'active') { sessionStorage.clear(); location.href = 'partner-task.html'; return; }
+  partner = p;
+
+  if (!bookingId) { alert('No booking specified.'); location.href = 'partner-task.html'; return; }
+  await loadBooking();
+});
+
+function goBackToList() { location.href = 'partner-task.html'; }
+
+async function loadBooking() {
+  const { data: b, error } = await db.from('bookings').select('*').eq('id', bookingId).maybeSingle();
+  if (error || !b) { alert('Order not found.'); goBackToList(); return; }
+  if (b.assigned_partner_id !== partner.id) { alert('This order is not assigned to you.'); goBackToList(); return; }
+  booking = b;
+
+  const { data: cfg } = await db.from('booking_effective_config').select('*').eq('booking_id', bookingId).maybeSingle();
+  config = cfg || { scan_required: true, installation_included: true, id_verification_required: false, bundle_photo_count: 1, is_delivery_only: false };
+
+  if (config.scan_required) {
+    const { data: a } = await db.from('partner_assets').select('*').eq('partner_id', partner.id).eq('is_high_value', true).eq('status', 'rented');
+    assets = a && a.length ? a : (await db.from('partner_assets').select('*').eq('partner_id', partner.id).eq('is_high_value', true)).data || [];
+  }
+
+  buildStepList();
+  document.getElementById('refBadge').textContent = 'Ref: ' + (booking.reference_number || booking.id);
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('wizard').classList.remove('hidden');
+  jumpToCurrentStatusStep();
+  renderStep();
+}
+
+// ---------- STEP DEFINITIONS ----------
+// Each step has: key (matches fulfillment_status it produces), label
+function buildStepList() {
+  const isDelivered = booking.fulfillment_status && [
+    'delivered','active_rental','return_window_open','out_for_pickup','reached_pickup',
+    'items_verified_return','condition_photo_return','dispute_flagged','otp_verified_return','completed','rated'
+  ].includes(booking.fulfillment_status);
+
+  const deliverySteps = [
+    { key: 'accepted', label: 'Accept Order', render: renderAcceptStep },
+  ];
+  if (config.scan_required) deliverySteps.push({ key: 'packed_scanned', label: 'Pack & Scan Items', render: () => renderScanStep('pack', 'packed_scanned') });
+  deliverySteps.push({ key: 'out_for_delivery', label: 'Out for Delivery', render: () => renderSimpleActionStep('out_for_delivery', 'Start Delivery', 'Tap when you leave for the customer location. Customer will be notified.') });
+  deliverySteps.push({ key: 'reached_customer', label: 'Reached Customer', render: () => renderSimpleActionStep('reached_customer', 'Mark Reached', 'Tap when you arrive at the customer location.', true) });
+  if (config.id_verification_required) deliverySteps.push({ key: 'id_verified', label: 'ID Verification', render: renderIdVerificationStep });
+  if (config.scan_required) deliverySteps.push({ key: 'items_verified_delivery', label: 'Scan Items', render: () => renderScanStep('delivery', 'items_verified_delivery') });
+  deliverySteps.push({ key: 'bundle_photo_done', label: config.installation_included ? 'Installation Photo' : 'Package Photo', render: renderBundlePhotoStep });
+  deliverySteps.push({ key: 'condition_ack_delivery', label: 'Condition Photo', render: renderConditionPhotoStep });
+  deliverySteps.push({ key: 'otp_verified_delivery', label: 'Customer Confirmation', render: () => renderOtpStep('delivery') });
+  if (booking.payment_status !== 'paid') deliverySteps.push({ key: 'payment_collected', label: 'Collect Payment', render: renderPaymentStep });
+  deliverySteps.push({ key: 'delivered', label: 'Delivered', render: () => renderSimpleActionStep('delivered', 'Confirm Delivered', 'All steps complete. Tap to finish delivery.') });
+
+  const returnSteps = [
+    { key: 'out_for_pickup', label: 'Out for Pickup', render: () => renderSimpleActionStep('out_for_pickup', 'Start Pickup', 'Tap when you leave for pickup. Customer will be notified.') },
+    { key: 'reached_pickup', label: 'Reached Customer', render: () => renderSimpleActionStep('reached_pickup', 'Mark Reached', 'Tap when you arrive for pickup.', true) },
+  ];
+  if (config.scan_required) returnSteps.push({ key: 'items_verified_return', label: 'Scan Items', render: () => renderScanStep('return_customer', 'items_verified_return') });
+  returnSteps.push({ key: 'condition_photo_return', label: 'Condition Check', render: renderReturnConditionStep });
+  returnSteps.push({ key: 'otp_verified_return', label: 'Return Confirmation', render: () => renderOtpStep('return') });
+  if (config.scan_required) returnSteps.push({ key: 'completed', label: 'Return to Stock', render: () => renderScanStep('return_partner', 'completed') });
+  else returnSteps.push({ key: 'completed', label: 'Complete', render: () => renderSimpleActionStep('completed', 'Mark Completed', 'Confirm the rental is fully closed.') });
+
+  steps = isDelivered ? returnSteps : deliverySteps;
+}
+
+function jumpToCurrentStatusStep() {
+  const idx = steps.findIndex(s => s.key === booking.fulfillment_status);
+  currentStepIndex = idx >= 0 ? idx : 0;
+}
+
+// ---------- RENDER SHELL ----------
+function renderStep() {
+  const dotsEl = document.getElementById('progressDots');
+  dotsEl.innerHTML = steps.map((s, i) => {
+    const cls = i < currentStepIndex ? 'done' : (i === currentStepIndex ? 'current' : '');
+    return `<div class="step-dot ${cls}"></div>`;
+  }).join('');
+  document.getElementById('stepTitle').textContent = `Step ${currentStepIndex + 1} of ${steps.length}: ${steps[currentStepIndex].label}`;
+  document.getElementById('stepBody').innerHTML = '';
+  steps[currentStepIndex].render();
+}
+
+async function advanceStep(newStatus, extra) {
+  const updatePayload = { fulfillment_status: newStatus };
+  if (extra) Object.assign(updatePayload, extra);
+  const { error } = await db.from('bookings').update(updatePayload).eq('id', booking.id);
+  if (error) { alert('Failed to update. Check connection and try again.'); console.error(error); return; }
+  booking.fulfillment_status = newStatus;
+  Object.assign(booking, extra || {});
+
+  await logEvent(newStatus);
+  buildStepList();
+  const idx = steps.findIndex(s => s.key === newStatus);
+  currentStepIndex = idx >= 0 ? idx : Math.min(currentStepIndex + 1, steps.length - 1);
+
+  if (newStatus === 'delivered' || newStatus === 'completed') {
+    document.getElementById('stepBody').innerHTML = `
+      <div class="text-center py-16">
+        <div class="text-5xl mb-4">✅</div>
+        <p class="text-xl font-bold text-gray-900">${newStatus === 'delivered' ? 'Delivery Complete' : 'Order Completed'}</p>
+        <button onclick="goBackToList()" class="mt-6 bg-black text-white font-bold px-6 py-3 rounded-xl">Back to Orders</button>
+      </div>`;
+    document.getElementById('progressDots').innerHTML = '';
+    document.getElementById('stepTitle').textContent = '';
+    return;
+  }
+  renderStep();
+}
+
+async function logEvent(eventType, opts = {}) {
+  await db.from('booking_events').insert({
+    booking_id: booking.id,
+    event_type: eventType,
+    actor_type: 'partner',
+    actor_id: partner.phone,
+    notes: opts.notes || null,
+    photo_url: opts.photo_url || null,
+    geo_lat: pendingGeo ? pendingGeo.lat : (opts.geo_lat || null),
+    geo_lng: pendingGeo ? pendingGeo.lng : (opts.geo_lng || null),
+    metadata: opts.metadata || null
+  });
+}
+
+function captureGeo() {
+  return new Promise(resolve => {
+    if (!navigator.geolocation) { resolve(null); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  });
+}
+
+async function uploadPhoto(file, pathPrefix) {
+  const ext = file.name.split('.').pop() || 'jpg';
+  const path = `${pathPrefix}/${booking.id}_${Date.now()}.${ext}`;
+  const { error } = await db.storage.from(STORAGE_BUCKET).upload(path, file, { upsert: true });
+  if (error) { console.error(error); throw error; }
+  const { data } = db.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}
+
+// ---------- STEP: ACCEPT ----------
+function renderAcceptStep() {
+  document.getElementById('stepBody').innerHTML = `
+    <div class="bg-gray-50 rounded-2xl p-4 mb-4 space-y-2 text-sm">
+      <p><span class="text-gray-400">Customer:</span> <span class="font-bold">${booking.customer_name || '—'}</span></p>
+      <p><span class="text-gray-400">Address:</span> ${booking.address || '—'}</p>
+      <p><span class="text-gray-400">Date:</span> ${booking.booking_date || '—'} &nbsp; ${booking.start_time || ''} → ${booking.end_time || ''}</p>
+      <p><span class="text-gray-400">Plan:</span> ${booking.plan || '—'}</p>
+      <p><span class="text-gray-400">Amount:</span> <span class="font-bold text-green-700">₹${booking.total_amount || 0}</span></p>
+      <p><span class="text-gray-400">Payment:</span> ${booking.payment_status === 'paid' ? 'Prepaid ✅' : 'Collect COD'}</p>
+    </div>
+    <div class="flex gap-3">
+      <button onclick="acceptOrder(true)" class="flex-1 bg-green-500 text-white font-bold py-3 rounded-xl">Accept</button>
+      <button onclick="acceptOrder(false)" class="flex-1 bg-red-100 text-red-600 font-bold py-3 rounded-xl">Reject</button>
+    </div>`;
+}
+
+async function acceptOrder(accept) {
+  if (!accept) {
+    if (!confirm('Reject this order? Admin will be notified to reassign.')) return;
+    await db.from('bookings').update({ fulfillment_status: 'rejected', assigned_partner_id: null }).eq('id', booking.id);
+    await logEvent('rejected');
+    alert('Order rejected. It has been sent back to admin.');
+    goBackToList();
+    return;
+  }
+  advanceStep('accepted');
+}
+
+// ---------- STEP: SIMPLE ACTION (out_for_delivery, reached, etc) ----------
+function renderSimpleActionStep(nextStatus, buttonLabel, description, captureGeoFlag) {
+  document.getElementById('stepBody').innerHTML = `
+    <p class="text-gray-600 text-sm mb-6">${description}</p>
+    <button id="actionBtn" onclick="doSimpleAction('${nextStatus}', ${!!captureGeoFlag})"
+      class="w-full bg-yellow-400 border-b-4 border-yellow-600 text-black font-bold py-3 rounded-xl">
+      ${buttonLabel}
+    </button>`;
+}
+
+async function doSimpleAction(nextStatus, withGeo) {
+  const btn = document.getElementById('actionBtn');
+  btn.disabled = true; btn.textContent = 'Please wait...';
+  if (withGeo) pendingGeo = await captureGeo();
+
+  // notify customer on key transitions
+  if (nextStatus === 'out_for_delivery') notifyCustomer('out_for_delivery');
+  if (nextStatus === 'out_for_pickup') notifyCustomer('out_for_pickup');
+
+  await advanceStep(nextStatus);
+}
+
+async function notifyCustomer(eventType) {
+  // eventType is 'out_for_delivery' or 'out_for_pickup' — matches the "type" field
+  // your send-notification edge function expects, with full booking object.
+  // Requires the matching Meta template to be approved (see new_templates_to_submit.txt).
+  try {
+    await fetch(`${SUPABASE_URL}/functions/v1/send-notification`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+      body: JSON.stringify({ type: eventType, booking: booking })
+    });
+  } catch (e) { console.warn('Notification failed (non-blocking):', e); }
+}
+
+// ---------- STEP: ASSET SCAN ----------
+function renderScanStep(scanPoint, nextStatus) {
+  if (!assets.length) {
+    document.getElementById('stepBody').innerHTML = `
+      <p class="text-sm text-gray-500 mb-4">No high-value assets registered for your account yet. You can skip this step — ask admin to add your PS5/controller asset records.</p>
+      <button onclick="advanceStep('${nextStatus}')" class="w-full bg-yellow-400 border-b-4 border-yellow-600 text-black font-bold py-3 rounded-xl">Skip & Continue</button>`;
+    return;
+  }
+  document.getElementById('stepBody').innerHTML = `
+    <p class="text-sm text-gray-500 mb-3">Tap each item to confirm it's present.</p>
+    <div id="assetList" class="space-y-2 mb-5">
+      ${assets.map(a => `
+        <button type="button" data-asset="${a.id}" onclick="toggleAsset(this)"
+          class="w-full flex items-center justify-between border-2 rounded-xl px-4 py-3 text-left">
+          <span class="font-medium">${a.asset_label || a.asset_type}</span>
+          <span class="check text-gray-300">○</span>
+        </button>`).join('')}
+    </div>
+    <button id="scanConfirmBtn" onclick="confirmScan('${scanPoint}', '${nextStatus}')" disabled
+      class="w-full bg-gray-300 text-gray-500 font-bold py-3 rounded-xl">Confirm All Scanned</button>`;
+}
+
+function toggleAsset(btn) {
+  const checkEl = btn.querySelector('.check');
+  const isOn = btn.dataset.checked === '1';
+  btn.dataset.checked = isOn ? '0' : '1';
+  checkEl.textContent = isOn ? '○' : '✅';
+  btn.classList.toggle('border-green-500', !isOn);
+  const all = document.querySelectorAll('#assetList button');
+  const allChecked = [...all].every(b => b.dataset.checked === '1');
+  const confirmBtn = document.getElementById('scanConfirmBtn');
+  confirmBtn.disabled = !allChecked;
+  confirmBtn.className = `w-full font-bold py-3 rounded-xl ${allChecked ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-500'}`;
+}
+
+async function confirmScan(scanPoint, nextStatus) {
+  pendingGeo = await captureGeo();
+  const rows = assets.map(a => ({
+    booking_id: booking.id,
+    asset_id: a.id,
+    scan_point: scanPoint,
+    scanned_by: partner.phone,
+    geo_lat: pendingGeo ? pendingGeo.lat : null,
+    geo_lng: pendingGeo ? pendingGeo.lng : null
+  }));
+  const { error } = await db.from('asset_scans').insert(rows);
+  if (error) { alert('Scan save failed. Try again.'); console.error(error); return; }
+  await advanceStep(nextStatus);
+}
+
+// ---------- STEP: ID VERIFICATION ----------
+function renderIdVerificationStep() {
+  document.getElementById('stepBody').innerHTML = `
+    <p class="text-sm text-gray-500 mb-4">Take a live photo of the customer's ID and get their signature. This is stored privately and auto-deleted after 90 days.</p>
+    <label class="block mb-3">
+      <span class="text-xs text-gray-400">ID Photo (live camera only)</span>
+      <input type="file" accept="image/*" capture="environment" id="idPhotoInput" class="w-full border-2 rounded-xl px-3 py-2 mt-1" />
+    </label>
+    <label class="block mb-4">
+      <span class="text-xs text-gray-400">Signature Photo (customer signs on paper, photograph it)</span>
+      <input type="file" accept="image/*" capture="environment" id="sigPhotoInput" class="w-full border-2 rounded-xl px-3 py-2 mt-1" />
+    </label>
+    <button onclick="submitIdVerification()" class="w-full bg-yellow-400 border-b-4 border-yellow-600 text-black font-bold py-3 rounded-xl">Submit & Continue</button>
+  `;
+}
+
+async function submitIdVerification() {
+  const idFile = document.getElementById('idPhotoInput').files[0];
+  const sigFile = document.getElementById('sigPhotoInput').files[0];
+  if (!idFile || !sigFile) { alert('Both photos are required.'); return; }
+  pendingGeo = await captureGeo();
+  try {
+    const idUrl = await uploadPhoto(idFile, 'id-verification');
+    const sigUrl = await uploadPhoto(sigFile, 'signatures');
+    await db.from('customer_verifications').insert({
+      booking_id: booking.id, id_photo_url: idUrl, signature_url: sigUrl,
+      captured_geo_lat: pendingGeo ? pendingGeo.lat : null,
+      captured_geo_lng: pendingGeo ? pendingGeo.lng : null
+    });
+    await advanceStep('id_verified');
+  } catch (e) { alert('Upload failed. Check connection and try again.'); }
+}
+
+// ---------- STEP: BUNDLE / PACKAGE PHOTO ----------
+function renderBundlePhotoStep() {
+  const label = config.installation_included
+    ? 'Photo of PS5 installed with all accessories visible'
+    : 'Photo of package contents (open box) showing all items';
+  document.getElementById('stepBody').innerHTML = `
+    <p class="text-sm text-gray-500 mb-4">${label}</p>
+    <input type="file" accept="image/*" capture="environment" id="bundlePhotoInput" class="w-full border-2 rounded-xl px-3 py-2 mb-4" />
+    <button onclick="submitBundlePhoto()" class="w-full bg-yellow-400 border-b-4 border-yellow-600 text-black font-bold py-3 rounded-xl">Submit & Continue</button>
+  `;
+}
+
+async function submitBundlePhoto() {
+  const file = document.getElementById('bundlePhotoInput').files[0];
+  if (!file) { alert('Photo required.'); return; }
+  pendingGeo = await captureGeo();
+  try {
+    const url = await uploadPhoto(file, 'bundle-photos');
+    await advanceStep('bundle_photo_done', {});
+    await logEvent('bundle_photo_done', { photo_url: url });
+  } catch (e) { alert('Upload failed. Try again.'); }
+}
+
+// ---------- STEP: CONDITION PHOTO + AGREEMENT (delivery) ----------
+function renderConditionPhotoStep() {
+  document.getElementById('stepBody').innerHTML = `
+    <p class="text-sm text-gray-500 mb-4">Take a clear photo showing the current condition of the PS5 and accessories.</p>
+    <input type="file" accept="image/*" capture="environment" id="condPhotoInput" class="w-full border-2 rounded-xl px-3 py-2 mb-4" />
+    <button onclick="submitConditionPhoto()" class="w-full bg-yellow-400 border-b-4 border-yellow-600 text-black font-bold py-3 rounded-xl">Submit & Continue</button>
+  `;
+}
+
+async function submitConditionPhoto() {
+  const file = document.getElementById('condPhotoInput').files[0];
+  if (!file) { alert('Photo required.'); return; }
+  try {
+    const url = await uploadPhoto(file, 'condition-photos');
+    window._lastConditionPhotoUrl = url;
+    await advanceStep('condition_ack_delivery', {});
+    await logEvent('condition_photo_delivery', { photo_url: url });
+  } catch (e) { alert('Upload failed. Try again.'); }
+}
+
+// ---------- STEP: RETURN CONDITION (partner inspects, can flag dispute) ----------
+function renderReturnConditionStep() {
+  document.getElementById('stepBody').innerHTML = `
+    <p class="text-sm text-gray-500 mb-4">Photograph the PS5 and accessories as returned. If anything is damaged or missing, flag it below.</p>
+    <input type="file" accept="image/*" capture="environment" id="returnCondPhotoInput" class="w-full border-2 rounded-xl px-3 py-2 mb-4" />
+    <label class="flex items-center gap-2 mb-4 text-sm">
+      <input type="checkbox" id="damageFlag" onchange="document.getElementById('damageNotesBox').classList.toggle('hidden', !this.checked)" />
+      Damage or missing item found
+    </label>
+    <textarea id="damageNotesBox" placeholder="Describe the issue..." class="w-full border-2 rounded-xl px-3 py-2 mb-4 hidden"></textarea>
+    <button onclick="submitReturnCondition()" class="w-full bg-yellow-400 border-b-4 border-yellow-600 text-black font-bold py-3 rounded-xl">Submit & Continue</button>
+  `;
+}
+
+async function submitReturnCondition() {
+  const file = document.getElementById('returnCondPhotoInput').files[0];
+  if (!file) { alert('Photo required.'); return; }
+  const damaged = document.getElementById('damageFlag').checked;
+  const notes = document.getElementById('damageNotesBox').value.trim();
+  try {
+    const url = await uploadPhoto(file, 'return-condition-photos');
+    await db.from('condition_acknowledgements').insert({
+      booking_id: booking.id, stage: 'return', acknowledged_by: 'partner',
+      agreed: !damaged, dispute_notes: damaged ? notes : null, photo_url: url
+    });
+    if (damaged) {
+      await db.from('disputes').insert({
+        booking_id: booking.id, partner_id: partner.id, dispute_type: 'condition_damage',
+        description: notes || 'Flagged by partner at return.'
+      });
+      await db.from('bookings').update({ fulfillment_status: 'dispute_flagged' }).eq('id', booking.id);
+      alert('Damage flagged. Admin has been notified and will review before this order can be closed.');
+      booking.fulfillment_status = 'dispute_flagged';
+      buildStepList();
+      goBackToList();
+      return;
+    }
+    await advanceStep('condition_photo_return', {});
+  } catch (e) { alert('Upload failed. Try again.'); }
+}
+
+// ---------- STEP: OTP (delivery or return) ----------
+function renderOtpStep(stage) {
+  const isDelivery = stage === 'delivery';
+  document.getElementById('stepBody').innerHTML = `
+    <div class="bg-yellow-50 border border-yellow-300 rounded-xl p-3 text-sm mb-4">
+      Ask the customer to confirm: <span class="font-semibold">"${isDelivery ? 'PS5 and accessories are in good working condition. Any damage must be reported now.' : 'Items have been correctly collected.'}"</span>
+    </div>
+    <label class="flex items-center gap-2 mb-4 text-sm">
+      <input type="checkbox" id="custAgree" />
+      Customer has agreed (tap once confirmed verbally)
+    </label>
+    <button id="sendOtpBtn" onclick="sendOtp('${stage}')" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl mb-3">Send OTP to Customer</button>
+    <input type="text" id="otpInput" placeholder="Enter OTP from customer" maxlength="6"
+      class="w-full border-2 rounded-xl px-4 py-3 text-center text-lg tracking-widest mb-3" />
+    <button onclick="verifyOtp('${stage}')" class="w-full bg-green-500 text-white font-bold py-3 rounded-xl">Verify OTP</button>
+    <button onclick="otpFailFallback('${stage}')" class="w-full mt-3 text-xs text-gray-400 underline">Customer not responding to OTP?</button>
+  `;
+}
+
+async function sendOtp(stage) {
+  const agreeBox = document.getElementById('custAgree');
+  if (!agreeBox.checked) { alert('Please confirm the customer has agreed first.'); return; }
+
+  await db.from('condition_acknowledgements').insert({
+    booking_id: booking.id, stage, acknowledged_by: 'customer', agreed: true,
+    photo_url: window._lastConditionPhotoUrl || null
+  });
+
+  const otp = String(Math.floor(1000 + Math.random() * 9000));
+  const field = stage === 'delivery' ? { delivery_otp: otp } : { return_otp: otp };
+  await db.from('bookings').update(field).eq('id', booking.id);
+  Object.assign(booking, field);
+
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/send-notification`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+      body: JSON.stringify({
+        type: stage === 'delivery' ? 'delivery_otp' : 'return_otp',
+        booking: { ...booking, otp }
+      })
+    });
+    const result = await resp.json();
+    if (!result.success) throw new Error('send failed');
+    alert('OTP sent to customer via WhatsApp.');
+  } catch (e) {
+    alert('Could not send WhatsApp OTP automatically (template may still be pending Meta approval). Please call/WhatsApp the customer this code manually: ' + otp);
+  }
+}
+
+async function verifyOtp(stage) {
+  const entered = document.getElementById('otpInput').value.trim();
+  const correct = stage === 'delivery' ? booking.delivery_otp : booking.return_otp;
+  if (!correct) { alert('Send the OTP first.'); return; }
+  if (entered !== correct) { alert('Incorrect OTP. Please check with the customer.'); return; }
+
+  const field = stage === 'delivery' ? { delivery_otp_verified: true } : { return_otp_verified: true };
+  const nextStatus = stage === 'delivery' ? 'otp_verified_delivery' : 'otp_verified_return';
+  await advanceStep(nextStatus, field);
+}
+
+async function otpFailFallback(stage) {
+  if (!confirm('Mark as confirmed via fallback? This will be logged with your current location for admin review.')) return;
+  pendingGeo = await captureGeo();
+  await logEvent((stage === 'delivery' ? 'delivery' : 'return') + '_otp_fallback_used', {
+    metadata: { reason: 'customer_unreachable_otp' }
+  });
+  // No automated WhatsApp message for fallback yet — this needs its own approved
+  // template ("Reply YES to confirm...") before it can be wired up. For now,
+  // call or message the customer directly to confirm.
+  const nextStatus = stage === 'delivery' ? 'otp_verified_delivery' : 'otp_verified_return';
+  await advanceStep(nextStatus, { [stage === 'delivery' ? 'delivery_otp_verified' : 'return_otp_verified']: false });
+  alert('Marked via fallback. Admin will review this confirmation.');
+}
+
+// ---------- STEP: PAYMENT (COD) ----------
+function renderPaymentStep() {
+  document.getElementById('stepBody').innerHTML = `
+    <p class="text-sm text-gray-500 mb-4">Collect ₹${booking.total_amount || 0} from the customer (cash or UPI).</p>
+    <div class="flex gap-3 mb-4">
+      <button data-mode="cash" onclick="selectPaymentMode(this)" class="flex-1 border-2 rounded-xl py-3 font-bold">Cash</button>
+      <button data-mode="upi" onclick="selectPaymentMode(this)" class="flex-1 border-2 rounded-xl py-3 font-bold">UPI</button>
+    </div>
+    <button id="paymentConfirmBtn" onclick="confirmPaymentCollected()" disabled class="w-full bg-gray-300 text-gray-500 font-bold py-3 rounded-xl">Confirm Payment Collected</button>
+  `;
+}
+
+function selectPaymentMode(btn) {
+  document.querySelectorAll('[data-mode]').forEach(b => b.classList.remove('border-green-500', 'bg-green-50'));
+  btn.classList.add('border-green-500', 'bg-green-50');
+  window._selectedPaymentMode = btn.dataset.mode;
+  const confirmBtn = document.getElementById('paymentConfirmBtn');
+  confirmBtn.disabled = false;
+  confirmBtn.className = 'w-full bg-green-500 text-white font-bold py-3 rounded-xl';
+}
+
+async function confirmPaymentCollected() {
+  const mode = window._selectedPaymentMode || 'cash';
+  await db.from('payment_ledger').insert({
+    booking_id: booking.id, partner_id: partner.id, direction: 'partner_owes_leazo',
+    amount: booking.total_amount || 0,
+    commission_amount: ((booking.total_amount || 0) * (partner.commission_percent || 0)) / 100,
+    status: 'pending'
+  });
+  await advanceStep('payment_collected', { payment_status: 'paid', payment_mode: mode });
+}
+</script>
+</body>
+</html>
