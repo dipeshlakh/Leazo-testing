@@ -455,10 +455,16 @@ function tickItem(assetId, btn) {
   checkAllDone();
 }
 
-// ── CAMERA SCANNER (QuaggaJS — works on iPhone Safari + Android Chrome) ──
+// ── CAMERA SCANNER (QuaggaJS) ────────────────────────────────
+// Collects multiple reads and only accepts when the SAME value
+// appears 4 times in a row — eliminates bad frame misreads.
+let _scanVotes = {};   // { barcode: count }
+const SCAN_THRESHOLD = 4; // must read same value N times before accepting
+
 async function startScan(assetId, expectedBarcode) {
   activeScanAssetId       = assetId;
   window._expectedBarcode = expectedBarcode;
+  _scanVotes              = {};
   stopScanner();
 
   el('scannerArea').classList.remove('hidden');
@@ -472,41 +478,53 @@ async function startScan(assetId, expectedBarcode) {
       target: document.getElementById('quaggaContainer'),
       constraints: {
         facingMode: 'environment',
-        width:  { min: 640, ideal: 1280 },
-        height: { min: 480, ideal: 720 }
-      }
+        width:  { min: 640, ideal: 1920 },
+        height: { min: 480, ideal: 1080 },
+        advanced: [{ focusMode: 'continuous' }]
+      },
+      area: { top: '20%', right: '5%', bottom: '20%', left: '5%' }
     },
     decoder: {
-      readers: [
-        'ean_reader',        // EAN-13, EAN-8 (standard product barcodes)
-        'ean_8_reader',
-        'code_128_reader',   // Code128 (common on labels)
-        'code_39_reader',    // Code39
-        'upc_reader',        // UPC-A
-        'upc_e_reader',      // UPC-E
-        'codabar_reader',
-        'i2of5_reader',
-      ]
+      readers: ['ean_reader', 'ean_8_reader', 'code_128_reader',
+                'code_39_reader', 'upc_reader', 'upc_e_reader'],
+      multiple: false
+    },
+    locator: {
+      patchSize: 'medium',
+      halfSample: false
     },
     locate: true,
-    numOfWorkers: 0,         // 0 = main thread, required for iOS Safari
-    frequency: 10,
+    numOfWorkers: 0,
+    frequency: 15,
   }, (err) => {
     if (err) {
-      console.error('Quagga init error:', err);
-      el('scanStatus').textContent = 'Camera error — type barcode manually';
+      console.error('Quagga init:', err);
+      el('scanStatus').textContent = 'Camera unavailable — please type the code';
       el('manualEntryArea').classList.remove('hidden');
       return;
     }
     Quagga.start();
-    el('scanStatus').textContent = 'Point barcode at yellow box';
+    el('scanStatus').textContent = 'Hold barcode steady inside the box';
     scannerInstance = true;
   });
 
-  // Listen for successful decode
   Quagga.onDetected((result) => {
-    const code = result?.codeResult?.code;
-    if (code) {
+    const code    = result?.codeResult?.code;
+    if (!code) return;
+
+    // Confidence check — reject reads with high error rate
+    const errors = result.codeResult.decodedCodes
+      .filter(c => c.error !== undefined)
+      .map(c => c.error);
+    const avgError = errors.length ? errors.reduce((a,b) => a+b, 0) / errors.length : 1;
+    if (avgError > 0.25) return; // too uncertain, skip this frame
+
+    // Vote accumulation — same value must appear SCAN_THRESHOLD times
+    _scanVotes[code] = (_scanVotes[code] || 0) + 1;
+    const count = _scanVotes[code];
+    el('scanStatus').textContent = `Reading... (${count}/${SCAN_THRESHOLD})`;
+
+    if (count >= SCAN_THRESHOLD) {
       onScanSuccess(code);
     }
   });
@@ -515,9 +533,8 @@ async function startScan(assetId, expectedBarcode) {
 function toggleManualEntry() {
   const area = el('manualEntryArea');
   area.classList.toggle('hidden');
-  if (!area.classList.contains('hidden')) {
+  if (!area.classList.contains('hidden'))
     setTimeout(() => el('manualBarcodeInput').focus(), 100);
-  }
 }
 
 function submitManualBarcode() {
@@ -562,10 +579,8 @@ function onScanSuccess(scannedText) {
 
 function stopScanner() {
   el('scannerArea').classList.add('hidden');
-  try {
-    Quagga.offDetected();
-    Quagga.stop();
-  } catch(e) {}
+  _scanVotes = {};
+  try { Quagga.offDetected(); Quagga.stop(); } catch(e) {}
   scannerInstance = null;
 }
 
