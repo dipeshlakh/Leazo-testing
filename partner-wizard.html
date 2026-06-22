@@ -6,6 +6,7 @@
 <title>Leazo – Order Task</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
   body{background:#f3f4f6;font-family:sans-serif;}
   .dot{width:8px;height:8px;border-radius:50%;background:#d1d5db;display:inline-block;}
@@ -151,10 +152,10 @@ async function loadBooking() {
     const { data: c } = await db.from('booking_effective_config').select('*').eq('booking_id', bookingId).maybeSingle();
     cfg = c || { scan_required: false, installation_included: true, id_verification_required: false, bundle_photo_count: 1, is_delivery_only: false };
 
-    if (cfg.scan_required) {
-      const { data: a } = await db.from('partner_assets').select('*').eq('partner_id', partner.id).eq('is_high_value', true);
-      assets = a || [];
-    }
+    // Always load all assets — checklist is mandatory regardless of scan toggle
+    // High-value assets additionally require camera barcode scan
+    const { data: a } = await db.from('partner_assets').select('*').eq('partner_id', partner.id).order('asset_type');
+    assets = a || [];
 
     populateInfoBar();
     buildSteps();
@@ -190,14 +191,12 @@ function buildSteps() {
     // ── DELIVERY STEPS ──
     const s = [];
     s.push({ id:'accept',       label:'Accept Order',        produces_status:'accepted',               render: stepAccept });
-    if (cfg.scan_required)
-    s.push({ id:'pack_scan',    label:'Pack & Scan',         produces_status:'packed_scanned',          render: () => stepScan('pack','packed_scanned') });
+    s.push({ id:'pack_scan',    label:'Pack & Verify',       produces_status:'packed_scanned',          render: () => stepScan('pack','packed_scanned') });
     s.push({ id:'out_deliver',  label:'Out for Delivery',    produces_status:'out_for_delivery',        render: () => stepSimple('out_for_delivery','🛵  Start Delivery','Tap when you leave. Customer will be notified on WhatsApp.') });
     s.push({ id:'reached',      label:'Reached Customer',    produces_status:'reached_customer',        render: () => stepSimple('reached_customer','📍  Mark Reached','Tap when you arrive at the customer location.',true) });
     if (cfg.id_verification_required)
     s.push({ id:'id_verify',    label:'ID Verification',     produces_status:'id_verified',             render: stepIdVerify });
-    if (cfg.scan_required)
-    s.push({ id:'scan_deliver', label:'Scan Items',          produces_status:'items_verified_delivery', render: () => stepScan('delivery','items_verified_delivery') });
+    s.push({ id:'scan_deliver', label:'Verify Items',         produces_status:'items_verified_delivery', render: () => stepScan('delivery','items_verified_delivery') });
     s.push({ id:'photos',       label: cfg.installation_included ? 'Installation Photo' : 'Package Photo', produces_status:'bundle_photo_done', render: stepBundlePhoto });
     s.push({ id:'condition',    label:'Condition Photo',     produces_status:'condition_ack_delivery',  render: stepConditionPhoto });
     s.push({ id:'otp_del',      label:'Customer OTP',        produces_status:'otp_verified_delivery',   render: () => stepOtp('delivery') });
@@ -210,14 +209,10 @@ function buildSteps() {
     const s = [];
     s.push({ id:'out_pickup',   label:'Out for Pickup',      produces_status:'out_for_pickup',         render: () => stepSimple('out_for_pickup','🛵  Start Pickup','Tap when you leave for pickup. Customer will be notified.') });
     s.push({ id:'reach_pick',   label:'Reached Customer',    produces_status:'reached_pickup',         render: () => stepSimple('reached_pickup','📍  Mark Reached','Tap when you arrive at the customer location.',true) });
-    if (cfg.scan_required)
-    s.push({ id:'scan_ret',     label:'Scan Items',          produces_status:'items_verified_return',  render: () => stepScan('return_customer','items_verified_return') });
+    s.push({ id:'scan_ret',     label:'Verify Items',         produces_status:'items_verified_return',  render: () => stepScan('return_customer','items_verified_return') });
     s.push({ id:'cond_ret',     label:'Condition Check',     produces_status:'condition_photo_return', render: stepReturnCondition });
     s.push({ id:'otp_ret',      label:'Return OTP',          produces_status:'otp_verified_return',    render: () => stepOtp('return') });
-    if (cfg.scan_required)
     s.push({ id:'stock',        label:'Back to Stock',       produces_status:'completed',              render: () => stepScan('return_partner','completed') });
-    else
-    s.push({ id:'done_ret',     label:'Complete',            produces_status:'completed',              render: () => stepSimple('completed','✅  Mark Completed','Confirm the rental is fully closed.') });
     steps = s;
   }
 }
@@ -353,56 +348,196 @@ async function doSimple(nextStatus, withGeo) {
   await advance(nextStatus, geo ? { last_partner_lat: geo.lat, last_partner_lng: geo.lng } : {});
 }
 
-// PACK/DELIVERY/RETURN SCAN
+// ── SCAN STEP ─────────────────────────────────────────────────
+// ALL assets: mandatory checklist tick
+// HIGH-VALUE assets (is_high_value=true): ALSO require camera barcode scan + match
+// scan_required toggle only controls whether barcode scan is enforced for high-value items
+
+let scannerInstance = null;   // html5-qrcode instance
+let activeScanAssetId = null; // which asset is currently being scanned
+
 function stepScan(scanPoint, nextStatus) {
   if (!assets.length) {
     el('stepBody').innerHTML = `
-      <div class="info-box">No high-value assets registered for your account yet. Ask admin to add assets.</div>
-      <button class="btn-primary" onclick="advance('${nextStatus}')">Skip & Continue</button>`;
+      <div class="info-box">No assets registered for your account. Ask admin to add items in the Partners tab.</div>
+      <button class="btn-primary" onclick="advance('${nextStatus}')">Continue</button>`;
     return;
   }
+
+  const highValue = assets.filter(a => a.is_high_value);
+  const regular   = assets.filter(a => !a.is_high_value);
+
   el('stepBody').innerHTML = `
-    <p class="text-sm text-gray-500 mb-3">Tap each item to confirm it's present and accounted for.</p>
-    <div id="assetList" class="space-y-2 mb-5">
-      ${assets.map(a => `
-        <button type="button" data-id="${a.id}" data-checked="0" onclick="toggleAsset(this)"
-          class="w-full flex items-center justify-between border-2 rounded-xl px-4 py-3 text-left transition-all">
-          <div>
-            <p class="font-semibold">${a.asset_label || a.asset_type}</p>
-            <p class="text-xs text-gray-400">${a.serial_number ? 'S/N: ' + a.serial_number : ''}</p>
-          </div>
-          <span class="check text-2xl text-gray-300">○</span>
-        </button>`).join('')}
+    <p class="text-sm text-gray-500 mb-1">
+      ${highValue.length ? '🔍 <b>High-value items</b> require barcode scan. ' : ''}
+      All items must be confirmed before proceeding.
+    </p>
+
+    <div id="assetList" class="space-y-2 mb-4 mt-3">
+      ${assets.map(a => itemRow(a)).join('')}
     </div>
-    <button id="scanBtn" class="btn-green" disabled onclick="doScan('${scanPoint}','${nextStatus}')">Confirm All Present</button>`;
+
+    <!-- Scanner area (hidden until a scan is triggered) -->
+    <div id="scannerArea" class="hidden mb-4">
+      <div class="bg-gray-900 rounded-2xl overflow-hidden mb-2" style="max-height:260px">
+        <div id="qrReader" style="width:100%"></div>
+      </div>
+      <p id="scanHint" class="text-xs text-center text-gray-400 mb-2">Point camera at the barcode on the item</p>
+      <button onclick="stopScanner()" class="btn-secondary text-sm">Cancel Scan</button>
+    </div>
+
+    <button id="confirmAllBtn" class="btn-green" disabled
+      onclick="doConfirmAll('${scanPoint}','${nextStatus}')">
+      Confirm All & Continue
+    </button>`;
+
+  checkAllDone();
 }
 
-function toggleAsset(btn) {
-  const on = btn.dataset.checked === '1';
-  btn.dataset.checked = on ? '0' : '1';
-  btn.querySelector('.check').textContent = on ? '○' : '✅';
-  btn.style.borderColor = on ? '' : '#22c55e';
-  btn.style.background  = on ? '' : '#f0fdf4';
-  const all = [...document.querySelectorAll('#assetList button')];
-  const done = all.every(b => b.dataset.checked === '1');
-  const scanBtn = el('scanBtn');
-  scanBtn.disabled = !done;
+function itemRow(a) {
+  const needsScan = a.is_high_value && a.barcode;
+  const icon = needsScan ? '🔍' : '📦';
+  return `
+    <div id="row_${a.id}" class="border-2 rounded-xl px-4 py-3 transition-all" style="border-color:#e5e7eb">
+      <div class="flex items-center justify-between">
+        <div class="flex-1">
+          <p class="font-semibold text-sm">${icon} ${a.asset_label || a.asset_type}</p>
+          <p class="text-xs text-gray-400">
+            ${a.serial_number ? 'S/N: ' + a.serial_number : ''}
+            ${needsScan ? (a.serial_number ? ' · ' : '') + 'Barcode: ' + a.barcode : ''}
+          </p>
+        </div>
+        <div id="action_${a.id}">
+          ${needsScan
+            ? `<button onclick="startScan('${a.id}','${a.barcode}')"
+                class="text-xs font-bold bg-blue-600 text-white px-3 py-2 rounded-xl">
+                📷 Scan
+               </button>`
+            : `<button onclick="tickItem('${a.id}', this)"
+                class="text-2xl text-gray-300 px-2">○</button>`
+          }
+        </div>
+      </div>
+      <p id="status_${a.id}" class="text-xs mt-1 hidden"></p>
+    </div>`;
 }
 
-async function doScan(scanPoint, nextStatus) {
-  el('scanBtn').disabled = true;
-  el('scanBtn').textContent = 'Saving...';
+// Tap-to-tick for non-high-value items
+function tickItem(assetId, btn) {
+  const row = el('row_' + assetId);
+  const done = btn.textContent !== '✅';
+  btn.textContent = done ? '✅' : '○';
+  btn.style.color = done ? '#22c55e' : '';
+  row.style.borderColor = done ? '#22c55e' : '#e5e7eb';
+  row.style.background  = done ? '#f0fdf4' : '';
+  row.dataset.confirmed = done ? '1' : '0';
+  checkAllDone();
+}
+
+// Start camera scan for a high-value item
+async function startScan(assetId, expectedBarcode) {
+  activeScanAssetId = assetId;
+  window._expectedBarcode = expectedBarcode;
+
+  el('scannerArea').classList.remove('hidden');
+  el('scanHint').textContent = 'Scanning... point camera at the barcode';
+
+  if (scannerInstance) {
+    try { await scannerInstance.stop(); } catch(e) {}
+  }
+
+  scannerInstance = new Html5Qrcode('qrReader');
   try {
-    const geo = await getGeo();
+    await scannerInstance.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 250, height: 150 } },
+      (decodedText) => onScanSuccess(decodedText),
+      (err) => {} // ignore frame errors
+    );
+  } catch(e) {
+    toast('Camera error: ' + e, 4000);
+    el('scannerArea').classList.add('hidden');
+  }
+}
+
+async function onScanSuccess(scannedText) {
+  await stopScanner();
+  const assetId  = activeScanAssetId;
+  const expected = (window._expectedBarcode || '').trim();
+  const scanned  = scannedText.trim();
+
+  const row      = el('row_' + assetId);
+  const statusEl = el('status_' + assetId);
+  const actionEl = el('action_' + assetId);
+
+  if (scanned === expected) {
+    // Match ✅
+    row.style.borderColor = '#22c55e';
+    row.style.background  = '#f0fdf4';
+    row.dataset.confirmed = '1';
+    row.dataset.scanned   = '1';
+    actionEl.innerHTML    = '<span class="text-green-600 font-bold text-sm">✅ Verified</span>';
+    statusEl.textContent  = 'Barcode matched ✓';
+    statusEl.className    = 'text-xs mt-1 text-green-600';
+    statusEl.classList.remove('hidden');
+    toast('✅ Item verified!');
+  } else {
+    // Mismatch ❌
+    row.style.borderColor = '#ef4444';
+    row.style.background  = '#fef2f2';
+    statusEl.textContent  = `⚠ Barcode mismatch. Scanned: "${scanned}" — Expected: "${expected}"`;
+    statusEl.className    = 'text-xs mt-1 text-red-500';
+    statusEl.classList.remove('hidden');
+    // Re-show scan button so they can retry
+    toast('Barcode did not match. Try again.', 4000);
+  }
+
+  activeScanAssetId = null;
+  checkAllDone();
+}
+
+async function stopScanner() {
+  el('scannerArea').classList.add('hidden');
+  if (scannerInstance) {
+    try { await scannerInstance.stop(); scannerInstance = null; } catch(e) {}
+  }
+}
+
+function checkAllDone() {
+  const allRows = document.querySelectorAll('#assetList [id^="row_"]');
+  const allDone = [...allRows].every(r => r.dataset.confirmed === '1');
+  const btn = el('confirmAllBtn');
+  if (btn) {
+    btn.disabled = !allDone;
+    btn.className = allDone ? 'btn-green' : 'btn-green' + ' opacity-40 cursor-not-allowed';
+  }
+}
+
+async function doConfirmAll(scanPoint, nextStatus) {
+  el('confirmAllBtn').disabled = true;
+  el('confirmAllBtn').textContent = 'Saving...';
+
+  // Stop scanner if somehow still running
+  await stopScanner().catch(() => {});
+
+  try {
+    const geo  = await getGeo();
     const rows = assets.map(a => ({
-      booking_id: booking.id, asset_id: a.id, scan_point: scanPoint,
-      scanned_by: partner.phone,
-      geo_lat: geo ? geo.lat : null, geo_lng: geo ? geo.lng : null
+      booking_id:  booking.id,
+      asset_id:    a.id,
+      scan_point:  scanPoint,
+      scanned_by:  partner.phone,
+      geo_lat:     geo ? geo.lat : null,
+      geo_lng:     geo ? geo.lng : null
     }));
     const { error } = await db.from('asset_scans').insert(rows);
     if (error) throw error;
     await advance(nextStatus);
-  } catch(e) { toast('Scan save failed: ' + e.message, 4000); el('scanBtn').disabled = false; el('scanBtn').textContent = 'Confirm All Present'; }
+  } catch(e) {
+    toast('Save failed: ' + e.message, 4000);
+    el('confirmAllBtn').disabled = false;
+    el('confirmAllBtn').textContent = 'Confirm All & Continue';
+  }
 }
 
 // ID VERIFICATION
