@@ -6,6 +6,7 @@
 <title>Leazo – Order Task</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
 
 <style>
   body{background:#f3f4f6;font-family:sans-serif;}
@@ -380,30 +381,29 @@ function stepScan(scanPoint, nextStatus) {
       ${assets.map(a => itemRow(a)).join('')}
     </div>
 
-    <!-- Scanner area (hidden until a scan is triggered) -->
+    <!-- Scanner area -->
     <div id="scannerArea" class="hidden mb-4">
-      <div class="relative bg-gray-900 rounded-2xl overflow-hidden mb-2" style="height:240px">
-        <video id="qrVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;display:block"></video>
-        <canvas id="qrCanvas" style="display:none"></canvas>
-        <!-- targeting box -->
-        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
-          <div style="width:220px;height:110px;border:3px solid #facc15;border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,0.45)"></div>
+      <!-- Quagga attaches here -->
+      <div id="quaggaContainer" class="relative rounded-2xl overflow-hidden mb-2" style="height:260px;background:#000">
+        <!-- Quagga injects video+canvas here -->
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:10">
+          <div style="width:240px;height:120px;border:3px solid #facc15;border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,0.5)"></div>
         </div>
-        <p id="scanStatus" style="position:absolute;bottom:8px;left:0;right:0;text-align:center;color:#fff;font-size:12px;font-weight:600"></p>
+        <p id="scanStatus" style="position:absolute;bottom:8px;left:0;right:0;text-align:center;color:#fff;font-size:12px;font-weight:700;z-index:11;text-shadow:0 1px 3px rgba(0,0,0,.8)">Initialising camera...</p>
       </div>
-      <!-- Manual entry fallback -->
-      <div id="manualEntryArea" class="hidden">
-        <p class="text-xs text-gray-500 mb-1">Or type the barcode value manually:</p>
+      <!-- Manual entry -->
+      <div id="manualEntryArea" class="hidden mb-2">
+        <p class="text-xs text-gray-500 mb-1">Type the barcode number manually:</p>
         <div class="flex gap-2">
-          <input type="text" id="manualBarcodeInput" placeholder="Enter barcode value"
-            class="flex-1 border-2 rounded-xl px-3 py-2 text-sm"/>
+          <input type="text" id="manualBarcodeInput" placeholder="e.g. 4867628673023"
+            style="flex:1;border:2px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:14px"/>
           <button onclick="submitManualBarcode()"
-            class="bg-black text-white text-sm font-bold px-4 rounded-xl">OK</button>
+            style="background:#000;color:#fff;font-weight:700;padding:10px 16px;border-radius:10px;font-size:14px">OK</button>
         </div>
       </div>
-      <div class="flex gap-2 mt-2">
-        <button onclick="stopScanner()" class="btn-secondary" style="font-size:13px;padding:10px;flex:1">✕ Cancel</button>
-        <button onclick="toggleManualEntry()" class="btn-secondary" style="font-size:13px;padding:10px;flex:1">⌨ Type Code</button>
+      <div class="flex gap-2">
+        <button onclick="stopScanner()" class="btn-secondary" style="flex:1;font-size:13px;padding:10px">✕ Cancel</button>
+        <button onclick="toggleManualEntry()" class="btn-secondary" style="flex:1;font-size:13px;padding:10px">⌨ Type Manually</button>
       </div>
     </div>
 
@@ -455,80 +455,74 @@ function tickItem(assetId, btn) {
   checkAllDone();
 }
 
-// ── CAMERA SCANNER ────────────────────────────────────────────
-// Uses browser BarcodeDetector API (Chrome/Android native, fast)
-// Falls back to manual text entry if not supported
-
+// ── CAMERA SCANNER (QuaggaJS — works on iPhone Safari + Android Chrome) ──
 async function startScan(assetId, expectedBarcode) {
   activeScanAssetId       = assetId;
   window._expectedBarcode = expectedBarcode;
-  await stopScanner();
+  stopScanner();
 
   el('scannerArea').classList.remove('hidden');
   el('manualEntryArea').classList.add('hidden');
-  el('scanStatus').textContent = 'Hold barcode inside the yellow box';
+  el('scanStatus').textContent = 'Initialising camera...';
 
-  const video = el('qrVideo');
-
-  // Check BarcodeDetector support
-  const hasBarcodeDetector = typeof BarcodeDetector !== 'undefined';
-
-  if (!hasBarcodeDetector) {
-    // Browser doesn't support BarcodeDetector — show manual entry immediately
-    el('scanStatus').textContent = 'Auto-scan not supported on this browser';
-    el('manualEntryArea').classList.remove('hidden');
-    // Still open camera for visual reference
-  }
-
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }
-    });
-    video.srcObject = stream;
-    window._scanStream = stream;
-    await video.play();
-
-    if (!hasBarcodeDetector) return; // camera shown, manual entry handles the rest
-
-    // BarcodeDetector — detects QR, Code128, Code39, EAN, DataMatrix, and more natively
-    const detector = new BarcodeDetector({
-      formats: ['qr_code','code_128','code_39','ean_13','ean_8','data_matrix','pdf417','aztec','codabar','itf','upc_a','upc_e']
-    });
-    window._scanActive = true;
-
-    const scanLoop = async () => {
-      if (!window._scanActive) return;
-      if (!video.videoWidth || video.readyState < 2) {
-        requestAnimationFrame(scanLoop); return;
+  Quagga.init({
+    inputStream: {
+      name: 'Live',
+      type: 'LiveStream',
+      target: document.getElementById('quaggaContainer'),
+      constraints: {
+        facingMode: 'environment',
+        width:  { min: 640, ideal: 1280 },
+        height: { min: 480, ideal: 720 }
       }
-      try {
-        const barcodes = await detector.detect(video);
-        if (barcodes.length > 0) {
-          window._scanActive = false;
-          onScanSuccess(barcodes[0].rawValue);
-          return;
-        }
-      } catch(e) { /* frame error, keep scanning */ }
-      requestAnimationFrame(scanLoop);
-    };
-    requestAnimationFrame(scanLoop);
+    },
+    decoder: {
+      readers: [
+        'ean_reader',        // EAN-13, EAN-8 (standard product barcodes)
+        'ean_8_reader',
+        'code_128_reader',   // Code128 (common on labels)
+        'code_39_reader',    // Code39
+        'upc_reader',        // UPC-A
+        'upc_e_reader',      // UPC-E
+        'codabar_reader',
+        'i2of5_reader',
+      ]
+    },
+    locate: true,
+    numOfWorkers: 0,         // 0 = main thread, required for iOS Safari
+    frequency: 10,
+  }, (err) => {
+    if (err) {
+      console.error('Quagga init error:', err);
+      el('scanStatus').textContent = 'Camera error — type barcode manually';
+      el('manualEntryArea').classList.remove('hidden');
+      return;
+    }
+    Quagga.start();
+    el('scanStatus').textContent = 'Point barcode at yellow box';
+    scannerInstance = true;
+  });
 
-  } catch(e) {
-    el('scanStatus').textContent = 'Camera error — use manual entry below';
-    el('manualEntryArea').classList.remove('hidden');
-    console.warn('Camera error:', e);
-  }
+  // Listen for successful decode
+  Quagga.onDetected((result) => {
+    const code = result?.codeResult?.code;
+    if (code) {
+      onScanSuccess(code);
+    }
+  });
 }
 
 function toggleManualEntry() {
   const area = el('manualEntryArea');
   area.classList.toggle('hidden');
-  if (!area.classList.contains('hidden')) el('manualBarcodeInput').focus();
+  if (!area.classList.contains('hidden')) {
+    setTimeout(() => el('manualBarcodeInput').focus(), 100);
+  }
 }
 
 function submitManualBarcode() {
   const val = (el('manualBarcodeInput').value || '').trim();
-  if (!val) { toast('Enter the barcode value', 2500); return; }
+  if (!val) { toast('Enter the barcode number', 2500); return; }
   onScanSuccess(val);
 }
 
@@ -556,25 +550,22 @@ function onScanSuccess(scannedText) {
   } else {
     row.style.borderColor = '#ef4444';
     row.style.background  = '#fef2f2';
-    statusEl.innerHTML    = `⚠ Wrong item! Scanned: <b>${scanned}</b> — Expected: <b>${expected}</b>`;
+    statusEl.innerHTML    = `⚠ Wrong item!<br>Scanned: <b>${scanned}</b><br>Expected: <b>${expected}</b>`;
     statusEl.className    = 'text-xs mt-1 text-red-500';
     statusEl.classList.remove('hidden');
-    toast('Wrong barcode. Try again or type manually.', 4000);
+    toast('Wrong barcode — try again or type manually', 4000);
   }
 
   activeScanAssetId = null;
   checkAllDone();
 }
 
-async function stopScanner() {
-  window._scanActive = false;
+function stopScanner() {
   el('scannerArea').classList.add('hidden');
-  if (window._scanStream) {
-    window._scanStream.getTracks().forEach(t => t.stop());
-    window._scanStream = null;
-  }
-  const v = el('qrVideo');
-  if (v) v.srcObject = null;
+  try {
+    Quagga.offDetected();
+    Quagga.stop();
+  } catch(e) {}
   scannerInstance = null;
 }
 
