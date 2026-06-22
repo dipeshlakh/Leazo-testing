@@ -6,7 +6,7 @@
 <title>Leazo – Order Task</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 
 <style>
   body{background:#f3f4f6;font-family:sans-serif;}
@@ -383,13 +383,15 @@ function stepScan(scanPoint, nextStatus) {
 
     <!-- Scanner area -->
     <div id="scannerArea" class="hidden mb-4">
-      <!-- Quagga attaches here -->
-      <div id="quaggaContainer" class="relative rounded-2xl overflow-hidden mb-2" style="height:260px;background:#000">
-        <!-- Quagga injects video+canvas here -->
-        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:10">
-          <div style="width:240px;height:120px;border:3px solid #facc15;border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,0.5)"></div>
+      <div class="relative rounded-2xl overflow-hidden mb-2" style="height:260px;background:#000">
+        <video id="scanVideo" autoplay playsinline muted
+          style="width:100%;height:100%;object-fit:cover;display:block"></video>
+        <canvas id="scanCanvas" style="display:none"></canvas>
+        <!-- targeting overlay -->
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
+          <div style="width:200px;height:200px;border:3px solid #facc15;border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,0.5)"></div>
         </div>
-        <p id="scanStatus" style="position:absolute;bottom:8px;left:0;right:0;text-align:center;color:#fff;font-size:12px;font-weight:700;z-index:11;text-shadow:0 1px 3px rgba(0,0,0,.8)">Initialising camera...</p>
+        <p id="scanStatus" style="position:absolute;bottom:8px;left:0;right:0;text-align:center;color:#fff;font-size:12px;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.8)">Starting camera...</p>
       </div>
       <!-- Manual entry -->
       <div id="manualEntryArea" class="hidden mb-2">
@@ -455,79 +457,64 @@ function tickItem(assetId, btn) {
   checkAllDone();
 }
 
-// ── CAMERA SCANNER (QuaggaJS) ────────────────────────────────
-// Collects multiple reads and only accepts when the SAME value
-// appears 4 times in a row — eliminates bad frame misreads.
-let _scanVotes = {};   // { barcode: count }
-const SCAN_THRESHOLD = 2; // QR codes are accurate enough with 2 consistent reads
+// ── CAMERA SCANNER (jsQR — works on iPhone Safari + Android Chrome) ──
+// jsQR reads QR codes from canvas frames. Fast, reliable, no native API needed.
+// IMPORTANT: Use QR code stickers on your items (not EAN barcodes).
+// Generate at qr-code-generator.com with your asset ID e.g. LZ-PS5-001
+
+let _scanRafId   = null;  // requestAnimationFrame ID for scan loop
+let _scanStream  = null;  // camera stream
 
 async function startScan(assetId, expectedBarcode) {
   activeScanAssetId       = assetId;
   window._expectedBarcode = expectedBarcode;
-  _scanVotes              = {};
   stopScanner();
 
   el('scannerArea').classList.remove('hidden');
   el('manualEntryArea').classList.add('hidden');
-  el('scanStatus').textContent = 'Initialising camera...';
+  el('scanStatus').textContent = 'Starting camera...';
 
-  Quagga.init({
-    inputStream: {
-      name: 'Live',
-      type: 'LiveStream',
-      target: document.getElementById('quaggaContainer'),
-      constraints: {
-        facingMode: 'environment',
-        width:  { min: 640, ideal: 1920 },
-        height: { min: 480, ideal: 1080 },
-        advanced: [{ focusMode: 'continuous' }]
+  const video  = el('scanVideo');
+  const canvas = el('scanCanvas');
+  const ctx    = canvas.getContext('2d', { willReadFrequently: true });
+
+  try {
+    _scanStream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: 'environment' },
+        width:  { ideal: 1280 },
+        height: { ideal: 720 }
       },
-      area: { top: '20%', right: '5%', bottom: '20%', left: '5%' }
-    },
-    decoder: {
-      readers: ['qr_code', 'ean_reader', 'ean_8_reader', 'code_128_reader',
-                'code_39_reader', 'upc_reader', 'upc_e_reader'],
-      multiple: false
-    },
-    locator: {
-      patchSize: 'medium',
-      halfSample: false
-    },
-    locate: true,
-    numOfWorkers: 0,
-    frequency: 15,
-  }, (err) => {
-    if (err) {
-      console.error('Quagga init:', err);
-      el('scanStatus').textContent = 'Camera unavailable — please type the code';
-      el('manualEntryArea').classList.remove('hidden');
-      return;
-    }
-    Quagga.start();
-    el('scanStatus').textContent = 'Point camera at QR code or barcode';
+      audio: false
+    });
+    video.srcObject = _scanStream;
+    await video.play();
+    el('scanStatus').textContent = 'Point QR code at the yellow box';
     scannerInstance = true;
-  });
+    _scanLoop(video, canvas, ctx);
+  } catch(e) {
+    console.error('Camera error:', e);
+    el('scanStatus').textContent = 'Camera error — type the code manually';
+    el('manualEntryArea').classList.remove('hidden');
+  }
+}
 
-  Quagga.onDetected((result) => {
-    const code    = result?.codeResult?.code;
-    if (!code) return;
-
-    // Confidence check — reject reads with high error rate
-    const errors = result.codeResult.decodedCodes
-      .filter(c => c.error !== undefined)
-      .map(c => c.error);
-    const avgError = errors.length ? errors.reduce((a,b) => a+b, 0) / errors.length : 1;
-    if (avgError > 0.35) return; // QR codes have built-in error correction, can be less strict
-
-    // Vote accumulation — same value must appear SCAN_THRESHOLD times
-    _scanVotes[code] = (_scanVotes[code] || 0) + 1;
-    const count = _scanVotes[code];
-    el('scanStatus').textContent = `Reading... (${count}/${SCAN_THRESHOLD})`;
-
-    if (count >= SCAN_THRESHOLD) {
-      onScanSuccess(code);
+function _scanLoop(video, canvas, ctx) {
+  if (!scannerInstance) return;
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: 'dontInvert'
+    });
+    if (code && code.data) {
+      onScanSuccess(code.data);
+      return; // stop loop — onScanSuccess calls stopScanner
     }
-  });
+  }
+  _scanRafId = requestAnimationFrame(() => _scanLoop(video, canvas, ctx));
 }
 
 function toggleManualEntry() {
@@ -539,7 +526,7 @@ function toggleManualEntry() {
 
 function submitManualBarcode() {
   const val = (el('manualBarcodeInput').value || '').trim();
-  if (!val) { toast('Enter the barcode number', 2500); return; }
+  if (!val) { toast('Enter the code', 2500); return; }
   onScanSuccess(val);
 }
 
@@ -560,17 +547,17 @@ function onScanSuccess(scannedText) {
     row.dataset.confirmed = '1';
     row.dataset.scanned   = '1';
     actionEl.innerHTML    = '<span class="text-green-600 font-bold text-sm px-2">✅ Verified</span>';
-    statusEl.textContent  = `Scanned: ${scanned} ✓`;
+    statusEl.textContent  = `Verified ✓`;
     statusEl.className    = 'text-xs mt-1 text-green-600';
     statusEl.classList.remove('hidden');
     toast('✅ Item verified!');
   } else {
     row.style.borderColor = '#ef4444';
     row.style.background  = '#fef2f2';
-    statusEl.innerHTML    = `⚠ Wrong item!<br>Scanned: <b>${scanned}</b><br>Expected: <b>${expected}</b>`;
+    statusEl.innerHTML    = `⚠ Wrong item! Got: <b>${scanned}</b> — Expected: <b>${expected}</b>`;
     statusEl.className    = 'text-xs mt-1 text-red-500';
     statusEl.classList.remove('hidden');
-    toast('Wrong barcode — try again or type manually', 4000);
+    toast('Wrong code — try again or type manually', 4000);
   }
 
   activeScanAssetId = null;
@@ -578,10 +565,12 @@ function onScanSuccess(scannedText) {
 }
 
 function stopScanner() {
-  el('scannerArea').classList.add('hidden');
-  _scanVotes = {};
-  try { Quagga.offDetected(); Quagga.stop(); } catch(e) {}
   scannerInstance = null;
+  if (_scanRafId) { cancelAnimationFrame(_scanRafId); _scanRafId = null; }
+  if (_scanStream) { _scanStream.getTracks().forEach(t => t.stop()); _scanStream = null; }
+  const v = el('scanVideo');
+  if (v) v.srcObject = null;
+  el('scannerArea').classList.add('hidden');
 }
 
 function checkAllDone() {
