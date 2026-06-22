@@ -459,7 +459,7 @@ function tickItem(assetId, btn) {
 // Collects multiple reads and only accepts when the SAME value
 // appears 4 times in a row — eliminates bad frame misreads.
 let _scanVotes = {};   // { barcode: count }
-const SCAN_THRESHOLD = 4; // must read same value N times before accepting
+const SCAN_THRESHOLD = 2; // QR codes are accurate enough with 2 consistent reads
 
 async function startScan(assetId, expectedBarcode) {
   activeScanAssetId       = assetId;
@@ -485,7 +485,7 @@ async function startScan(assetId, expectedBarcode) {
       area: { top: '20%', right: '5%', bottom: '20%', left: '5%' }
     },
     decoder: {
-      readers: ['ean_reader', 'ean_8_reader', 'code_128_reader',
+      readers: ['qr_code', 'ean_reader', 'ean_8_reader', 'code_128_reader',
                 'code_39_reader', 'upc_reader', 'upc_e_reader'],
       multiple: false
     },
@@ -504,7 +504,7 @@ async function startScan(assetId, expectedBarcode) {
       return;
     }
     Quagga.start();
-    el('scanStatus').textContent = 'Hold barcode steady inside the box';
+    el('scanStatus').textContent = 'Point camera at QR code or barcode';
     scannerInstance = true;
   });
 
@@ -517,7 +517,7 @@ async function startScan(assetId, expectedBarcode) {
       .filter(c => c.error !== undefined)
       .map(c => c.error);
     const avgError = errors.length ? errors.reduce((a,b) => a+b, 0) / errors.length : 1;
-    if (avgError > 0.25) return; // too uncertain, skip this frame
+    if (avgError > 0.35) return; // QR codes have built-in error correction, can be less strict
 
     // Vote accumulation — same value must appear SCAN_THRESHOLD times
     _scanVotes[code] = (_scanVotes[code] || 0) + 1;
