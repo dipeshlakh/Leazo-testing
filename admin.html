@@ -28,6 +28,16 @@
   .modal{background:#fff;border-radius:24px 24px 0 0;padding:24px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;}
   .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1f2937;color:#fff;padding:11px 20px;border-radius:12px;font-size:14px;z-index:999;max-width:320px;text-align:center;opacity:0;transition:opacity .3s;pointer-events:none;}
   .toast.show{opacity:1;}
+  .main-nav{padding:10px 18px;font-size:14px;font-weight:600;color:#9ca3af;border-bottom:3px solid transparent;cursor:pointer;background:none;white-space:nowrap;}
+  .main-nav.active{color:#000;border-bottom-color:#facc15;}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+  .field-row.single{grid-template-columns:1fr;}
+  input[type=text],input[type=tel],input[type=number],input[type=password]{width:100%;border:2px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:14px;background:#fff;}
+  input:focus{outline:none;border-color:#facc15;}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;}
+  .toggle-row:last-child{border:none;}
+  .asset-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:13px;}
+  .asset-row:last-child{border:none;}
 </style>
 </head>
 <body class="font-sans pb-24">
@@ -79,8 +89,17 @@
     </div>
   </div>
 
+  <!-- Main nav -->
+  <div class="flex border-b border-gray-200 px-3 sticky top-[57px] bg-gray-50 z-10">
+    <button class="main-nav active" data-page="orders" onclick="switchPage(this)">Orders</button>
+    <button class="main-nav" data-page="partners" onclick="switchPage(this)">Partners</button>
+  </div>
+
+  <!-- ORDERS PAGE -->
+  <div id="pageOrders">
+
   <!-- Filters -->
-  <div class="flex gap-2 px-3 pb-3 overflow-x-auto">
+  <div class="flex gap-2 px-3 pb-3 overflow-x-auto pt-3">
     <button class="tab-btn active" data-filter="all"         onclick="setFilter(this)">All</button>
     <button class="tab-btn"        data-filter="unassigned"  onclick="setFilter(this)">Unassigned</button>
     <button class="tab-btn"        data-filter="in_progress" onclick="setFilter(this)">In Progress</button>
@@ -102,9 +121,25 @@
   </div>
 
   <!-- Refresh FAB -->
-  <button onclick="loadAll()"
+  <button onclick="pageRefresh()"
     class="fixed bottom-5 right-5 bg-black text-white w-14 h-14 rounded-full shadow-xl text-2xl flex items-center justify-center">↻</button>
-</div>
+
+  </div><!-- /pageOrders -->
+
+  <!-- PARTNERS PAGE -->
+  <div id="pagePartners" class="hidden px-3 pt-3">
+
+    <button onclick="openPartnerModal(null)"
+      class="w-full bg-yellow-400 border-b-4 border-yellow-600 text-black font-bold py-3 rounded-xl mb-4">
+      + Add New Partner
+    </button>
+
+    <div id="partnerList" class="space-y-3">
+      <p class="text-center text-gray-400 py-10">Loading partners...</p>
+    </div>
+  </div>
+
+</div><!-- /dashboard -->
 
 <!-- ASSIGN MODAL -->
 <div id="assignModal" class="modal-bg hidden" onclick="closeModal(event)">
@@ -143,6 +178,114 @@
 
     <button class="btn-yellow mb-3" id="assignBtn" onclick="doAssign()">Assign Partner</button>
     <button class="w-full text-sm text-gray-400 py-2" onclick="closeModalDirect()">Cancel</button>
+  </div>
+</div>
+
+<!-- PARTNER MODAL (add/edit) -->
+<div id="partnerModal" class="modal-bg hidden" onclick="closePartnerModal(event)">
+  <div class="modal" id="partnerModalInner">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-lg font-black" id="partnerModalTitle">Add Partner</h2>
+      <button onclick="closePartnerModalDirect()" class="text-gray-400 text-2xl leading-none">&times;</button>
+    </div>
+
+    <input type="hidden" id="pEditId"/>
+
+    <div class="field-row">
+      <div>
+        <label class="block text-xs font-bold text-gray-400 mb-1">PARTNER NAME *</label>
+        <input type="text" id="pName" placeholder="e.g. Rahul Rentals"/>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-gray-400 mb-1">CITY *</label>
+        <input type="text" id="pCity" placeholder="e.g. Indore"/>
+      </div>
+    </div>
+    <div class="field-row">
+      <div>
+        <label class="block text-xs font-bold text-gray-400 mb-1">PHONE (10 digits) *</label>
+        <input type="tel" id="pPhone" placeholder="9876543210" maxlength="10"/>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-gray-400 mb-1">LOGIN PIN (4 digits) *</label>
+        <input type="text" id="pPin" placeholder="e.g. 4821" maxlength="4" inputmode="numeric"/>
+      </div>
+    </div>
+    <div class="field-row">
+      <div>
+        <label class="block text-xs font-bold text-gray-400 mb-1">COMMISSION %</label>
+        <input type="number" id="pCommission" placeholder="20" min="0" max="100"/>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-gray-400 mb-1">UPI ID</label>
+        <input type="text" id="pUpi" placeholder="name@upi"/>
+      </div>
+    </div>
+
+    <!-- Default config toggles -->
+    <div class="bg-gray-50 rounded-xl p-3 mb-4">
+      <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Default Order Config</p>
+      <div class="toggle-row"><span>Delivery + Installation</span><input type="checkbox" id="pInstall" class="w-5 h-5"/></div>
+      <div class="toggle-row"><span>Scan Required</span><input type="checkbox" id="pScan" class="w-5 h-5"/></div>
+      <div class="toggle-row"><span>ID Verification</span><input type="checkbox" id="pIdVerify" class="w-5 h-5"/></div>
+    </div>
+
+    <button class="btn-yellow mb-3" id="partnerSaveBtn" onclick="savePartner()">Save Partner</button>
+
+    <!-- Assets section (only shown when editing) -->
+    <div id="assetSection" class="hidden">
+      <div class="flex justify-between items-center mb-2 mt-2">
+        <p class="text-sm font-bold text-gray-700">Assets / Inventory</p>
+        <button onclick="openAddAsset()" class="text-xs font-bold bg-black text-white px-3 py-1.5 rounded-lg">+ Add Asset</button>
+      </div>
+      <div id="assetList" class="bg-gray-50 rounded-xl p-3 mb-3 min-h-12">
+        <p class="text-xs text-gray-400 text-center py-2">No assets yet</p>
+      </div>
+    </div>
+
+    <button class="w-full text-sm text-gray-400 py-2" onclick="closePartnerModalDirect()">Cancel</button>
+  </div>
+</div>
+
+<!-- ADD ASSET MODAL -->
+<div id="assetModal" class="modal-bg hidden" onclick="closeAssetModal(event)">
+  <div class="modal">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-base font-black">Add Asset</h2>
+      <button onclick="closeAssetModalDirect()" class="text-gray-400 text-2xl leading-none">&times;</button>
+    </div>
+    <div class="field-row">
+      <div>
+        <label class="block text-xs font-bold text-gray-400 mb-1">TYPE *</label>
+        <select id="aType" style="padding:10px 12px;border:2px solid #e5e7eb;border-radius:10px;">
+          <option value="ps5">PS5 Console</option>
+          <option value="controller">Controller</option>
+          <option value="charging_dock">Charging Dock</option>
+          <option value="game_disc">Game Disc</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-gray-400 mb-1">LABEL *</label>
+        <input type="text" id="aLabel" placeholder="e.g. PS5 #1"/>
+      </div>
+    </div>
+    <div class="field-row">
+      <div>
+        <label class="block text-xs font-bold text-gray-400 mb-1">SERIAL NUMBER</label>
+        <input type="text" id="aSerial" placeholder="CFI-1108A"/>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-gray-400 mb-1">BARCODE / QR</label>
+        <input type="text" id="aBarcode" placeholder="LZ-PS5-001"/>
+      </div>
+    </div>
+    <div class="toggle-row mb-4">
+      <span class="text-sm font-medium">High Value (always scanned)</span>
+      <input type="checkbox" id="aHighValue" class="w-5 h-5" checked/>
+    </div>
+    <button class="btn-yellow mb-3" onclick="saveAsset()">Add Asset</button>
+    <button class="w-full text-sm text-gray-400 py-2" onclick="closeAssetModalDirect()">Cancel</button>
   </div>
 </div>
 
@@ -525,6 +668,240 @@ function toast(msg, dur) {
   t.textContent = msg; t.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), dur || 2500);
+}
+
+// ── PAGE SWITCHING ────────────────────────────────────────────
+let currentPage = 'orders';
+function switchPage(btn) {
+  currentPage = btn.dataset.page;
+  document.querySelectorAll('.main-nav').forEach(b => b.classList.toggle('active', b === btn));
+  document.getElementById('pageOrders').classList.toggle('hidden', currentPage !== 'orders');
+  document.getElementById('pagePartners').classList.toggle('hidden', currentPage !== 'partners');
+  if (currentPage === 'partners') renderPartnerList();
+}
+
+function pageRefresh() {
+  if (currentPage === 'orders') loadAll();
+  else { loadPartners().then(renderPartnerList); }
+}
+
+// ── PARTNER LIST RENDER ───────────────────────────────────────
+async function loadPartnersAll() {
+  const { data } = await db.from('partners').select('*').order('name');
+  allPartners = data || [];
+}
+
+function renderPartnerList() {
+  const list = document.getElementById('partnerList');
+  if (!allPartners.length) {
+    list.innerHTML = '<p class="text-center text-gray-400 py-10">No partners yet. Add your first partner above.</p>';
+    return;
+  }
+  list.innerHTML = allPartners.map(p => `
+    <div class="card">
+      <div class="flex justify-between items-start mb-2">
+        <div>
+          <p class="font-bold text-gray-900">${p.name}</p>
+          <p class="text-xs text-gray-400">${p.city} · ${p.phone}</p>
+        </div>
+        <span class="badge ${p.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${p.status}</span>
+      </div>
+      <div class="grid grid-cols-3 gap-2 text-xs mb-3">
+        <div class="bg-gray-50 rounded-xl p-2 text-center">
+          <p class="text-gray-400">Commission</p>
+          <p class="font-bold">${p.commission_percent || 20}%</p>
+        </div>
+        <div class="bg-gray-50 rounded-xl p-2 text-center">
+          <p class="text-gray-400">Install</p>
+          <p class="font-bold">${p.default_installation_included ? '✅' : '❌'}</p>
+        </div>
+        <div class="bg-gray-50 rounded-xl p-2 text-center">
+          <p class="text-gray-400">Scan</p>
+          <p class="font-bold">${p.default_scan_required ? '✅' : '❌'}</p>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="openPartnerModal('${p.id}')" class="flex-1 bg-gray-800 text-white text-xs font-bold py-2 rounded-xl">✏ Edit & Assets</button>
+        <button onclick="togglePartnerStatus('${p.id}','${p.status}')"
+          class="flex-1 ${p.status === 'active' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-700'} text-xs font-bold py-2 rounded-xl">
+          ${p.status === 'active' ? 'Deactivate' : 'Activate'}
+        </button>
+      </div>
+    </div>`).join('');
+}
+
+// ── PARTNER MODAL ─────────────────────────────────────────────
+let editingPartnerId = null;
+let partnerAssets = [];
+
+async function openPartnerModal(partnerId) {
+  editingPartnerId = partnerId;
+  const modal = document.getElementById('partnerModal');
+  const isNew = !partnerId;
+
+  document.getElementById('partnerModalTitle').textContent = isNew ? 'Add Partner' : 'Edit Partner';
+  document.getElementById('assetSection').classList.toggle('hidden', isNew);
+
+  if (!isNew) {
+    const p = allPartners.find(x => x.id === partnerId);
+    if (!p) return;
+    document.getElementById('pEditId').value        = p.id;
+    document.getElementById('pName').value          = p.name || '';
+    document.getElementById('pCity').value          = p.city || '';
+    document.getElementById('pPhone').value         = p.phone || '';
+    document.getElementById('pPin').value           = p.pin || '';
+    document.getElementById('pCommission').value    = p.commission_percent || 20;
+    document.getElementById('pUpi').value           = p.upi_id || '';
+    document.getElementById('pInstall').checked     = p.default_installation_included !== false;
+    document.getElementById('pScan').checked        = p.default_scan_required !== false;
+    document.getElementById('pIdVerify').checked    = p.default_id_verification_required === true;
+    await loadAndRenderAssets(partnerId);
+  } else {
+    ['pEditId','pName','pCity','pPhone','pPin','pUpi'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('pCommission').value = '20';
+    document.getElementById('pInstall').checked  = true;
+    document.getElementById('pScan').checked     = true;
+    document.getElementById('pIdVerify').checked = false;
+  }
+
+  modal.classList.remove('hidden');
+}
+
+function closePartnerModal(e) { if (e.target.id === 'partnerModal') closePartnerModalDirect(); }
+function closePartnerModalDirect() {
+  document.getElementById('partnerModal').classList.add('hidden');
+  editingPartnerId = null; partnerAssets = [];
+}
+
+async function savePartner() {
+  const name  = document.getElementById('pName').value.trim();
+  const city  = document.getElementById('pCity').value.trim();
+  const phone = document.getElementById('pPhone').value.trim();
+  const pin   = document.getElementById('pPin').value.trim();
+  if (!name || !city || !phone || !pin) { toast('Name, city, phone and PIN are required.', 3000); return; }
+  if (phone.length !== 10) { toast('Phone must be 10 digits.', 3000); return; }
+  if (pin.length !== 4)    { toast('PIN must be 4 digits.', 3000); return; }
+
+  const btn = document.getElementById('partnerSaveBtn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  const payload = {
+    name, city, phone, pin,
+    commission_percent:              Number(document.getElementById('pCommission').value) || 20,
+    upi_id:                          document.getElementById('pUpi').value.trim() || null,
+    default_installation_included:   document.getElementById('pInstall').checked,
+    default_scan_required:           document.getElementById('pScan').checked,
+    default_id_verification_required: document.getElementById('pIdVerify').checked,
+    status: 'active'
+  };
+
+  try {
+    let error;
+    if (editingPartnerId) {
+      ({ error } = await db.from('partners').update(payload).eq('id', editingPartnerId));
+    } else {
+      ({ error } = await db.from('partners').insert(payload));
+    }
+    if (error) throw error;
+    toast(editingPartnerId ? '✅ Partner updated' : '✅ Partner added');
+    await loadPartnersAll();
+    if (!editingPartnerId) {
+      closePartnerModalDirect();
+    } else {
+      // Stay open so admin can add assets
+      const updated = allPartners.find(p => p.id === editingPartnerId);
+      if (updated) Object.assign(updated, payload);
+      document.getElementById('assetSection').classList.remove('hidden');
+    }
+    renderPartnerList();
+  } catch(e) { toast('Save failed: ' + e.message, 4000); }
+  btn.disabled = false; btn.textContent = 'Save Partner';
+}
+
+async function togglePartnerStatus(id, currentStatus) {
+  const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+  if (!confirm(`${newStatus === 'inactive' ? 'Deactivate' : 'Activate'} this partner?`)) return;
+  const { error } = await db.from('partners').update({ status: newStatus }).eq('id', id);
+  if (error) { toast('Update failed', 3000); return; }
+  await loadPartnersAll();
+  renderPartnerList();
+  toast(`Partner ${newStatus === 'active' ? 'activated' : 'deactivated'}`);
+}
+
+// ── ASSET MANAGEMENT ──────────────────────────────────────────
+async function loadAndRenderAssets(partnerId) {
+  const { data } = await db.from('partner_assets').select('*').eq('partner_id', partnerId).order('asset_type');
+  partnerAssets = data || [];
+  const list = document.getElementById('assetList');
+  if (!partnerAssets.length) {
+    list.innerHTML = '<p class="text-xs text-gray-400 text-center py-2">No assets yet — add PS5, controllers etc.</p>';
+    return;
+  }
+  const typeIcon = { ps5:'🎮', controller:'🕹', charging_dock:'🔌', game_disc:'💿', other:'📦' };
+  list.innerHTML = partnerAssets.map(a => `
+    <div class="asset-row">
+      <span class="text-lg">${typeIcon[a.asset_type] || '📦'}</span>
+      <div class="flex-1">
+        <p class="font-semibold">${a.asset_label || a.asset_type}</p>
+        <p class="text-gray-400" style="font-size:11px">
+          ${a.serial_number ? 'S/N: ' + a.serial_number : ''}
+          ${a.barcode ? ' · Barcode: ' + a.barcode : ''}
+          ${a.is_high_value ? ' · 🔍 Scanned' : ''}
+        </p>
+      </div>
+      <span class="text-xs px-2 py-0.5 rounded-full ${a.status === 'available' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${a.status}</span>
+      <button onclick="deleteAsset('${a.id}')" class="text-red-400 text-xs px-2">✕</button>
+    </div>`).join('');
+}
+
+let addingAssetForPartner = null;
+function openAddAsset() {
+  addingAssetForPartner = editingPartnerId;
+  ['aLabel','aSerial','aBarcode'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('aType').value = 'ps5';
+  document.getElementById('aHighValue').checked = true;
+  document.getElementById('assetModal').classList.remove('hidden');
+}
+function closeAssetModal(e) { if (e.target.id === 'assetModal') closeAssetModalDirect(); }
+function closeAssetModalDirect() { document.getElementById('assetModal').classList.add('hidden'); }
+
+async function saveAsset() {
+  const label = document.getElementById('aLabel').value.trim();
+  if (!label) { toast('Asset label is required.', 3000); return; }
+  if (!addingAssetForPartner) { toast('No partner selected.', 3000); return; }
+
+  const barcode = document.getElementById('aBarcode').value.trim();
+
+  const payload = {
+    partner_id:    addingAssetForPartner,
+    asset_type:    document.getElementById('aType').value,
+    asset_label:   label,
+    serial_number: document.getElementById('aSerial').value.trim() || null,
+    barcode:       barcode || null,
+    is_high_value: document.getElementById('aHighValue').checked,
+    status:        'available'
+  };
+
+  const { error } = await db.from('partner_assets').insert(payload);
+  if (error) { toast('Failed: ' + error.message, 4000); return; }
+
+  toast('✅ Asset added');
+  closeAssetModalDirect();
+  await loadAndRenderAssets(addingAssetForPartner);
+}
+
+async function deleteAsset(assetId) {
+  if (!confirm('Remove this asset?')) return;
+  const { error } = await db.from('partner_assets').delete().eq('id', assetId);
+  if (error) { toast('Delete failed', 3000); return; }
+  toast('Asset removed');
+  await loadAndRenderAssets(editingPartnerId);
+}
+
+// ── Override loadPartners to load all fields ──────────────────
+async function loadPartners() {
+  const { data } = await db.from('partners').select('*').order('name');
+  allPartners = data || [];
 }
 </script>
 </body>
