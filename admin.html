@@ -482,9 +482,9 @@ function bookingCard(b) {
               : `<span class="text-gray-400">Payment pending</span>`}
         </div>
         <div class="flex gap-1">
-          ${b.payment_status === 'paid'
-            ? `<span class="badge bg-green-100 text-green-700">Paid</span>`
-            : `<span class="badge bg-red-100 text-red-700">COD</span>`}
+          ${b.payment_method === 'prepaid'
+            ? `<span class="badge bg-green-100 text-green-700">Prepaid</span>`
+            : `<span class="badge bg-blue-100 text-blue-700">COD</span>`}
         </div>
       </div>
 
