@@ -154,7 +154,7 @@
 
     <!-- Partner select -->
     <label class="block text-xs font-bold text-gray-400 mb-1">SELECT PARTNER</label>
-    <select id="partnerSelect" class="mb-4">
+    <select id="partnerSelect" class="mb-4" onchange="checkPartnerInventory()">
       <option value="">— Choose a partner —</option>
     </select>
 
@@ -175,6 +175,9 @@
         <input type="checkbox" id="cfgIdVerify" class="w-5 h-5"/>
       </label>
     </div>
+
+    <!-- Inventory check result -->
+    <div id="inventoryCheck" class="hidden rounded-xl p-3 mb-3 text-sm"></div>
 
     <button class="btn-yellow mb-3" id="assignBtn" onclick="doAssign()">Assign Partner</button>
     <button class="w-full text-sm text-gray-400 py-2" onclick="closeModalDirect()">Cancel</button>
@@ -545,6 +548,13 @@ function openAssignModal(bookingId) {
   document.getElementById('cfgScan').checked       = b.scan_required_override !== false;
   document.getElementById('cfgIdVerify').checked   = b.id_verification_required_override === true;
 
+  // Reset inventory check state when modal opens
+  document.getElementById('inventoryCheck').classList.add('hidden');
+  const btn = document.getElementById('assignBtn');
+  btn.disabled = false; btn.className = 'btn-yellow mb-3';
+  btn.style.background = ''; btn.style.borderColor = '';
+  btn.textContent = 'Assign Partner';
+
   document.getElementById('assignModal').classList.remove('hidden');
 }
 
@@ -554,6 +564,17 @@ function closeModal(e) {
 function closeModalDirect() {
   document.getElementById('assignModal').classList.add('hidden');
   modalBookingId = null;
+  // Reset assign button to default state
+  const btn = document.getElementById('assignBtn');
+  if (btn) {
+    btn.disabled = false;
+    btn.className = 'btn-yellow mb-3';
+    btn.style.background = '';
+    btn.style.borderColor = '';
+    btn.textContent = 'Assign Partner';
+  }
+  const checkEl = document.getElementById('inventoryCheck');
+  if (checkEl) checkEl.classList.add('hidden');
 }
 
 async function doAssign() {
@@ -903,6 +924,96 @@ async function loadPartners() {
   const { data } = await db.from('partners').select('*').order('name');
   allPartners = data || [];
 }
+
+// ── PARTNER INVENTORY CHECK ───────────────────────────────────
+// Runs when admin selects a partner in assignment modal.
+// Checks if partner has the assets required for this specific booking.
+async function checkPartnerInventory() {
+  const partnerId = document.getElementById('partnerSelect').value;
+  const checkEl   = document.getElementById('inventoryCheck');
+  const assignBtn = document.getElementById('assignBtn');
+
+  if (!partnerId || !modalBookingId) {
+    checkEl.classList.add('hidden');
+    return;
+  }
+
+  const booking = allBookings.find(b => b.id === modalBookingId);
+  if (!booking) return;
+
+  checkEl.className = 'rounded-xl p-3 mb-3 text-sm bg-gray-50 border border-gray-200';
+  checkEl.classList.remove('hidden');
+  checkEl.innerHTML = '<span class="text-gray-400">Checking partner inventory...</span>';
+
+  // Build required assets based on booking
+  // Always: 1x PS5, 1x controller (default included)
+  // If controller_added: need 2 controllers total
+  const required = [
+    { type: 'ps5',        qty: 1, label: 'PS5 Console' },
+    { type: 'controller', qty: booking.controller_added ? 2 : 1,
+      label: booking.controller_added ? '2 Controllers (extra ordered)' : '1 Controller' }
+  ];
+
+  // Load this partner's available assets
+  const { data: assets } = await db
+    .from('partner_assets')
+    .select('asset_type, status, asset_label')
+    .eq('partner_id', partnerId)
+    .eq('status', 'available');
+
+  const available = assets || [];
+
+  // Count available assets by type
+  const counts = {};
+  available.forEach(a => {
+    counts[a.asset_type] = (counts[a.asset_type] || 0) + 1;
+  });
+
+  // Check each requirement
+  const checks  = [];
+  let allGood   = true;
+  let anyFail   = false;
+
+  required.forEach(req => {
+    const have = counts[req.type] || 0;
+    const ok   = have >= req.qty;
+    if (!ok) { allGood = false; anyFail = true; }
+    checks.push({ ...req, have, ok });
+  });
+
+  // Build result HTML
+  const rows = checks.map(c => `
+    <div class="flex items-center gap-2 py-1">
+      <span>${c.ok ? '✅' : '❌'}</span>
+      <span class="${c.ok ? 'text-gray-700' : 'text-red-600 font-semibold'}">${c.label}</span>
+      <span class="ml-auto text-xs ${c.ok ? 'text-green-600' : 'text-red-500'}">
+        ${c.have}/${c.qty} available
+      </span>
+    </div>`).join('');
+
+  if (allGood) {
+    checkEl.className = 'rounded-xl p-3 mb-3 text-sm bg-green-50 border border-green-200';
+    checkEl.innerHTML = `
+      <p class="font-semibold text-green-700 mb-1">✅ Partner has all required items</p>
+      ${rows}`;
+    assignBtn.disabled = false;
+    assignBtn.className = 'btn-yellow mb-3';
+    assignBtn.textContent = 'Assign Partner';
+  } else {
+    checkEl.className = 'rounded-xl p-3 mb-3 text-sm bg-red-50 border border-red-300';
+    checkEl.innerHTML = `
+      <p class="font-semibold text-red-700 mb-1">⚠️ Partner is missing required items</p>
+      ${rows}
+      <p class="text-xs text-gray-500 mt-2">You can still assign, but partner may not be able to fulfil this order.</p>`;
+    // Allow override but make button red to signal warning
+    assignBtn.disabled = false;
+    assignBtn.className = 'btn-yellow mb-3';
+    assignBtn.style.background = '#fca5a5';
+    assignBtn.style.borderColor = '#ef4444';
+    assignBtn.textContent = '⚠ Assign Anyway';
+  }
+}
+
 </script>
 </body>
 </html>
