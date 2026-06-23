@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <title>Leazo – Order Task</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 
@@ -37,9 +38,9 @@
 <div class="max-w-md mx-auto min-h-screen bg-white">
 
   <!-- Top bar -->
-  <div class="bg-yellow-400 border-b-4 border-blue-600 px-4 py-3 flex justify-between items-center sticky top-0 z-10">
+  <div class="bg-[#FFD345] border-b-4 border-[#393be5] px-4 py-3 flex justify-between items-center sticky top-0 z-10 shadow-md">
     <button onclick="goBack()" class="text-sm font-bold px-2 py-1">← Back</button>
-    <span class="text-base font-black italic tracking-widest">LEAZO</span>
+    <span class="text-xl italic" style="font-family:'Anton',sans-serif;letter-spacing:3px">LEAZO</span>
     <span id="refBadge" class="text-xs font-bold bg-black text-white px-2 py-1 rounded-full">—</span>
   </div>
 
@@ -104,18 +105,18 @@ const db           = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 // The position in these arrays determines progression order.
 // Delivery phase statuses in order:
 const DELIVERY_ORDER = [
-  'assigned','accepted','packed_scanned','out_for_delivery','reached_customer',
+  'assigned','accepted','packed_scanned','out_for_delivery',
   'id_verified','items_verified_delivery','bundle_photo_done','condition_ack_delivery',
   'otp_verified_delivery','payment_collected','delivered'
 ];
 // Return phase statuses in order:
 const RETURN_ORDER = [
-  'out_for_pickup','reached_pickup','items_verified_return',
+  'out_for_pickup','items_verified_return',
   'condition_photo_return','otp_verified_return','completed'
 ];
 // These statuses mean we are in return phase:
 const RETURN_PHASE = new Set([
-  'delivered','active_rental','return_window_open','out_for_pickup','reached_pickup',
+  'delivered','active_rental','return_window_open','out_for_pickup',
   'items_verified_return','condition_photo_return','dispute_flagged','otp_verified_return',
   'completed','rated'
 ]);
@@ -205,7 +206,6 @@ function buildSteps() {
     s.push({ id:'accept',       label:'Accept Order',        produces_status:'accepted',               render: stepAccept });
     s.push({ id:'pack_scan',    label:'Pack & Verify',       produces_status:'packed_scanned',          render: () => stepScan('pack','packed_scanned') });
     s.push({ id:'out_deliver',  label:'Out for Delivery',    produces_status:'out_for_delivery',        render: () => stepSimple('out_for_delivery','🛵  Start Delivery','Tap when you leave. Customer will be notified on WhatsApp.') });
-    s.push({ id:'reached',      label:'Reached Customer',    produces_status:'reached_customer',        render: () => stepSimple('reached_customer','📍  Mark Reached','Tap when you arrive at the customer location.',true) });
     if (cfg.id_verification_required)
     s.push({ id:'id_verify',    label:'ID Verification',     produces_status:'id_verified',             render: stepIdVerify });
     s.push({ id:'scan_deliver', label:'Verify Items',         produces_status:'items_verified_delivery', render: () => stepScan('delivery','items_verified_delivery') });
@@ -220,7 +220,6 @@ function buildSteps() {
     // ── RETURN STEPS ──
     const s = [];
     s.push({ id:'out_pickup',   label:'Out for Pickup',      produces_status:'out_for_pickup',         render: () => stepSimple('out_for_pickup','🛵  Start Pickup','Tap when you leave for pickup. Customer will be notified.') });
-    s.push({ id:'reach_pick',   label:'Reached Customer',    produces_status:'reached_pickup',         render: () => stepSimple('reached_pickup','📍  Mark Reached','Tap when you arrive at the customer location.',true) });
     s.push({ id:'scan_ret',     label:'Verify Items',         produces_status:'items_verified_return',  render: () => stepScan('return_customer','items_verified_return') });
     s.push({ id:'cond_ret',     label:'Condition Check',     produces_status:'condition_photo_return', render: stepReturnCondition });
     s.push({ id:'otp_ret',      label:'Return OTP',          produces_status:'otp_verified_return',    render: () => stepOtp('return') });
@@ -404,11 +403,11 @@ function buildOrderItemList(partnerAssets, booking) {
     }
   }
 
-  // 3. Default cables — always included, tick-only (no scan), static items
+  // 3. Default accessories — always included, tick-only (no scan), static items
   const defaultCables = [
-    { id: 'cable_typec',  asset_type: 'cable', asset_label: 'Type-C Charging Cable',  is_high_value: false, barcode: null, _source: 'static' },
-    { id: 'cable_power',  asset_type: 'cable', asset_label: 'PS5 Power Cable',         is_high_value: false, barcode: null, _source: 'static' },
-    { id: 'cable_hdmi',   asset_type: 'cable', asset_label: 'HDMI to HDMI Cable',      is_high_value: false, barcode: null, _source: 'static' },
+    { id: 'cable_power',  asset_type: 'cable', asset_label: 'Power Cable',             is_high_value: false, barcode: null, _source: 'static' },
+    { id: 'cable_hdmi',   asset_type: 'cable', asset_label: 'HDMI Cable',              is_high_value: false, barcode: null, _source: 'static' },
+    { id: 'cable_typec',  asset_type: 'cable', asset_label: 'Type-C Cable',            is_high_value: false, barcode: null, _source: 'static' },
   ];
   defaultCables.forEach(c => items.push(c));
 
@@ -487,7 +486,8 @@ function stepScan(scanPoint, nextStatus) {
 }
 
 function itemRow(a) {
-  const needsScan = a.is_high_value && a.barcode;
+  // Scan required ONLY if: item is high value AND has a barcode AND scan_required toggle is ON
+  const needsScan = a.is_high_value && a.barcode && cfg.scan_required;
   const icon = needsScan ? '🔍' : '📦';
   return `
     <div id="row_${a.id}" class="border-2 rounded-xl px-4 py-3 transition-all" style="border-color:#e5e7eb">
