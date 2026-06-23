@@ -874,8 +874,15 @@ async function doOtpFallback(stage) {
 
 // PAYMENT (COD)
 function stepPayment() {
+  // Customer already paid 10% advance online — collect only the remaining 90%
+  const total    = booking.total_amount || 0;
+  const advance  = Math.round(total * 0.10);
+  const remaining = total - advance;
   el('stepBody').innerHTML = `
-    <div class="info-box">Collect <b>₹${booking.total_amount || 0}</b> from the customer before handing over the PS5.</div>
+    <div class="info-box">
+      Collect <b>₹${remaining}</b> from the customer.<br>
+      <span class="text-xs text-gray-500 mt-1 block">Total: ₹${total} · Advance paid online: ₹${advance} · Remaining: ₹${remaining}</span>
+    </div>
     <p class="text-sm font-semibold text-gray-600 mb-3">Payment method received:</p>
     <div class="flex gap-3 mb-4">
       <button data-mode="cash" onclick="pickPayMode(this)" class="flex-1 border-2 rounded-xl py-3 font-bold text-sm">💵 Cash</button>
@@ -894,11 +901,14 @@ function pickPayMode(btn) {
 async function doPayment() {
   el('payBtn').disabled = true; el('payBtn').textContent = 'Saving...';
   try {
+    const total     = booking.total_amount || 0;
+    const advance   = Math.round(total * 0.10);
+    const collected = total - advance;  // what partner actually collected in cash
     await db.from('payment_ledger').insert({
       booking_id: booking.id, partner_id: partner.id,
       direction: 'partner_owes_leazo',
-      amount: booking.total_amount || 0,
-      commission_amount: ((booking.total_amount || 0) * (partner.commission_percent || 20)) / 100,
+      amount: collected,
+      commission_amount: (collected * (partner.commission_percent || 20)) / 100,
       status: 'pending'
     });
     await advance('payment_collected', { payment_status: 'paid' });
