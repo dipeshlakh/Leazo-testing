@@ -1,136 +1,59 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Leazo – Order Task</title>
 <script src="https://cdn.tailwindcss.com"></script>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
-  body{background:#f3f4f6;font-family:sans-serif;}
-  .dot{width:8px;height:8px;border-radius:50%;background:#d1d5db;display:inline-block;}
-  .dot.done{background:#22c55e;}
-  .dot.active{background:#facc15;width:11px;height:11px;}
-  .btn-primary{width:100%;background:#facc15;border-bottom:4px solid #ca8a04;color:#000;font-weight:700;padding:14px;border-radius:14px;font-size:15px;cursor:pointer;}
-  .btn-primary:disabled{background:#e5e7eb;border-color:#d1d5db;color:#9ca3af;cursor:not-allowed;}
-  .btn-secondary{width:100%;background:#fff;border:2px solid #e5e7eb;color:#374151;font-weight:600;padding:12px;border-radius:14px;font-size:14px;cursor:pointer;}
-  .btn-danger{width:100%;background:#fef2f2;border:2px solid #fca5a5;color:#dc2626;font-weight:600;padding:12px;border-radius:14px;cursor:pointer;}
-  .btn-green{width:100%;background:#22c55e;color:#fff;font-weight:700;padding:14px;border-radius:14px;font-size:15px;cursor:pointer;}
-  .btn-green:disabled{background:#e5e7eb;color:#9ca3af;cursor:not-allowed;}
-  .card{background:#f9fafb;border-radius:14px;padding:16px;margin-bottom:16px;}
-  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1f2937;color:#fff;padding:12px 20px;border-radius:12px;font-size:14px;z-index:999;max-width:320px;text-align:center;opacity:0;transition:opacity .3s;}
-  .toast.show{opacity:1;}
-  input[type=file]{width:100%;border:2px dashed #d1d5db;border-radius:12px;padding:10px;font-size:14px;margin-bottom:12px;background:#fff;}
-  #qrVideo{width:100%;border-radius:16px;display:block;background:#000;}
-  .scan-overlay{position:relative;}
-  .scan-overlay::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:200px;height:100px;border:3px solid #facc15;border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,0.4);}
-  label.field{display:block;font-size:12px;color:#9ca3af;margin-bottom:4px;font-weight:600;}
-  .info-box{background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:12px;font-size:13px;margin-bottom:14px;}
-  .checkbox-row{display:flex;align-items:center;gap:10px;font-size:14px;margin-bottom:14px;padding:12px;background:#f9fafb;border-radius:10px;}
-  .checkbox-row input{width:20px;height:20px;cursor:pointer;}
+  body { background:#f3f4f6; }
+  .step-dot { width:8px; height:8px; border-radius:50%; background:#d1d5db; }
+  .step-dot.done { background:#22c55e; }
+  .step-dot.current { background:#facc15; width:10px; height:10px; }
 </style>
 </head>
-<body class="pb-24">
+<body class="font-sans pb-24">
 
-<div class="max-w-md mx-auto min-h-screen bg-white">
+<div id="app" class="max-w-md mx-auto min-h-screen bg-white">
 
   <!-- Top bar -->
-  <div class="bg-[#FFD345] border-b-4 border-[#393be5] px-4 py-2 shadow-md flex justify-between items-center sticky top-0 z-10">
-    <button onclick="goBack()" class="text-sm font-bold px-2 py-1">← Back</button>
-    <span id="refBadge" class="text-xs font-bold bg-black text-white px-2 py-1 rounded-full">—</span>
+  <div class="bg-yellow-400 border-b-4 border-blue-600 px-4 py-3 flex justify-between items-center sticky top-0 z-10">
+    <button onclick="goBackToList()" class="text-sm font-bold">← Orders</button>
+    <span class="text-base font-black italic tracking-widest">LEAZO</span>
+    <span id="refBadge" class="text-xs font-bold bg-black text-white px-2 py-1 rounded-full"></span>
   </div>
 
-  <!-- Loading -->
-  <div id="loadingScreen" class="text-center py-20 text-gray-400">
-    <div class="text-3xl mb-3">⏳</div>Loading order...
-  </div>
+  <div id="loading" class="text-center text-gray-400 py-20">Loading order...</div>
 
-  <!-- Error -->
-  <div id="errorScreen" class="hidden px-6 py-20 text-center">
-    <div class="text-4xl mb-4">⚠️</div>
-    <p id="errorMsg" class="text-gray-600 mb-6"></p>
-    <button onclick="goBack()" class="btn-secondary" style="width:auto;padding:10px 24px;">Go Back</button>
-  </div>
+  <div id="wizard" class="hidden">
+    <!-- progress dots -->
+    <div class="flex gap-1.5 justify-center py-3" id="progressDots"></div>
+    <div id="stepTitle" class="text-center text-xs text-gray-400 mb-2"></div>
 
-  <!-- Wizard -->
-  <div id="wizardScreen" class="hidden">
-
-    <!-- Progress -->
-    <div class="px-4 pt-4 pb-1">
-      <div class="flex items-center gap-1.5 justify-center mb-1" id="progressDots"></div>
-      <p id="stepLabel" class="text-center text-xs text-gray-400"></p>
-    </div>
-
-    <!-- Order info bar -->
-    <div class="mx-4 mt-3 mb-4 bg-gray-50 rounded-2xl p-3 flex gap-3 text-sm">
-      <div class="flex-1">
-        <p class="font-bold text-gray-900" id="infoName"></p>
-        <p class="text-gray-400 text-xs" id="infoAddress"></p>
-      </div>
-      <div class="text-right">
-        <p class="font-bold text-green-700" id="infoAmount"></p>
-        <p class="text-xs" id="infoPayType"></p>
-      </div>
-    </div>
-
-    <!-- Step content -->
-    <div id="stepBody" class="px-4"></div>
-  </div>
-
-  <!-- Done -->
-  <div id="doneScreen" class="hidden px-6 py-20 text-center">
-    <div class="text-6xl mb-4" id="doneIcon">✅</div>
-    <p class="text-2xl font-black text-gray-900 mb-2" id="doneTitle"></p>
-    <p class="text-gray-500 mb-8" id="doneMsg"></p>
-    <button onclick="goBack()" class="btn-primary" style="max-width:200px;margin:0 auto;">Back to Orders</button>
+    <div id="stepBody" class="px-4 pb-6"></div>
   </div>
 
 </div>
 
-<!-- Toast -->
-<div id="toast" class="toast"></div>
-
 <script>
-// ─── CONFIG ───────────────────────────────────────────────────
-const SUPABASE_URL  = 'https://rohybhpktpfmeashdlzz.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvaHliaHBrdHBmbWVhc2hkbHp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3MzcwMTYsImV4cCI6MjA5MzMxMzAxNn0.NhM9DnXOl_7h3NHh1r78cPNvbogO_qOEhPfQauyKHJE';
-const BUCKET       = 'partner-uploads';
-const db           = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const SUPABASE_URL = 'https://rohybhpktpfmeashdlzz.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvaHliaHBrdHBmbWVhc2hkbHp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3MzcwMTYsImV4cCI6MjA5MzMxMzAxNn0.NhM9DnXOl_7h3NHh1r78cPNvbogO_qOEhPfQauyKHJE';
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const STORAGE_BUCKET = 'partner-uploads'; // create this bucket in Supabase Storage (private) before going live
 
-// ─── STATUS ORDER (used to find which step comes next) ────────
-// The position in these arrays determines progression order.
-// Delivery phase statuses in order:
-const DELIVERY_ORDER = [
-  'assigned','accepted','packed_scanned','out_for_delivery',
-  'id_verified','items_verified_delivery','bundle_photo_done','condition_ack_delivery',
-  'otp_verified_delivery','payment_collected','delivered'
-];
-// Return phase statuses in order:
-const RETURN_ORDER = [
-  'out_for_pickup','items_verified_return',
-  'condition_photo_return','otp_verified_return','completed'
-];
-// These statuses mean we are in return phase:
-const RETURN_PHASE = new Set([
-  'delivered','active_rental','return_window_open','out_for_pickup',
-  'items_verified_return','condition_photo_return','dispute_flagged','otp_verified_return',
-  'completed','rated'
-]);
+const params = new URLSearchParams(location.search);
+const bookingId = params.get('booking_id');
 
-// ─── STATE ────────────────────────────────────────────────────
-const bookingId = new URLSearchParams(location.search).get('booking_id');
-let partner  = null;
-let booking  = null;
-let cfg      = null;
-let assets   = [];
-let steps    = [];   // active step list, rebuilt each time
-let stepIdx  = 0;    // which step to show
+let partner = null;
+let booking = null;
+let config = null;   // from booking_effective_config view
+let assets = [];      // partner's high-value assets for scan steps
+let steps = [];        // resolved step list for this booking
+let currentStepIndex = 0;
+let pendingGeo = null;
 
-// ─── BOOT ─────────────────────────────────────────────────────
+// ---------- AUTH GUARD ----------
 window.addEventListener('DOMContentLoaded', async () => {
   const pid = sessionStorage.getItem('partner_id');
   const pin = sessionStorage.getItem('partner_pin');
@@ -140,691 +63,404 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (!p || p.status !== 'active') { sessionStorage.clear(); location.href = 'partner-task.html'; return; }
   partner = p;
 
-  if (!bookingId) { showError('No booking ID specified.'); return; }
+  if (!bookingId) { alert('No booking specified.'); location.href = 'partner-task.html'; return; }
   await loadBooking();
 });
 
-function goBack() { location.href = 'partner-task.html'; }
+function goBackToList() { location.href = 'partner-task.html'; }
 
-// ─── LOAD ─────────────────────────────────────────────────────
 async function loadBooking() {
-  try {
-    const { data: b, error: bErr } = await db.from('bookings').select('*').eq('id', bookingId).maybeSingle();
-    if (bErr || !b) { showError('Order not found. It may have been reassigned.'); return; }
-    if (String(b.assigned_partner_id) !== String(partner.id)) { showError('This order is not assigned to you.'); return; }
-    booking = b;
+  const { data: b, error } = await db.from('bookings').select('*').eq('id', bookingId).maybeSingle();
+  if (error || !b) { alert('Order not found.'); goBackToList(); return; }
+  if (b.assigned_partner_id !== partner.id) { alert('This order is not assigned to you.'); goBackToList(); return; }
+  booking = b;
 
-    const { data: c } = await db.from('booking_effective_config').select('*').eq('booking_id', bookingId).maybeSingle();
-    cfg = c || { scan_required: false, installation_included: true, id_verification_required: false, bundle_photo_count: 1, is_delivery_only: false };
+  const { data: cfg } = await db.from('booking_effective_config').select('*').eq('booking_id', bookingId).maybeSingle();
+  config = cfg || { scan_required: true, installation_included: true, id_verification_required: false, bundle_photo_count: 1, is_delivery_only: false };
 
-    // Build order-specific item list:
-    // 1. PS5 + correct number of controllers from partner_assets (high value = scan required)
-    // 2. Default cables always included as tick-only checklist items
-    const { data: allAssets } = await db
-      .from('partner_assets')
-      .select('*')
-      .eq('partner_id', partner.id)
-      .eq('status', 'available')
-      .order('asset_type');
-
-    const partnerAssets = allAssets || [];
-    assets = buildOrderItemList(partnerAssets, booking);
-
-    populateInfoBar();
-    buildSteps();
-    stepIdx = findFirstPendingStep();
-    show('wizardScreen');
-    hide('loadingScreen');
-    renderStep();
-  } catch (e) {
-    console.error(e);
-    showError('Failed to load order. Check your connection.');
-  }
-}
-
-// ─── INFO BAR ─────────────────────────────────────────────────
-function populateInfoBar() {
-  document.getElementById('refBadge').textContent  = booking.reference_number || ('#' + booking.id);
-  document.getElementById('infoName').textContent   = booking.customer_name   || 'Customer';
-  document.getElementById('infoAddress').textContent= booking.address         || '—';
-  document.getElementById('infoAmount').textContent = '₹' + (booking.total_amount || 0);
-  const paid = (booking.payment_method === 'prepaid');
-  const pm   = document.getElementById('infoPayType');
-  pm.textContent  = paid ? 'Prepaid ✅' : 'COD – collect cash';
-  pm.style.color  = paid ? '#16a34a' : '#dc2626';
-}
-
-// ─── BUILD STEP LIST ──────────────────────────────────────────
-// Each step: { id, label, produces_status, render }
-// produces_status = what DB status this step sets on completion
-function buildSteps() {
-  const inReturn = RETURN_PHASE.has(booking.fulfillment_status);
-
-  if (!inReturn) {
-    // ── DELIVERY STEPS ──
-    const s = [];
-    s.push({ id:'accept',       label:'Accept Order',        produces_status:'accepted',               render: stepAccept });
-    s.push({ id:'pack_scan',    label:'Pack & Verify',       produces_status:'packed_scanned',          render: () => stepScan('pack','packed_scanned') });
-    s.push({ id:'out_deliver',  label:'Out for Delivery',    produces_status:'out_for_delivery',        render: () => stepSimple('out_for_delivery','🛵  Start Delivery','Tap when you leave. Customer will be notified on WhatsApp.') });
-    if (cfg.id_verification_required)
-    s.push({ id:'id_verify',    label:'ID Verification',     produces_status:'id_verified',             render: stepIdVerify });
-    s.push({ id:'scan_deliver', label:'Verify Items',         produces_status:'items_verified_delivery', render: () => stepScan('delivery','items_verified_delivery') });
-    s.push({ id:'photos',       label: cfg.installation_included ? 'Installation Photo' : 'Package Photo', produces_status:'bundle_photo_done', render: stepBundlePhoto });
-    s.push({ id:'condition',    label:'Condition Photo',     produces_status:'condition_ack_delivery',  render: stepConditionPhoto });
-    s.push({ id:'otp_del',      label:'Customer OTP',        produces_status:'otp_verified_delivery',   render: () => stepOtp('delivery') });
-    if (booking.payment_method !== 'prepaid')
-    s.push({ id:'payment',      label:'Collect Payment',     produces_status:'payment_collected',       render: stepPayment });
-    s.push({ id:'done_del',     label:'Delivered',           produces_status:'delivered',               render: () => stepSimple('delivered','✅  Confirm Delivered','All steps complete. Mark the order as delivered.') });
-    steps = s;
-  } else {
-    // ── RETURN STEPS ──
-    const s = [];
-    s.push({ id:'out_pickup',   label:'Out for Pickup',      produces_status:'out_for_pickup',         render: () => stepSimple('out_for_pickup','🛵  Start Pickup','Tap when you leave for pickup. Customer will be notified.') });
-    s.push({ id:'scan_ret',     label:'Verify Items',         produces_status:'items_verified_return',  render: () => stepScan('return_customer','items_verified_return') });
-    s.push({ id:'cond_ret',     label:'Condition Check',     produces_status:'condition_photo_return', render: stepReturnCondition });
-    s.push({ id:'otp_ret',      label:'Return OTP',          produces_status:'otp_verified_return',    render: () => stepOtp('return') });
-    s.push({ id:'stock',        label:'Back to Stock',       produces_status:'completed',              render: () => stepScan('return_partner','completed') });
-    steps = s;
-  }
-}
-
-// ─── FIND WHICH STEP TO SHOW ──────────────────────────────────
-// Uses STATUS_ORDER to compare positions — immune to step list rebuilds.
-function findFirstPendingStep() {
-  const inReturn = RETURN_PHASE.has(booking.fulfillment_status);
-  const order    = inReturn ? RETURN_ORDER : DELIVERY_ORDER;
-  const curPos   = order.indexOf(booking.fulfillment_status); // -1 if not yet started
-
-  for (let i = 0; i < steps.length; i++) {
-    const stepPos = order.indexOf(steps[i].produces_status);
-    // Show the first step whose produced status is AFTER the current status in order
-    if (stepPos > curPos) return i;
-  }
-  // All steps done — show last step
-  return steps.length - 1;
-}
-
-// ─── RENDER CURRENT STEP ──────────────────────────────────────
-function renderStep() {
-  // Progress dots
-  document.getElementById('progressDots').innerHTML = steps.map((s, i) => {
-    const cls = i < stepIdx ? 'done' : (i === stepIdx ? 'active' : '');
-    return `<span class="dot ${cls}"></span>`;
-  }).join('');
-  document.getElementById('stepLabel').textContent =
-    `Step ${stepIdx + 1} of ${steps.length} — ${steps[stepIdx].label}`;
-  document.getElementById('stepBody').innerHTML = '';
-  try {
-    steps[stepIdx].render();
-  } catch(e) {
-    console.error('Render error:', e);
-    document.getElementById('stepBody').innerHTML =
-      `<div class="card text-red-500 text-sm">Something went wrong rendering this step. Please go back and try again.<br><small>${e.message}</small></div>`;
-  }
-}
-
-// ─── ADVANCE TO NEXT STEP ─────────────────────────────────────
-async function advance(newStatus, extraFields) {
-  try {
-    const payload = { fulfillment_status: newStatus, ...(extraFields || {}) };
-    const { error } = await db.from('bookings').update(payload).eq('id', booking.id);
-    if (error) throw error;
-
-    // Update local booking object
-    Object.assign(booking, payload);
-
-    // Log the event (non-blocking — don't let logging failure block the wizard)
-    logEvent(newStatus).catch(e => console.warn('logEvent failed (non-blocking):', e));
-
-    // Special completion screens
-    if (newStatus === 'delivered') {
-      showDone('🎉', 'Delivery Complete!', 'Great job! The order is now active.');
-      return;
-    }
-    if (newStatus === 'completed') {
-      showDone('✅', 'Return Complete!', 'Rental closed. Well done!');
-      return;
-    }
-
-    // Rebuild step list (phase may have changed) and find next step
-    buildSteps();
-    stepIdx = findFirstPendingStep();
-    renderStep();
-    window.scrollTo(0, 0);
-  } catch(e) {
-    console.error('advance() error:', e);
-    toast('❌ Save failed: ' + (e.message || 'Check connection'), 4000);
-    // Re-enable any disabled buttons
-    document.querySelectorAll('button:disabled').forEach(b => b.disabled = false);
-  }
-}
-
-// ─── STEP RENDERERS ───────────────────────────────────────────
-
-// ACCEPT
-function stepAccept() {
-  const d = booking;
-  el('stepBody').innerHTML = `
-    <div class="card">
-      <p class="text-xs text-gray-400 mb-3 font-semibold uppercase tracking-wide">Order Details</p>
-      <div class="space-y-2 text-sm">
-        <row><b>Customer:</b> ${d.customer_name || '—'}</row>
-        <div><b>Phone:</b> ${d.phone || '—'}</div>
-        <div><b>Address:</b> ${d.address || '—'}</div>
-        <div><b>Date:</b> ${d.booking_date || '—'} &nbsp; ${d.start_time || ''} – ${d.end_time || ''}</div>
-        <div><b>Plan:</b> ${d.plan || '—'}</div>
-        <div><b>Amount:</b> <span class="text-green-700 font-bold">₹${d.total_amount || 0}</span> &nbsp; ${d.payment_method === 'prepaid' ? '(Prepaid ✅)' : '(COD – collect from customer)'}</div>
-      </div>
-    </div>
-    <button class="btn-primary mb-3" onclick="doAccept()">Accept Order</button>
-    <button class="btn-danger" onclick="doReject()">Reject Order</button>`;
-}
-
-async function doAccept() {
-  setBusy(true, 'Accepting...');
-  await advance('accepted');
-  setBusy(false);
-}
-
-async function doReject() {
-  if (!confirm('Reject this order? Admin will be notified to reassign.')) return;
-  setBusy(true, 'Rejecting...');
-  try {
-    await db.from('bookings').update({ fulfillment_status: 'rejected', assigned_partner_id: null }).eq('id', booking.id);
-    logEvent('rejected').catch(()=>{});
-    toast('Order rejected. Admin notified.');
-    setTimeout(() => goBack(), 1500);
-  } catch(e) { toast('Failed to reject. Try again.', 3000); setBusy(false); }
-}
-
-// SIMPLE ACTION (out_for_delivery, reached, out_for_pickup, etc)
-function stepSimple(nextStatus, btnLabel, desc, captureGeo) {
-  el('stepBody').innerHTML = `
-    <div class="info-box">${desc}</div>
-    <button class="btn-primary" id="simpleBtn" onclick="doSimple('${nextStatus}', ${!!captureGeo})">${btnLabel}</button>`;
-}
-
-async function doSimple(nextStatus, withGeo) {
-  const btn = el('simpleBtn');
-  btn.disabled = true;
-  btn.textContent = 'Please wait...';
-
-  // Notify customer on key events (fire-and-forget)
-  if (nextStatus === 'out_for_delivery') notifyWA('out_for_delivery');
-  if (nextStatus === 'out_for_pickup')   notifyWA('out_for_pickup');
-
-  let geo = null;
-  if (withGeo) geo = await getGeo();
-
-  await advance(nextStatus, geo ? { last_partner_lat: geo.lat, last_partner_lng: geo.lng } : {});
-}
-
-// ── BUILD ORDER ITEM LIST ─────────────────────────────────────
-// Combines partner DB assets (PS5, controllers) with fixed default
-// accessories (cables) that are always included in every delivery.
-// Returns array of items for the checklist/scan step.
-function buildOrderItemList(partnerAssets, booking) {
-  const items = [];
-
-  // 1. PS5 Console — always required, high value, scan if barcode set
-  const ps5 = partnerAssets.find(a => a.asset_type === 'ps5');
-  if (ps5) {
-    items.push({ ...ps5, _source: 'db' });
-  } else {
-    // No PS5 registered — add as tick-only placeholder so checklist still shows
-    items.push({
-      id: 'ps5_placeholder',
-      asset_type: 'ps5',
-      asset_label: 'PS5 Console',
-      is_high_value: false,
-      barcode: null,
-      serial_number: null,
-      _source: 'placeholder'
-    });
+  if (config.scan_required) {
+    const { data: a } = await db.from('partner_assets').select('*').eq('partner_id', partner.id).eq('is_high_value', true).eq('status', 'rented');
+    assets = a && a.length ? a : (await db.from('partner_assets').select('*').eq('partner_id', partner.id).eq('is_high_value', true)).data || [];
   }
 
-  // 2. Controllers — 1 default, 2 if customer added extra controller
-  const controllersNeeded = booking.controller_added ? 2 : 1;
-  const controllers = partnerAssets.filter(a => a.asset_type === 'controller');
+  buildStepList();
+  document.getElementById('refBadge').textContent = 'Ref: ' + (booking.reference_number || booking.id);
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('wizard').classList.remove('hidden');
+  jumpToCurrentStatusStep();
+  renderStep();
+}
 
-  for (let i = 0; i < controllersNeeded; i++) {
-    if (controllers[i]) {
-      items.push({ ...controllers[i], _source: 'db' });
-    } else {
-      items.push({
-        id: `ctrl_placeholder_${i}`,
-        asset_type: 'controller',
-        asset_label: i === 0 ? 'DualSense Controller' : 'Extra Controller',
-        is_high_value: false,
-        barcode: null,
-        serial_number: null,
-        _source: 'placeholder'
-      });
-    }
-  }
+// ---------- STEP DEFINITIONS ----------
+// Each step has: key (matches fulfillment_status it produces), label
+function buildStepList() {
+  const isDelivered = booking.fulfillment_status && [
+    'delivered','active_rental','return_window_open','out_for_pickup','reached_pickup',
+    'items_verified_return','condition_photo_return','dispute_flagged','otp_verified_return','completed','rated'
+  ].includes(booking.fulfillment_status);
 
-  // 3. Default accessories — always included, tick-only (no scan), static items
-  const defaultCables = [
-    { id: 'cable_power',  asset_type: 'cable', asset_label: 'Power Cable',             is_high_value: false, barcode: null, _source: 'static' },
-    { id: 'cable_hdmi',   asset_type: 'cable', asset_label: 'HDMI Cable',              is_high_value: false, barcode: null, _source: 'static' },
-    { id: 'cable_typec',  asset_type: 'cable', asset_label: 'Type-C Cable',            is_high_value: false, barcode: null, _source: 'static' },
+  const deliverySteps = [
+    { key: 'accepted', label: 'Accept Order', render: renderAcceptStep },
   ];
-  defaultCables.forEach(c => items.push(c));
+  if (config.scan_required) deliverySteps.push({ key: 'packed_scanned', label: 'Pack & Scan Items', render: () => renderScanStep('pack', 'packed_scanned') });
+  deliverySteps.push({ key: 'out_for_delivery', label: 'Out for Delivery', render: () => renderSimpleActionStep('out_for_delivery', 'Start Delivery', 'Tap when you leave for the customer location. Customer will be notified.') });
+  deliverySteps.push({ key: 'reached_customer', label: 'Reached Customer', render: () => renderSimpleActionStep('reached_customer', 'Mark Reached', 'Tap when you arrive at the customer location.', true) });
+  if (config.id_verification_required) deliverySteps.push({ key: 'id_verified', label: 'ID Verification', render: renderIdVerificationStep });
+  if (config.scan_required) deliverySteps.push({ key: 'items_verified_delivery', label: 'Scan Items', render: () => renderScanStep('delivery', 'items_verified_delivery') });
+  deliverySteps.push({ key: 'bundle_photo_done', label: config.installation_included ? 'Installation Photo' : 'Package Photo', render: renderBundlePhotoStep });
+  deliverySteps.push({ key: 'condition_ack_delivery', label: 'Condition Photo', render: renderConditionPhotoStep });
+  deliverySteps.push({ key: 'otp_verified_delivery', label: 'Customer Confirmation', render: () => renderOtpStep('delivery') });
+  if (booking.payment_status !== 'paid') deliverySteps.push({ key: 'payment_collected', label: 'Collect Payment', render: renderPaymentStep });
+  deliverySteps.push({ key: 'delivered', label: 'Delivered', render: () => renderSimpleActionStep('delivered', 'Confirm Delivered', 'All steps complete. Tap to finish delivery.') });
 
-  // 4. Any other high-value assets the partner has (e.g. game discs, charging docks)
-  const extraTypes = ['charging_dock', 'game_disc', 'other'];
-  partnerAssets
-    .filter(a => extraTypes.includes(a.asset_type))
-    .forEach(a => items.push({ ...a, _source: 'db' }));
+  const returnSteps = [
+    { key: 'out_for_pickup', label: 'Out for Pickup', render: () => renderSimpleActionStep('out_for_pickup', 'Start Pickup', 'Tap when you leave for pickup. Customer will be notified.') },
+    { key: 'reached_pickup', label: 'Reached Customer', render: () => renderSimpleActionStep('reached_pickup', 'Mark Reached', 'Tap when you arrive for pickup.', true) },
+  ];
+  if (config.scan_required) returnSteps.push({ key: 'items_verified_return', label: 'Scan Items', render: () => renderScanStep('return_customer', 'items_verified_return') });
+  returnSteps.push({ key: 'condition_photo_return', label: 'Condition Check', render: renderReturnConditionStep });
+  returnSteps.push({ key: 'otp_verified_return', label: 'Return Confirmation', render: () => renderOtpStep('return') });
+  if (config.scan_required) returnSteps.push({ key: 'completed', label: 'Return to Stock', render: () => renderScanStep('return_partner', 'completed') });
+  else returnSteps.push({ key: 'completed', label: 'Complete', render: () => renderSimpleActionStep('completed', 'Mark Completed', 'Confirm the rental is fully closed.') });
 
-  return items;
+  steps = isDelivered ? returnSteps : deliverySteps;
 }
 
-// ── SCAN STEP ─────────────────────────────────────────────────
-// ALL assets: mandatory checklist tick
-// HIGH-VALUE assets (is_high_value=true): ALSO require camera barcode scan + match
-// scan_required toggle only controls whether barcode scan is enforced for high-value items
+function jumpToCurrentStatusStep() {
+  const idx = steps.findIndex(s => s.key === booking.fulfillment_status);
+  currentStepIndex = idx >= 0 ? idx : 0;
+}
 
-let scannerInstance = null;   // html5-qrcode instance
-let activeScanAssetId = null; // which asset is currently being scanned
+// ---------- RENDER SHELL ----------
+function renderStep() {
+  const dotsEl = document.getElementById('progressDots');
+  dotsEl.innerHTML = steps.map((s, i) => {
+    const cls = i < currentStepIndex ? 'done' : (i === currentStepIndex ? 'current' : '');
+    return `<div class="step-dot ${cls}"></div>`;
+  }).join('');
+  document.getElementById('stepTitle').textContent = `Step ${currentStepIndex + 1} of ${steps.length}: ${steps[currentStepIndex].label}`;
+  document.getElementById('stepBody').innerHTML = '';
+  steps[currentStepIndex].render();
+}
 
-function stepScan(scanPoint, nextStatus) {
-  if (!assets.length) {
-    el('stepBody').innerHTML = `
-      <div class="info-box">No assets registered. Ask admin to add items in the Partners tab.</div>
-      <button class="btn-primary" onclick="advance('${nextStatus}')">Continue</button>`;
+async function advanceStep(newStatus, extra) {
+  const updatePayload = { fulfillment_status: newStatus };
+  if (extra) Object.assign(updatePayload, extra);
+  const { error } = await db.from('bookings').update(updatePayload).eq('id', booking.id);
+  if (error) { alert('Failed to update. Check connection and try again.'); console.error(error); return; }
+  booking.fulfillment_status = newStatus;
+  Object.assign(booking, extra || {});
+
+  await logEvent(newStatus);
+  buildStepList();
+  const idx = steps.findIndex(s => s.key === newStatus);
+  currentStepIndex = idx >= 0 ? idx : Math.min(currentStepIndex + 1, steps.length - 1);
+
+  if (newStatus === 'delivered' || newStatus === 'completed') {
+    document.getElementById('stepBody').innerHTML = `
+      <div class="text-center py-16">
+        <div class="text-5xl mb-4">✅</div>
+        <p class="text-xl font-bold text-gray-900">${newStatus === 'delivered' ? 'Delivery Complete' : 'Order Completed'}</p>
+        <button onclick="goBackToList()" class="mt-6 bg-black text-white font-bold px-6 py-3 rounded-xl">Back to Orders</button>
+      </div>`;
+    document.getElementById('progressDots').innerHTML = '';
+    document.getElementById('stepTitle').textContent = '';
     return;
   }
+  renderStep();
+}
 
-  const needsScanItems = assets.filter(a => a.is_high_value && a.barcode && cfg.scan_required);
-  const typeIcon = { ps5:'🎮', controller:'🕹', charging_dock:'🔌', cable:'🔌', game_disc:'💿', other:'📦' };
+async function logEvent(eventType, opts = {}) {
+  await db.from('booking_events').insert({
+    booking_id: booking.id,
+    event_type: eventType,
+    actor_type: 'partner',
+    actor_id: partner.phone,
+    notes: opts.notes || null,
+    photo_url: opts.photo_url || null,
+    geo_lat: pendingGeo ? pendingGeo.lat : (opts.geo_lat || null),
+    geo_lng: pendingGeo ? pendingGeo.lng : (opts.geo_lng || null),
+    metadata: opts.metadata || null
+  });
+}
 
-  el('stepBody').innerHTML = `
-    ${needsScanItems.length ? `
-    <div class="relative rounded-2xl overflow-hidden mb-3" style="height:200px;background:#000">
-      <video id="scanVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;display:block"></video>
-      <canvas id="scanCanvas" style="display:none"></canvas>
-      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
-        <div style="width:220px;height:100px;border:3px solid #facc15;border-radius:10px;box-shadow:0 0 0 9999px rgba(0,0,0,0.55)"></div>
-      </div>
-      <p id="scanStatus" style="position:absolute;bottom:8px;left:0;right:0;text-align:center;color:#fff;font-size:12px;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.8)">Starting camera...</p>
+function captureGeo() {
+  return new Promise(resolve => {
+    if (!navigator.geolocation) { resolve(null); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  });
+}
+
+async function uploadPhoto(file, pathPrefix) {
+  const ext = file.name.split('.').pop() || 'jpg';
+  const path = `${pathPrefix}/${booking.id}_${Date.now()}.${ext}`;
+  const { error } = await db.storage.from(STORAGE_BUCKET).upload(path, file, { upsert: true });
+  if (error) { console.error(error); throw error; }
+  const { data } = db.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}
+
+// ---------- STEP: ACCEPT ----------
+function renderAcceptStep() {
+  document.getElementById('stepBody').innerHTML = `
+    <div class="bg-gray-50 rounded-2xl p-4 mb-4 space-y-2 text-sm">
+      <p><span class="text-gray-400">Customer:</span> <span class="font-bold">${booking.customer_name || '—'}</span></p>
+      <p><span class="text-gray-400">Address:</span> ${booking.address || '—'}</p>
+      <p><span class="text-gray-400">Date:</span> ${booking.booking_date || '—'} &nbsp; ${booking.start_time || ''} → ${booking.end_time || ''}</p>
+      <p><span class="text-gray-400">Plan:</span> ${booking.plan || '—'}</p>
+      <p><span class="text-gray-400">Amount:</span> <span class="font-bold text-green-700">₹${booking.total_amount || 0}</span></p>
+      <p><span class="text-gray-400">Payment:</span> ${booking.payment_status === 'paid' ? 'Prepaid ✅' : 'Collect COD'}</p>
     </div>
-    <div id="manualEntryArea" class="hidden mb-3">
-      <div class="flex gap-2">
-        <input type="text" id="manualBarcodeInput" placeholder="Type barcode value"
-          style="flex:1;border:2px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:14px"/>
-        <button onclick="submitManualBarcode()" style="background:#000;color:#fff;font-weight:700;padding:10px 16px;border-radius:10px;font-size:14px">OK</button>
-      </div>
-    </div>
-    <button onclick="toggleManualEntry()" class="btn-secondary mb-3" style="font-size:12px;padding:8px">⌨ Can't scan? Type manually</button>
-    ` : ''}
-    <p class="text-xs text-gray-400 mb-2">${needsScanItems.length ? 'Scan each item above · ' : ''}Tap cables to confirm</p>
-    <div id="assetList" class="space-y-2 mb-4">
-      ${assets.map(a => {
-        const needsScan = a.is_high_value && a.barcode && cfg.scan_required;
-        const icon = typeIcon[a.asset_type] || '📦';
-        return \`<div id="row_\${a.id}" data-confirmed="0"
-          onclick="\${needsScan ? '' : \`tickRow('\${a.id}', this)\`}"
-          class="border-2 rounded-xl px-4 py-3 transition-all \${needsScan ? '' : 'cursor-pointer'}"
-          style="border-color:#e5e7eb">
-          <div class="flex items-center justify-between">
-            <div class="flex-1">
-              <p class="font-semibold text-sm">\${icon} \${a.asset_label || a.asset_type}</p>
-              \${a.serial_number ? \`<p class="text-xs text-gray-400">S/N: \${a.serial_number}</p>\` : ''}
-            </div>
-            <div id="action_\${a.id}">
-              \${needsScan
-                ? '<span class="text-xs text-gray-300 font-medium px-2">Waiting...</span>'
-                : \`<span class="text-2xl text-gray-300" id="tick_\${a.id}">○</span>\`}
-            </div>
-          </div>
-          <p id="status_\${a.id}" class="text-xs mt-1 hidden"></p>
-        </div>\`;
-      }).join('')}
-    </div>
-    <button id="confirmAllBtn" class="btn-green" disabled onclick="doConfirmAll('${scanPoint}','${nextStatus}')">
-      Confirm All & Continue
+    <div class="flex gap-3">
+      <button onclick="acceptOrder(true)" class="flex-1 bg-green-500 text-white font-bold py-3 rounded-xl">Accept</button>
+      <button onclick="acceptOrder(false)" class="flex-1 bg-red-100 text-red-600 font-bold py-3 rounded-xl">Reject</button>
+    </div>`;
+}
+
+async function acceptOrder(accept) {
+  if (!accept) {
+    if (!confirm('Reject this order? Admin will be notified to reassign.')) return;
+    await db.from('bookings').update({ fulfillment_status: 'rejected', assigned_partner_id: null }).eq('id', booking.id);
+    await logEvent('rejected');
+    alert('Order rejected. It has been sent back to admin.');
+    goBackToList();
+    return;
+  }
+  advanceStep('accepted');
+}
+
+// ---------- STEP: SIMPLE ACTION (out_for_delivery, reached, etc) ----------
+function renderSimpleActionStep(nextStatus, buttonLabel, description, captureGeoFlag) {
+  document.getElementById('stepBody').innerHTML = `
+    <p class="text-gray-600 text-sm mb-6">${description}</p>
+    <button id="actionBtn" onclick="doSimpleAction('${nextStatus}', ${!!captureGeoFlag})"
+      class="w-full bg-yellow-400 border-b-4 border-yellow-600 text-black font-bold py-3 rounded-xl">
+      ${buttonLabel}
     </button>`;
-
-  checkAllDone();
-  if (needsScanItems.length) startPersistentScanner();
 }
 
-function tickRow(assetId, row) {
-  const done = row.dataset.confirmed !== '1';
-  row.dataset.confirmed = done ? '1' : '0';
-  row.style.borderColor = done ? '#22c55e' : '#e5e7eb';
-  row.style.background  = done ? '#f0fdf4' : '';
-  const tick = el('tick_' + assetId);
-  if (tick) { tick.textContent = done ? '✅' : '○'; tick.style.color = done ? '#22c55e' : ''; }
-  checkAllDone();
+async function doSimpleAction(nextStatus, withGeo) {
+  const btn = document.getElementById('actionBtn');
+  btn.disabled = true; btn.textContent = 'Please wait...';
+  if (withGeo) pendingGeo = await captureGeo();
+
+  // notify customer on key transitions
+  if (nextStatus === 'out_for_delivery') notifyCustomer('out_for_delivery');
+  if (nextStatus === 'out_for_pickup') notifyCustomer('out_for_pickup');
+
+  await advanceStep(nextStatus);
 }
 
-
-// ── PERSISTENT SCANNER ───────────────────────────────────────
-// One scanner stays open and auto-matches ANY item's barcode.
-let _scanRafId  = null;
-let _scanStream = null;
-let _lastScan   = '';  // debounce
-
-async function startPersistentScanner() {
-  stopScanner();
-  const video  = el('scanVideo');
-  const canvas = el('scanCanvas');
-  if (!video || !canvas) return;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+async function notifyCustomer(eventType) {
+  // Calls your existing WhatsApp edge function. Confirm exact payload shape matches
+  // your send-notification function before relying on this in production.
   try {
-    _scanStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
-      audio: false
+    await fetch(`${SUPABASE_URL}/functions/v1/send-notification`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+      body: JSON.stringify({ booking_id: booking.id, event: eventType, to: booking.phone })
     });
-    video.srcObject = _scanStream;
-    await video.play();
-    if (el('scanStatus')) el('scanStatus').textContent = 'Point camera at any item QR code';
-    scannerInstance = true;
-    _scanLoop(video, canvas, ctx);
-  } catch(e) {
-    console.error('Camera error:', e);
-    if (el('scanStatus')) el('scanStatus').textContent = 'Camera error — type manually';
-    const m = el('manualEntryArea');
-    if (m) m.classList.remove('hidden');
+  } catch (e) { console.warn('Notification failed (non-blocking):', e); }
+}
+
+// ---------- STEP: ASSET SCAN ----------
+function renderScanStep(scanPoint, nextStatus) {
+  if (!assets.length) {
+    document.getElementById('stepBody').innerHTML = `
+      <p class="text-sm text-gray-500 mb-4">No high-value assets registered for your account yet. You can skip this step — ask admin to add your PS5/controller asset records.</p>
+      <button onclick="advanceStep('${nextStatus}')" class="w-full bg-yellow-400 border-b-4 border-yellow-600 text-black font-bold py-3 rounded-xl">Skip & Continue</button>`;
+    return;
   }
+  document.getElementById('stepBody').innerHTML = `
+    <p class="text-sm text-gray-500 mb-3">Tap each item to confirm it's present.</p>
+    <div id="assetList" class="space-y-2 mb-5">
+      ${assets.map(a => `
+        <button type="button" data-asset="${a.id}" onclick="toggleAsset(this)"
+          class="w-full flex items-center justify-between border-2 rounded-xl px-4 py-3 text-left">
+          <span class="font-medium">${a.asset_label || a.asset_type}</span>
+          <span class="check text-gray-300">○</span>
+        </button>`).join('')}
+    </div>
+    <button id="scanConfirmBtn" onclick="confirmScan('${scanPoint}', '${nextStatus}')" disabled
+      class="w-full bg-gray-300 text-gray-500 font-bold py-3 rounded-xl">Confirm All Scanned</button>`;
 }
 
-function _scanLoop(video, canvas, ctx) {
-  if (!scannerInstance) return;
-  if (video.readyState === video.HAVE_ENOUGH_DATA) {
-    canvas.width  = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
-    if (code && code.data && code.data !== _lastScan) {
-      _lastScan = code.data;
-      onScanSuccess(code.data);
-      setTimeout(() => { _lastScan = ''; }, 2000);
-    }
-  }
-  _scanRafId = requestAnimationFrame(() => _scanLoop(video, canvas, ctx));
+function toggleAsset(btn) {
+  const checkEl = btn.querySelector('.check');
+  const isOn = btn.dataset.checked === '1';
+  btn.dataset.checked = isOn ? '0' : '1';
+  checkEl.textContent = isOn ? '○' : '✅';
+  btn.classList.toggle('border-green-500', !isOn);
+  const all = document.querySelectorAll('#assetList button');
+  const allChecked = [...all].every(b => b.dataset.checked === '1');
+  const confirmBtn = document.getElementById('scanConfirmBtn');
+  confirmBtn.disabled = !allChecked;
+  confirmBtn.className = `w-full font-bold py-3 rounded-xl ${allChecked ? 'bg-green-500 text-white' : 'bg-gray-300 text-gray-500'}`;
 }
 
-function toggleManualEntry() {
-  const area = el('manualEntryArea');
-  if (!area) return;
-  area.classList.toggle('hidden');
-  if (!area.classList.contains('hidden'))
-    setTimeout(() => el('manualBarcodeInput') && el('manualBarcodeInput').focus(), 100);
+async function confirmScan(scanPoint, nextStatus) {
+  pendingGeo = await captureGeo();
+  const rows = assets.map(a => ({
+    booking_id: booking.id,
+    asset_id: a.id,
+    scan_point: scanPoint,
+    scanned_by: partner.phone,
+    geo_lat: pendingGeo ? pendingGeo.lat : null,
+    geo_lng: pendingGeo ? pendingGeo.lng : null
+  }));
+  const { error } = await db.from('asset_scans').insert(rows);
+  if (error) { alert('Scan save failed. Try again.'); console.error(error); return; }
+  await advanceStep(nextStatus);
 }
 
-function submitManualBarcode() {
-  const inp = el('manualBarcodeInput');
-  const val = (inp ? inp.value : '').trim();
-  if (!val) { toast('Enter the code', 2500); return; }
-  inp.value = '';
-  onScanSuccess(val);
+// ---------- STEP: ID VERIFICATION ----------
+function renderIdVerificationStep() {
+  document.getElementById('stepBody').innerHTML = `
+    <p class="text-sm text-gray-500 mb-4">Take a live photo of the customer's ID and get their signature. This is stored privately and auto-deleted after 90 days.</p>
+    <label class="block mb-3">
+      <span class="text-xs text-gray-400">ID Photo (live camera only)</span>
+      <input type="file" accept="image/*" capture="environment" id="idPhotoInput" class="w-full border-2 rounded-xl px-3 py-2 mt-1" />
+    </label>
+    <label class="block mb-4">
+      <span class="text-xs text-gray-400">Signature Photo (customer signs on paper, photograph it)</span>
+      <input type="file" accept="image/*" capture="environment" id="sigPhotoInput" class="w-full border-2 rounded-xl px-3 py-2 mt-1" />
+    </label>
+    <button onclick="submitIdVerification()" class="w-full bg-yellow-400 border-b-4 border-yellow-600 text-black font-bold py-3 rounded-xl">Submit & Continue</button>
+  `;
 }
 
-function onScanSuccess(scannedText) {
-  const scanned = scannedText.trim();
-
-  // Find first unverified asset whose barcode matches
-  const match = assets.find(a =>
-    a.barcode && a.barcode.trim() === scanned &&
-    el('row_' + a.id) && el('row_' + a.id).dataset.confirmed !== '1'
-  );
-
-  if (match) {
-    const row      = el('row_' + match.id);
-    const statusEl = el('status_' + match.id);
-    const actionEl = el('action_' + match.id);
-    row.style.borderColor = '#22c55e';
-    row.style.background  = '#f0fdf4';
-    row.dataset.confirmed = '1';
-    if (actionEl) actionEl.innerHTML = '<span class="text-green-600 font-bold text-sm">✅</span>';
-    if (statusEl) { statusEl.textContent = 'Scanned ✓'; statusEl.className = 'text-xs mt-1 text-green-600'; statusEl.classList.remove('hidden'); }
-    toast('✅ ' + (match.asset_label || match.asset_type) + ' verified!');
-
-    // Stop scanner when all scan-required items are done
-    const pending = assets.filter(a => a.is_high_value && a.barcode && cfg.scan_required && el('row_' + a.id)?.dataset.confirmed !== '1');
-    if (!pending.length) {
-      stopScanner();
-      if (el('scanStatus')) el('scanStatus').textContent = 'All items scanned ✅';
-    } else {
-      if (el('scanStatus')) el('scanStatus').textContent = `${pending.length} item(s) left — scan next`;
-    }
-    checkAllDone();
-  } else {
-    toast('⚠ Item not recognised — try again', 3000);
-    if (el('scanStatus')) el('scanStatus').textContent = 'Unknown barcode — try another item';
-  }
-}
-
-function stopScanner() {
-  scannerInstance = null;
-  if (_scanRafId)  { cancelAnimationFrame(_scanRafId); _scanRafId = null; }
-  if (_scanStream) { _scanStream.getTracks().forEach(t => t.stop()); _scanStream = null; }
-  const v = el('scanVideo');
-  if (v) v.srcObject = null;
-}
-
-
-function checkAllDone() {
-  const allRows = document.querySelectorAll('#assetList [id^="row_"]');
-  const allDone = [...allRows].every(r => r.dataset.confirmed === '1');
-  const btn = el('confirmAllBtn');
-  if (btn) {
-    btn.disabled = !allDone;
-    btn.className = allDone ? 'btn-green' : 'btn-green' + ' opacity-40 cursor-not-allowed';
-  }
-}
-
-async function doConfirmAll(scanPoint, nextStatus) {
-  el('confirmAllBtn').disabled = true;
-  el('confirmAllBtn').textContent = 'Saving...';
-
-  // Stop scanner if somehow still running
-  try { stopScanner(); } catch(e) {}
-
+async function submitIdVerification() {
+  const idFile = document.getElementById('idPhotoInput').files[0];
+  const sigFile = document.getElementById('sigPhotoInput').files[0];
+  if (!idFile || !sigFile) { alert('Both photos are required.'); return; }
+  pendingGeo = await captureGeo();
   try {
-    const geo = await getGeo();
-    // Only log real DB assets to asset_scans — skip static cables and placeholders
-    const dbAssets = assets.filter(a => a._source === 'db' && a.id && !a.id.includes('placeholder'));
-    if (dbAssets.length) {
-      const rows = dbAssets.map(a => ({
-        booking_id:  booking.id,
-        asset_id:    a.id,
-        scan_point:  scanPoint,
-        scanned_by:  partner.phone,
-        geo_lat:     geo ? geo.lat : null,
-        geo_lng:     geo ? geo.lng : null
-      }));
-      const { error } = await db.from('asset_scans').insert(rows);
-      if (error) throw error;
-    }
-    await advance(nextStatus);
-  } catch(e) {
-    toast('Save failed: ' + e.message, 4000);
-    el('confirmAllBtn').disabled = false;
-    el('confirmAllBtn').textContent = 'Confirm All & Continue';
-  }
-}
-
-// ID VERIFICATION
-function stepIdVerify() {
-  el('stepBody').innerHTML = `
-    <div class="info-box">Take a live photo of the customer's Aadhaar card and a photo of their signature. Stored privately, auto-deleted after 90 days.</div>
-    <label class="field">Aadhaar / ID Photo (live camera only)</label>
-    <input type="file" accept="image/*" capture="environment" id="idFile"/>
-    <label class="field">Signature Photo</label>
-    <input type="file" accept="image/*" capture="environment" id="sigFile"/>
-    <button class="btn-primary" onclick="doIdVerify()">Submit & Continue</button>`;
-}
-
-async function doIdVerify() {
-  const idFile  = el('idFile').files[0];
-  const sigFile = el('sigFile').files[0];
-  if (!idFile || !sigFile) { toast('Both photos are required.', 3000); return; }
-  setBusy(true, 'Uploading...');
-  try {
-    const geo    = await getGeo();
-    const idUrl  = await uploadPhoto(idFile,  'id-verification');
+    const idUrl = await uploadPhoto(idFile, 'id-verification');
     const sigUrl = await uploadPhoto(sigFile, 'signatures');
     await db.from('customer_verifications').insert({
       booking_id: booking.id, id_photo_url: idUrl, signature_url: sigUrl,
-      captured_geo_lat: geo ? geo.lat : null, captured_geo_lng: geo ? geo.lng : null
+      captured_geo_lat: pendingGeo ? pendingGeo.lat : null,
+      captured_geo_lng: pendingGeo ? pendingGeo.lng : null
     });
-    await advance('id_verified');
-  } catch(e) { toast('Upload failed: ' + e.message, 4000); }
-  setBusy(false);
+    await advanceStep('id_verified');
+  } catch (e) { alert('Upload failed. Check connection and try again.'); }
 }
 
-// BUNDLE / INSTALLATION / PACKAGE PHOTO
-function stepBundlePhoto() {
-  const isInstall = cfg.installation_included;
-  el('stepBody').innerHTML = `
-    <div class="info-box">
-      ${isInstall
-        ? 'Take a photo showing the PS5 installed and all accessories visible (controllers, cables, charging dock).'
-        : 'Take a photo of the open package showing all items included.'}
-      <br><br>You can add extra photos if needed.
-    </div>
-    <div id="photoList"></div>
-    <label class="field">Photo (live camera only)</label>
-    <input type="file" accept="image/*" capture="environment" id="bundleFile" onchange="previewBundle(this)"/>
-    <button class="btn-secondary mb-3" style="margin-top:4px" onclick="addMorePhoto()">+ Add Another Photo</button>
-    <button class="btn-primary" id="bundleBtn" onclick="doBundlePhoto()">Submit & Continue</button>`;
-  window._bundlePhotos = [];
+// ---------- STEP: BUNDLE / PACKAGE PHOTO ----------
+function renderBundlePhotoStep() {
+  const label = config.installation_included
+    ? 'Photo of PS5 installed with all accessories visible'
+    : 'Photo of package contents (open box) showing all items';
+  document.getElementById('stepBody').innerHTML = `
+    <p class="text-sm text-gray-500 mb-4">${label}</p>
+    <input type="file" accept="image/*" capture="environment" id="bundlePhotoInput" class="w-full border-2 rounded-xl px-3 py-2 mb-4" />
+    <button onclick="submitBundlePhoto()" class="w-full bg-yellow-400 border-b-4 border-yellow-600 text-black font-bold py-3 rounded-xl">Submit & Continue</button>
+  `;
 }
 
-function previewBundle(input) {
-  if (!input.files[0]) return;
-  window._bundlePhotos.push(input.files[0]);
-  const list = el('photoList');
-  list.innerHTML += `<div class="flex items-center gap-2 mb-2 text-sm text-green-700">✅ Photo ${window._bundlePhotos.length} added</div>`;
-}
-
-function addMorePhoto() {
-  const input = document.createElement('input');
-  input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment';
-  input.style.display = 'none';
-  input.onchange = () => previewBundle(input);
-  document.body.appendChild(input);
-  input.click();
-}
-
-async function doBundlePhoto() {
-  if (!window._bundlePhotos.length && !el('bundleFile').files[0]) { toast('At least one photo required.', 3000); return; }
-  const allFiles = [...(el('bundleFile').files[0] ? [el('bundleFile').files[0]] : [])];
-  // merge any extra added photos
-  if (window._bundlePhotos.length) {
-    window._bundlePhotos.forEach(f => { if (!allFiles.includes(f)) allFiles.push(f); });
-  }
-  el('bundleBtn').disabled = true; el('bundleBtn').textContent = 'Uploading...';
+async function submitBundlePhoto() {
+  const file = document.getElementById('bundlePhotoInput').files[0];
+  if (!file) { alert('Photo required.'); return; }
+  pendingGeo = await captureGeo();
   try {
-    const urls = [];
-    for (const f of allFiles) urls.push(await uploadPhoto(f, 'bundle-photos'));
-    logEvent('bundle_photo_done', { photo_url: urls[0], metadata: { all_urls: urls } }).catch(()=>{});
-    await advance('bundle_photo_done');
-  } catch(e) { toast('Upload failed: ' + e.message, 4000); el('bundleBtn').disabled = false; el('bundleBtn').textContent = 'Submit & Continue'; }
+    const url = await uploadPhoto(file, 'bundle-photos');
+    await advanceStep('bundle_photo_done', {});
+    await logEvent('bundle_photo_done', { photo_url: url });
+  } catch (e) { alert('Upload failed. Try again.'); }
 }
 
-// CONDITION PHOTO (delivery)
-function stepConditionPhoto() {
-  el('stepBody').innerHTML = `
-    <div class="info-box">Take a clear photo of the PS5 and accessories showing their current condition. This is used as evidence if any damage is disputed later.</div>
-    <label class="field">Condition Photo (live camera only)</label>
-    <input type="file" accept="image/*" capture="environment" id="condFile"/>
-    <button class="btn-primary" id="condBtn" onclick="doConditionPhoto()">Submit & Continue</button>`;
+// ---------- STEP: CONDITION PHOTO + AGREEMENT (delivery) ----------
+function renderConditionPhotoStep() {
+  document.getElementById('stepBody').innerHTML = `
+    <p class="text-sm text-gray-500 mb-4">Take a clear photo showing the current condition of the PS5 and accessories.</p>
+    <input type="file" accept="image/*" capture="environment" id="condPhotoInput" class="w-full border-2 rounded-xl px-3 py-2 mb-4" />
+    <button onclick="submitConditionPhoto()" class="w-full bg-yellow-400 border-b-4 border-yellow-600 text-black font-bold py-3 rounded-xl">Submit & Continue</button>
+  `;
 }
 
-async function doConditionPhoto() {
-  const file = el('condFile').files[0];
-  if (!file) { toast('Photo required.', 3000); return; }
-  el('condBtn').disabled = true; el('condBtn').textContent = 'Uploading...';
+async function submitConditionPhoto() {
+  const file = document.getElementById('condPhotoInput').files[0];
+  if (!file) { alert('Photo required.'); return; }
   try {
     const url = await uploadPhoto(file, 'condition-photos');
-    window._deliveryConditionUrl = url;
-    logEvent('condition_photo_delivery', { photo_url: url }).catch(()=>{});
-    await advance('condition_ack_delivery');
-  } catch(e) { toast('Upload failed: ' + e.message, 4000); el('condBtn').disabled = false; el('condBtn').textContent = 'Submit & Continue'; }
+    window._lastConditionPhotoUrl = url;
+    await advanceStep('condition_ack_delivery', {});
+    await logEvent('condition_photo_delivery', { photo_url: url });
+  } catch (e) { alert('Upload failed. Try again.'); }
 }
 
-// RETURN CONDITION (partner assesses)
-function stepReturnCondition() {
-  el('stepBody').innerHTML = `
-    <div class="info-box">Inspect the PS5 and accessories being returned. Take a photo of their condition.</div>
-    <label class="field">Return Condition Photo (live camera only)</label>
-    <input type="file" accept="image/*" capture="environment" id="retCondFile"/>
-    <div class="checkbox-row" style="margin-top:12px">
-      <input type="checkbox" id="damageFlag" onchange="el('damageBox').classList.toggle('hidden',!this.checked)"/>
-      <label for="damageFlag">Damage or missing item found</label>
-    </div>
-    <textarea id="damageBox" placeholder="Describe the damage or missing item..." class="hidden w-full border-2 rounded-xl px-3 py-2 mb-3 text-sm" rows="3"></textarea>
-    <button class="btn-primary" id="retCondBtn" onclick="doReturnCondition()">Submit & Continue</button>`;
+// ---------- STEP: RETURN CONDITION (partner inspects, can flag dispute) ----------
+function renderReturnConditionStep() {
+  document.getElementById('stepBody').innerHTML = `
+    <p class="text-sm text-gray-500 mb-4">Photograph the PS5 and accessories as returned. If anything is damaged or missing, flag it below.</p>
+    <input type="file" accept="image/*" capture="environment" id="returnCondPhotoInput" class="w-full border-2 rounded-xl px-3 py-2 mb-4" />
+    <label class="flex items-center gap-2 mb-4 text-sm">
+      <input type="checkbox" id="damageFlag" onchange="document.getElementById('damageNotesBox').classList.toggle('hidden', !this.checked)" />
+      Damage or missing item found
+    </label>
+    <textarea id="damageNotesBox" placeholder="Describe the issue..." class="w-full border-2 rounded-xl px-3 py-2 mb-4 hidden"></textarea>
+    <button onclick="submitReturnCondition()" class="w-full bg-yellow-400 border-b-4 border-yellow-600 text-black font-bold py-3 rounded-xl">Submit & Continue</button>
+  `;
 }
 
-async function doReturnCondition() {
-  const file    = el('retCondFile').files[0];
-  if (!file) { toast('Photo required.', 3000); return; }
-  const damaged = el('damageFlag').checked;
-  const notes   = el('damageBox') ? el('damageBox').value.trim() : '';
-  if (damaged && !notes) { toast('Please describe the damage.', 3000); return; }
-  el('retCondBtn').disabled = true; el('retCondBtn').textContent = 'Uploading...';
+async function submitReturnCondition() {
+  const file = document.getElementById('returnCondPhotoInput').files[0];
+  if (!file) { alert('Photo required.'); return; }
+  const damaged = document.getElementById('damageFlag').checked;
+  const notes = document.getElementById('damageNotesBox').value.trim();
   try {
-    const url = await uploadPhoto(file, 'return-condition');
+    const url = await uploadPhoto(file, 'return-condition-photos');
     await db.from('condition_acknowledgements').insert({
       booking_id: booking.id, stage: 'return', acknowledged_by: 'partner',
       agreed: !damaged, dispute_notes: damaged ? notes : null, photo_url: url
     });
     if (damaged) {
       await db.from('disputes').insert({
-        booking_id: booking.id, partner_id: partner.id,
-        dispute_type: 'condition_damage', description: notes
+        booking_id: booking.id, partner_id: partner.id, dispute_type: 'condition_damage',
+        description: notes || 'Flagged by partner at return.'
       });
       await db.from('bookings').update({ fulfillment_status: 'dispute_flagged' }).eq('id', booking.id);
-      Object.assign(booking, { fulfillment_status: 'dispute_flagged' });
-      showDone('⚠️', 'Damage Flagged', 'Admin has been notified and will review before this order is closed.');
+      alert('Damage flagged. Admin has been notified and will review before this order can be closed.');
+      booking.fulfillment_status = 'dispute_flagged';
+      buildStepList();
+      goBackToList();
       return;
     }
-    await advance('condition_photo_return');
-  } catch(e) { toast('Failed: ' + e.message, 4000); el('retCondBtn').disabled = false; el('retCondBtn').textContent = 'Submit & Continue'; }
+    await advanceStep('condition_photo_return', {});
+  } catch (e) { alert('Upload failed. Try again.'); }
 }
 
-// OTP STEP (delivery or return)
-function stepOtp(stage) {
-  const isD = stage === 'delivery';
-  el('stepBody').innerHTML = `
-    <div class="info-box">
-      <b>Ask customer to confirm verbally:</b><br>
-      "${isD
-        ? 'The PS5 and all accessories are in good condition. I confirm delivery.'
-        : 'All items have been collected correctly.'}"
+// ---------- STEP: OTP (delivery or return) ----------
+function renderOtpStep(stage) {
+  const isDelivery = stage === 'delivery';
+  document.getElementById('stepBody').innerHTML = `
+    <div class="bg-yellow-50 border border-yellow-300 rounded-xl p-3 text-sm mb-4">
+      Ask the customer to confirm: <span class="font-semibold">"${isDelivery ? 'PS5 and accessories are in good working condition. Any damage must be reported now.' : 'Items have been correctly collected.'}"</span>
     </div>
-    <div class="checkbox-row">
-      <input type="checkbox" id="custAgree"/>
-      <label for="custAgree">Customer has confirmed (tick after verbal confirmation)</label>
-    </div>
-    <button class="btn-primary mb-3" id="sendOtpBtn" onclick="doSendOtp('${stage}')">Send OTP to Customer via WhatsApp</button>
-    <div class="card" style="text-align:center">
-      <p class="text-xs text-gray-400 mb-2">Enter the code customer tells you</p>
-      <input type="tel" id="otpInput" maxlength="4" inputmode="numeric" placeholder="_ _ _ _"
-        class="text-center text-3xl font-black tracking-widest w-full border-2 rounded-xl py-3 mb-3"/>
-      <button class="btn-green" id="verifyBtn" onclick="doVerifyOtp('${stage}')">Verify & Confirm</button>
-    </div>
-    <button class="btn-secondary mt-3" style="font-size:12px;color:#9ca3af" onclick="doOtpFallback('${stage}')">Customer can't receive OTP? Use fallback</button>`;
+    <label class="flex items-center gap-2 mb-4 text-sm">
+      <input type="checkbox" id="custAgree" />
+      Customer has agreed (tap once confirmed verbally)
+    </label>
+    <button id="sendOtpBtn" onclick="sendOtp('${stage}')" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl mb-3">Send OTP to Customer</button>
+    <input type="text" id="otpInput" placeholder="Enter OTP from customer" maxlength="6"
+      class="w-full border-2 rounded-xl px-4 py-3 text-center text-lg tracking-widest mb-3" />
+    <button onclick="verifyOtp('${stage}')" class="w-full bg-green-500 text-white font-bold py-3 rounded-xl">Verify OTP</button>
+    <button onclick="otpFailFallback('${stage}')" class="w-full mt-3 text-xs text-gray-400 underline">Customer not responding to OTP?</button>
+  `;
 }
 
-async function doSendOtp(stage) {
-  if (!el('custAgree').checked) { toast('Please confirm customer agreed first.', 3000); return; }
-  el('sendOtpBtn').disabled = true; el('sendOtpBtn').textContent = 'Sending...';
+async function sendOtp(stage) {
+  const agreeBox = document.getElementById('custAgree');
+  if (!agreeBox.checked) { alert('Please confirm the customer has agreed first.'); return; }
 
-  // Save customer acknowledgement (non-blocking)
-  try {
-    await db.from('condition_acknowledgements').insert({
-      booking_id: booking.id, stage, acknowledged_by: 'customer', agreed: true,
-      photo_url: window._deliveryConditionUrl || null
-    });
-  } catch(e) { console.warn('ack insert:', e); }
+  await db.from('condition_acknowledgements').insert({
+    booking_id: booking.id, stage, acknowledged_by: 'customer', agreed: true,
+    photo_url: window._lastConditionPhotoUrl || null
+  });
 
   const otp = String(Math.floor(1000 + Math.random() * 9000));
   const field = stage === 'delivery' ? { delivery_otp: otp } : { return_otp: otp };
@@ -832,159 +468,76 @@ async function doSendOtp(stage) {
   Object.assign(booking, field);
 
   try {
-    const r = await fetch(`${SUPABASE_URL}/functions/v1/send-notification`, {
+    await fetch(`${SUPABASE_URL}/functions/v1/send-notification`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON}` },
-      body: JSON.stringify({ type: stage === 'delivery' ? 'delivery_otp' : 'return_otp', booking: { ...booking, otp } })
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+      body: JSON.stringify({ booking_id: booking.id, event: stage + '_otp', otp, to: booking.phone })
     });
-    const res = await r.json();
-    if (!res.success) throw new Error('WA send failed');
-    toast('OTP sent to customer ✅');
-  } catch(e) {
-    toast(`WhatsApp failed. Read OTP to customer: ${otp}`, 6000);
-  }
-  el('sendOtpBtn').textContent = 'OTP Sent — Resend';
-  el('sendOtpBtn').disabled = false;
-}
-
-async function doVerifyOtp(stage) {
-  const entered  = (el('otpInput').value || '').trim();
-  const expected = stage === 'delivery' ? booking.delivery_otp : booking.return_otp;
-  if (!expected) { toast('Send the OTP first.', 3000); return; }
-  if (entered !== expected) { toast('Incorrect OTP. Ask customer to check WhatsApp.', 3000); return; }
-  el('verifyBtn').disabled = true; el('verifyBtn').textContent = 'Verifying...';
-  const extra = stage === 'delivery' ? { delivery_otp_verified: true } : { return_otp_verified: true };
-  await advance(stage === 'delivery' ? 'otp_verified_delivery' : 'otp_verified_return', extra);
-}
-
-async function doOtpFallback(stage) {
-  if (!confirm('Use fallback? Your location will be logged and admin will review this confirmation.')) return;
-  const geo = await getGeo();
-  try {
-    await logEvent((stage === 'delivery' ? 'delivery' : 'return') + '_otp_fallback', {
-      geo_lat: geo ? geo.lat : null, geo_lng: geo ? geo.lng : null,
-      metadata: { reason: 'customer_unreachable' }
-    });
-  } catch(e) { console.warn('logEvent fallback:', e); }
-  const extra = stage === 'delivery' ? { delivery_otp_verified: false } : { return_otp_verified: false };
-  await advance(stage === 'delivery' ? 'otp_verified_delivery' : 'otp_verified_return', extra);
-  toast('Marked via fallback. Admin will review.');
-}
-
-// PAYMENT (COD)
-function stepPayment() {
-  el('stepBody').innerHTML = `
-    <div class="info-box">Collect <b>₹${booking.total_amount || 0}</b> from the customer before handing over the PS5.</div>
-    <p class="text-sm font-semibold text-gray-600 mb-3">Payment method received:</p>
-    <div class="flex gap-3 mb-4">
-      <button data-mode="cash" onclick="pickPayMode(this)" class="flex-1 border-2 rounded-xl py-3 font-bold text-sm">💵 Cash</button>
-      <button data-mode="upi"  onclick="pickPayMode(this)" class="flex-1 border-2 rounded-xl py-3 font-bold text-sm">📱 UPI</button>
-    </div>
-    <button id="payBtn" class="btn-green" disabled onclick="doPayment()">Confirm Payment Collected</button>`;
-}
-
-function pickPayMode(btn) {
-  document.querySelectorAll('[data-mode]').forEach(b => { b.style.borderColor=''; b.style.background=''; });
-  btn.style.borderColor = '#22c55e'; btn.style.background = '#f0fdf4';
-  window._payMode = btn.dataset.mode;
-  el('payBtn').disabled = false;
-}
-
-async function doPayment() {
-  el('payBtn').disabled = true; el('payBtn').textContent = 'Saving...';
-  try {
-    await db.from('payment_ledger').insert({
-      booking_id: booking.id, partner_id: partner.id,
-      direction: 'partner_owes_leazo',
-      amount: booking.total_amount || 0,
-      commission_amount: ((booking.total_amount || 0) * (partner.commission_percent || 20)) / 100,
-      status: 'pending'
-    });
-    await advance('payment_collected', { payment_status: 'paid' });
-  } catch(e) { toast('Failed: ' + e.message, 4000); el('payBtn').disabled = false; el('payBtn').textContent = 'Confirm Payment Collected'; }
-}
-
-// ─── UTILITIES ────────────────────────────────────────────────
-function el(id) { return document.getElementById(id); }
-function show(id) { el(id).classList.remove('hidden'); }
-function hide(id) { el(id).classList.add('hidden'); }
-
-function showDone(icon, title, msg) {
-  hide('wizardScreen'); hide('loadingScreen'); hide('errorScreen');
-  el('doneIcon').textContent  = icon;
-  el('doneTitle').textContent = title;
-  el('doneMsg').textContent   = msg;
-  show('doneScreen');
-}
-
-function showError(msg) {
-  hide('loadingScreen'); hide('wizardScreen');
-  el('errorMsg').textContent = msg;
-  show('errorScreen');
-}
-
-let toastTimer;
-function toast(msg, duration) {
-  const t = el('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), duration || 2500);
-}
-
-function setBusy(busy, label) {
-  document.querySelectorAll('button').forEach(b => b.disabled = busy);
-  if (label && busy) {
-    const primary = document.querySelector('.btn-primary');
-    if (primary) primary.textContent = label;
+    alert('OTP sent to customer via WhatsApp.');
+  } catch (e) {
+    alert('Could not send WhatsApp OTP automatically. Please call/WhatsApp the customer the code manually: ' + otp);
   }
 }
 
-function getGeo() {
-  return new Promise(resolve => {
-    if (!navigator.geolocation) { resolve(null); return; }
-    navigator.geolocation.getCurrentPosition(
-      p => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
-      () => resolve(null),
-      { enableHighAccuracy: true, timeout: 8000 }
-    );
+async function verifyOtp(stage) {
+  const entered = document.getElementById('otpInput').value.trim();
+  const correct = stage === 'delivery' ? booking.delivery_otp : booking.return_otp;
+  if (!correct) { alert('Send the OTP first.'); return; }
+  if (entered !== correct) { alert('Incorrect OTP. Please check with the customer.'); return; }
+
+  const field = stage === 'delivery' ? { delivery_otp_verified: true } : { return_otp_verified: true };
+  const nextStatus = stage === 'delivery' ? 'otp_verified_delivery' : 'otp_verified_return';
+  await advanceStep(nextStatus, field);
+}
+
+async function otpFailFallback(stage) {
+  if (!confirm('Mark as confirmed via fallback? This will be logged with your current location for admin review.')) return;
+  pendingGeo = await captureGeo();
+  await logEvent((stage === 'delivery' ? 'delivery' : 'return') + '_otp_fallback_used', {
+    metadata: { reason: 'customer_unreachable_otp' }
   });
-}
-
-async function uploadPhoto(file, folder) {
-  const ext  = (file.name.split('.').pop() || 'jpg').toLowerCase();
-  const path = `${folder}/${booking.id}_${Date.now()}.${ext}`;
-  const { error } = await db.storage.from(BUCKET).upload(path, file, { upsert: true });
-  if (error) throw new Error('Storage: ' + (error.message || JSON.stringify(error)));
-  const { data } = db.storage.from(BUCKET).getPublicUrl(path);
-  return data.publicUrl;
-}
-
-async function logEvent(eventType, opts) {
-  opts = opts || {};
-  let geo = null;
-  if (!opts.geo_lat) { try { geo = await getGeo(); } catch(e) {} }
-  await db.from('booking_events').insert({
-    booking_id:  booking.id,
-    event_type:  eventType,
-    actor_type: 'partner',
-    actor_id:    partner.phone,
-    notes:       opts.notes      || null,
-    photo_url:   opts.photo_url  || null,
-    geo_lat:     opts.geo_lat    || (geo ? geo.lat : null),
-    geo_lng:     opts.geo_lng    || (geo ? geo.lng : null),
-    metadata:    opts.metadata   || null
-  });
-}
-
-async function notifyWA(type) {
   try {
     await fetch(`${SUPABASE_URL}/functions/v1/send-notification`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON}` },
-      body: JSON.stringify({ type, booking })
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+      body: JSON.stringify({ booking_id: booking.id, event: stage + '_fallback_confirm', to: booking.phone })
     });
-  } catch(e) { console.warn('WA notify failed (non-blocking):', e); }
+  } catch (e) {}
+  const nextStatus = stage === 'delivery' ? 'otp_verified_delivery' : 'otp_verified_return';
+  await advanceStep(nextStatus, { [stage === 'delivery' ? 'delivery_otp_verified' : 'return_otp_verified']: false });
+  alert('Marked via fallback. Admin will review this confirmation.');
+}
+
+// ---------- STEP: PAYMENT (COD) ----------
+function renderPaymentStep() {
+  document.getElementById('stepBody').innerHTML = `
+    <p class="text-sm text-gray-500 mb-4">Collect ₹${booking.total_amount || 0} from the customer (cash or UPI).</p>
+    <div class="flex gap-3 mb-4">
+      <button data-mode="cash" onclick="selectPaymentMode(this)" class="flex-1 border-2 rounded-xl py-3 font-bold">Cash</button>
+      <button data-mode="upi" onclick="selectPaymentMode(this)" class="flex-1 border-2 rounded-xl py-3 font-bold">UPI</button>
+    </div>
+    <button id="paymentConfirmBtn" onclick="confirmPaymentCollected()" disabled class="w-full bg-gray-300 text-gray-500 font-bold py-3 rounded-xl">Confirm Payment Collected</button>
+  `;
+}
+
+function selectPaymentMode(btn) {
+  document.querySelectorAll('[data-mode]').forEach(b => b.classList.remove('border-green-500', 'bg-green-50'));
+  btn.classList.add('border-green-500', 'bg-green-50');
+  window._selectedPaymentMode = btn.dataset.mode;
+  const confirmBtn = document.getElementById('paymentConfirmBtn');
+  confirmBtn.disabled = false;
+  confirmBtn.className = 'w-full bg-green-500 text-white font-bold py-3 rounded-xl';
+}
+
+async function confirmPaymentCollected() {
+  const mode = window._selectedPaymentMode || 'cash';
+  await db.from('payment_ledger').insert({
+    booking_id: booking.id, partner_id: partner.id, direction: 'partner_owes_leazo',
+    amount: booking.total_amount || 0,
+    commission_amount: ((booking.total_amount || 0) * (partner.commission_percent || 0)) / 100,
+    status: 'pending'
+  });
+  await advanceStep('payment_collected', { payment_status: 'paid', payment_mode: mode });
 }
 </script>
 </body>
