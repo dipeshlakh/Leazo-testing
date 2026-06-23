@@ -435,7 +435,7 @@ function buildAssetRow(a, needsScan) {
   const right = needsScan
     ? '<span class="text-xs text-gray-300 font-medium px-2">Waiting...</span>'
     : '<span class="text-2xl text-gray-300" id="tick_' + a.id + '">○</span>';
-  const click = needsScan ? '' : 'tickRow("' + a.id + '", this)';
+  const click = needsScan ? '' : "tickRow('" + a.id + "', this)";
   const cursor = needsScan ? '' : 'cursor-pointer';
   return '<div id="row_' + a.id + '" data-confirmed="0" onclick="' + click + '" class="border-2 rounded-xl px-4 py-3 transition-all ' + cursor + '" style="border-color:#e5e7eb">'
     + '<div class="flex items-center justify-between">'
