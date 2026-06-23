@@ -156,10 +156,18 @@ async function loadBooking() {
     const { data: c } = await db.from('booking_effective_config').select('*').eq('booking_id', bookingId).maybeSingle();
     cfg = c || { scan_required: false, installation_included: true, id_verification_required: false, bundle_photo_count: 1, is_delivery_only: false };
 
-    // Always load all assets — checklist is mandatory regardless of scan toggle
-    // High-value assets additionally require camera barcode scan
-    const { data: a } = await db.from('partner_assets').select('*').eq('partner_id', partner.id).order('asset_type');
-    assets = a || [];
+    // Build order-specific item list:
+    // 1. PS5 + correct number of controllers from partner_assets (high value = scan required)
+    // 2. Default cables always included as tick-only checklist items
+    const { data: allAssets } = await db
+      .from('partner_assets')
+      .select('*')
+      .eq('partner_id', partner.id)
+      .eq('status', 'available')
+      .order('asset_type');
+
+    const partnerAssets = allAssets || [];
+    assets = buildOrderItemList(partnerAssets, booking);
 
     populateInfoBar();
     buildSteps();
@@ -350,6 +358,67 @@ async function doSimple(nextStatus, withGeo) {
   if (withGeo) geo = await getGeo();
 
   await advance(nextStatus, geo ? { last_partner_lat: geo.lat, last_partner_lng: geo.lng } : {});
+}
+
+// ── BUILD ORDER ITEM LIST ─────────────────────────────────────
+// Combines partner DB assets (PS5, controllers) with fixed default
+// accessories (cables) that are always included in every delivery.
+// Returns array of items for the checklist/scan step.
+function buildOrderItemList(partnerAssets, booking) {
+  const items = [];
+
+  // 1. PS5 Console — always required, high value, scan if barcode set
+  const ps5 = partnerAssets.find(a => a.asset_type === 'ps5');
+  if (ps5) {
+    items.push({ ...ps5, _source: 'db' });
+  } else {
+    // No PS5 registered — add as tick-only placeholder so checklist still shows
+    items.push({
+      id: 'ps5_placeholder',
+      asset_type: 'ps5',
+      asset_label: 'PS5 Console',
+      is_high_value: false,
+      barcode: null,
+      serial_number: null,
+      _source: 'placeholder'
+    });
+  }
+
+  // 2. Controllers — 1 default, 2 if customer added extra controller
+  const controllersNeeded = booking.controller_added ? 2 : 1;
+  const controllers = partnerAssets.filter(a => a.asset_type === 'controller');
+
+  for (let i = 0; i < controllersNeeded; i++) {
+    if (controllers[i]) {
+      items.push({ ...controllers[i], _source: 'db' });
+    } else {
+      items.push({
+        id: `ctrl_placeholder_${i}`,
+        asset_type: 'controller',
+        asset_label: i === 0 ? 'DualSense Controller' : 'Extra Controller',
+        is_high_value: false,
+        barcode: null,
+        serial_number: null,
+        _source: 'placeholder'
+      });
+    }
+  }
+
+  // 3. Default cables — always included, tick-only (no scan), static items
+  const defaultCables = [
+    { id: 'cable_typec',  asset_type: 'cable', asset_label: 'Type-C Charging Cable',  is_high_value: false, barcode: null, _source: 'static' },
+    { id: 'cable_power',  asset_type: 'cable', asset_label: 'PS5 Power Cable',         is_high_value: false, barcode: null, _source: 'static' },
+    { id: 'cable_hdmi',   asset_type: 'cable', asset_label: 'HDMI to HDMI Cable',      is_high_value: false, barcode: null, _source: 'static' },
+  ];
+  defaultCables.forEach(c => items.push(c));
+
+  // 4. Any other high-value assets the partner has (e.g. game discs, charging docks)
+  const extraTypes = ['charging_dock', 'game_disc', 'other'];
+  partnerAssets
+    .filter(a => extraTypes.includes(a.asset_type))
+    .forEach(a => items.push({ ...a, _source: 'db' }));
+
+  return items;
 }
 
 // ── SCAN STEP ─────────────────────────────────────────────────
@@ -591,17 +660,21 @@ async function doConfirmAll(scanPoint, nextStatus) {
   try { stopScanner(); } catch(e) {}
 
   try {
-    const geo  = await getGeo();
-    const rows = assets.map(a => ({
-      booking_id:  booking.id,
-      asset_id:    a.id,
-      scan_point:  scanPoint,
-      scanned_by:  partner.phone,
-      geo_lat:     geo ? geo.lat : null,
-      geo_lng:     geo ? geo.lng : null
-    }));
-    const { error } = await db.from('asset_scans').insert(rows);
-    if (error) throw error;
+    const geo = await getGeo();
+    // Only log real DB assets to asset_scans — skip static cables and placeholders
+    const dbAssets = assets.filter(a => a._source === 'db' && a.id && !a.id.includes('placeholder'));
+    if (dbAssets.length) {
+      const rows = dbAssets.map(a => ({
+        booking_id:  booking.id,
+        asset_id:    a.id,
+        scan_point:  scanPoint,
+        scanned_by:  partner.phone,
+        geo_lat:     geo ? geo.lat : null,
+        geo_lng:     geo ? geo.lng : null
+      }));
+      const { error } = await db.from('asset_scans').insert(rows);
+      if (error) throw error;
+    }
     await advance(nextStatus);
   } catch(e) {
     toast('Save failed: ' + e.message, 4000);
