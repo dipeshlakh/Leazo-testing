@@ -431,140 +431,103 @@ let activeScanAssetId = null; // which asset is currently being scanned
 function stepScan(scanPoint, nextStatus) {
   if (!assets.length) {
     el('stepBody').innerHTML = `
-      <div class="info-box">No assets registered for your account. Ask admin to add items in the Partners tab.</div>
+      <div class="info-box">No assets registered. Ask admin to add items in the Partners tab.</div>
       <button class="btn-primary" onclick="advance('${nextStatus}')">Continue</button>`;
     return;
   }
 
-  const highValue = assets.filter(a => a.is_high_value);
-  const regular   = assets.filter(a => !a.is_high_value);
+  const needsScanItems = assets.filter(a => a.is_high_value && a.barcode && cfg.scan_required);
+  const typeIcon = { ps5:'🎮', controller:'🕹', charging_dock:'🔌', cable:'🔌', game_disc:'💿', other:'📦' };
 
   el('stepBody').innerHTML = `
-    <p class="text-sm text-gray-500 mb-1">
-      ${highValue.length ? '🔍 <b>High-value items</b> require barcode scan. ' : ''}
-      All items must be confirmed before proceeding.
-    </p>
-
-    <div id="assetList" class="space-y-2 mb-4 mt-3">
-      ${assets.map(a => itemRow(a)).join('')}
+    ${needsScanItems.length ? `
+    <div class="relative rounded-2xl overflow-hidden mb-3" style="height:200px;background:#000">
+      <video id="scanVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;display:block"></video>
+      <canvas id="scanCanvas" style="display:none"></canvas>
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
+        <div style="width:220px;height:100px;border:3px solid #facc15;border-radius:10px;box-shadow:0 0 0 9999px rgba(0,0,0,0.55)"></div>
+      </div>
+      <p id="scanStatus" style="position:absolute;bottom:8px;left:0;right:0;text-align:center;color:#fff;font-size:12px;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.8)">Starting camera...</p>
     </div>
-
-    <!-- Scanner area -->
-    <div id="scannerArea" class="hidden mb-4">
-      <div class="relative rounded-2xl overflow-hidden mb-2" style="height:260px;background:#000">
-        <video id="scanVideo" autoplay playsinline muted
-          style="width:100%;height:100%;object-fit:cover;display:block"></video>
-        <canvas id="scanCanvas" style="display:none"></canvas>
-        <!-- targeting overlay -->
-        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
-          <div style="width:200px;height:200px;border:3px solid #facc15;border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,0.5)"></div>
-        </div>
-        <p id="scanStatus" style="position:absolute;bottom:8px;left:0;right:0;text-align:center;color:#fff;font-size:12px;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.8)">Starting camera...</p>
-      </div>
-      <!-- Manual entry -->
-      <div id="manualEntryArea" class="hidden mb-2">
-        <p class="text-xs text-gray-500 mb-1">Type the barcode number manually:</p>
-        <div class="flex gap-2">
-          <input type="text" id="manualBarcodeInput" placeholder="e.g. 4867628673023"
-            style="flex:1;border:2px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:14px"/>
-          <button onclick="submitManualBarcode()"
-            style="background:#000;color:#fff;font-weight:700;padding:10px 16px;border-radius:10px;font-size:14px">OK</button>
-        </div>
-      </div>
+    <div id="manualEntryArea" class="hidden mb-3">
       <div class="flex gap-2">
-        <button onclick="stopScanner()" class="btn-secondary" style="flex:1;font-size:13px;padding:10px">✕ Cancel</button>
-        <button onclick="toggleManualEntry()" class="btn-secondary" style="flex:1;font-size:13px;padding:10px">⌨ Type Manually</button>
+        <input type="text" id="manualBarcodeInput" placeholder="Type barcode value"
+          style="flex:1;border:2px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:14px"/>
+        <button onclick="submitManualBarcode()" style="background:#000;color:#fff;font-weight:700;padding:10px 16px;border-radius:10px;font-size:14px">OK</button>
       </div>
     </div>
-
-    <button id="confirmAllBtn" class="btn-green" disabled
-      onclick="doConfirmAll('${scanPoint}','${nextStatus}')">
+    <button onclick="toggleManualEntry()" class="btn-secondary mb-3" style="font-size:12px;padding:8px">⌨ Can't scan? Type manually</button>
+    ` : ''}
+    <p class="text-xs text-gray-400 mb-2">${needsScanItems.length ? 'Scan each item above · ' : ''}Tap cables to confirm</p>
+    <div id="assetList" class="space-y-2 mb-4">
+      ${assets.map(a => {
+        const needsScan = a.is_high_value && a.barcode && cfg.scan_required;
+        const icon = typeIcon[a.asset_type] || '📦';
+        return \`<div id="row_\${a.id}" data-confirmed="0"
+          onclick="\${needsScan ? '' : \`tickRow('\${a.id}', this)\`}"
+          class="border-2 rounded-xl px-4 py-3 transition-all \${needsScan ? '' : 'cursor-pointer'}"
+          style="border-color:#e5e7eb">
+          <div class="flex items-center justify-between">
+            <div class="flex-1">
+              <p class="font-semibold text-sm">\${icon} \${a.asset_label || a.asset_type}</p>
+              \${a.serial_number ? \`<p class="text-xs text-gray-400">S/N: \${a.serial_number}</p>\` : ''}
+            </div>
+            <div id="action_\${a.id}">
+              \${needsScan
+                ? '<span class="text-xs text-gray-300 font-medium px-2">Waiting...</span>'
+                : \`<span class="text-2xl text-gray-300" id="tick_\${a.id}">○</span>\`}
+            </div>
+          </div>
+          <p id="status_\${a.id}" class="text-xs mt-1 hidden"></p>
+        </div>\`;
+      }).join('')}
+    </div>
+    <button id="confirmAllBtn" class="btn-green" disabled onclick="doConfirmAll('${scanPoint}','${nextStatus}')">
       Confirm All & Continue
     </button>`;
 
   checkAllDone();
+  if (needsScanItems.length) startPersistentScanner();
 }
 
-function itemRow(a) {
-  // Scan required ONLY if: item is high value AND has a barcode AND scan_required toggle is ON
-  const needsScan = a.is_high_value && a.barcode && cfg.scan_required;
-  const icon = needsScan ? '🔍' : '📦';
-  return `
-    <div id="row_${a.id}" class="border-2 rounded-xl px-4 py-3 transition-all" style="border-color:#e5e7eb">
-      <div class="flex items-center justify-between">
-        <div class="flex-1">
-          <p class="font-semibold text-sm">${icon} ${a.asset_label || a.asset_type}</p>
-          <p class="text-xs text-gray-400">
-            ${a.serial_number ? 'S/N: ' + a.serial_number : ''}
-            ${needsScan ? (a.serial_number ? ' · ' : '') + 'Barcode: ' + a.barcode : ''}
-          </p>
-        </div>
-        <div id="action_${a.id}">
-          ${needsScan
-            ? `<button onclick="startScan('${a.id}','${a.barcode}')"
-                class="text-xs font-bold bg-blue-600 text-white px-3 py-2 rounded-xl">
-                📷 Scan
-               </button>`
-            : `<button onclick="tickItem('${a.id}', this)"
-                class="text-2xl text-gray-300 px-2">○</button>`
-          }
-        </div>
-      </div>
-      <p id="status_${a.id}" class="text-xs mt-1 hidden"></p>
-    </div>`;
-}
-
-// Tap-to-tick for non-high-value items
-function tickItem(assetId, btn) {
-  const row = el('row_' + assetId);
-  const done = btn.textContent !== '✅';
-  btn.textContent = done ? '✅' : '○';
-  btn.style.color = done ? '#22c55e' : '';
+function tickRow(assetId, row) {
+  const done = row.dataset.confirmed !== '1';
+  row.dataset.confirmed = done ? '1' : '0';
   row.style.borderColor = done ? '#22c55e' : '#e5e7eb';
   row.style.background  = done ? '#f0fdf4' : '';
-  row.dataset.confirmed = done ? '1' : '0';
+  const tick = el('tick_' + assetId);
+  if (tick) { tick.textContent = done ? '✅' : '○'; tick.style.color = done ? '#22c55e' : ''; }
   checkAllDone();
 }
 
-// ── CAMERA SCANNER (jsQR — works on iPhone Safari + Android Chrome) ──
-// jsQR reads QR codes from canvas frames. Fast, reliable, no native API needed.
-// IMPORTANT: Use QR code stickers on your items (not EAN barcodes).
-// Generate at qr-code-generator.com with your asset ID e.g. LZ-PS5-001
 
-let _scanRafId   = null;  // requestAnimationFrame ID for scan loop
-let _scanStream  = null;  // camera stream
+// ── PERSISTENT SCANNER ───────────────────────────────────────
+// One scanner stays open and auto-matches ANY item's barcode.
+let _scanRafId  = null;
+let _scanStream = null;
+let _lastScan   = '';  // debounce
 
-async function startScan(assetId, expectedBarcode) {
-  activeScanAssetId       = assetId;
-  window._expectedBarcode = expectedBarcode;
+async function startPersistentScanner() {
   stopScanner();
-
-  el('scannerArea').classList.remove('hidden');
-  el('manualEntryArea').classList.add('hidden');
-  el('scanStatus').textContent = 'Starting camera...';
-
   const video  = el('scanVideo');
   const canvas = el('scanCanvas');
-  const ctx    = canvas.getContext('2d', { willReadFrequently: true });
-
+  if (!video || !canvas) return;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   try {
     _scanStream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: 'environment' },
-        width:  { ideal: 1280 },
-        height: { ideal: 720 }
-      },
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
       audio: false
     });
     video.srcObject = _scanStream;
     await video.play();
-    el('scanStatus').textContent = 'Point QR code at the yellow box';
+    if (el('scanStatus')) el('scanStatus').textContent = 'Point camera at any item QR code';
     scannerInstance = true;
     _scanLoop(video, canvas, ctx);
   } catch(e) {
     console.error('Camera error:', e);
-    el('scanStatus').textContent = 'Camera error — type the code manually';
-    el('manualEntryArea').classList.remove('hidden');
+    if (el('scanStatus')) el('scanStatus').textContent = 'Camera error — type manually';
+    const m = el('manualEntryArea');
+    if (m) m.classList.remove('hidden');
   }
 }
 
@@ -575,12 +538,11 @@ function _scanLoop(video, canvas, ctx) {
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const code = jsQR(imageData.data, imageData.width, imageData.height, {
-      inversionAttempts: 'dontInvert'
-    });
-    if (code && code.data) {
+    const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+    if (code && code.data && code.data !== _lastScan) {
+      _lastScan = code.data;
       onScanSuccess(code.data);
-      return; // stop loop — onScanSuccess calls stopScanner
+      setTimeout(() => { _lastScan = ''; }, 2000);
     }
   }
   _scanRafId = requestAnimationFrame(() => _scanLoop(video, canvas, ctx));
@@ -588,59 +550,63 @@ function _scanLoop(video, canvas, ctx) {
 
 function toggleManualEntry() {
   const area = el('manualEntryArea');
+  if (!area) return;
   area.classList.toggle('hidden');
   if (!area.classList.contains('hidden'))
-    setTimeout(() => el('manualBarcodeInput').focus(), 100);
+    setTimeout(() => el('manualBarcodeInput') && el('manualBarcodeInput').focus(), 100);
 }
 
 function submitManualBarcode() {
-  const val = (el('manualBarcodeInput').value || '').trim();
+  const inp = el('manualBarcodeInput');
+  const val = (inp ? inp.value : '').trim();
   if (!val) { toast('Enter the code', 2500); return; }
+  inp.value = '';
   onScanSuccess(val);
 }
 
 function onScanSuccess(scannedText) {
-  stopScanner();
+  const scanned = scannedText.trim();
 
-  const assetId  = activeScanAssetId;
-  const expected = (window._expectedBarcode || '').trim();
-  const scanned  = scannedText.trim();
+  // Find first unverified asset whose barcode matches
+  const match = assets.find(a =>
+    a.barcode && a.barcode.trim() === scanned &&
+    el('row_' + a.id) && el('row_' + a.id).dataset.confirmed !== '1'
+  );
 
-  const row      = el('row_' + assetId);
-  const statusEl = el('status_' + assetId);
-  const actionEl = el('action_' + assetId);
-
-  if (!expected || scanned === expected) {
+  if (match) {
+    const row      = el('row_' + match.id);
+    const statusEl = el('status_' + match.id);
+    const actionEl = el('action_' + match.id);
     row.style.borderColor = '#22c55e';
     row.style.background  = '#f0fdf4';
     row.dataset.confirmed = '1';
-    row.dataset.scanned   = '1';
-    actionEl.innerHTML    = '<span class="text-green-600 font-bold text-sm px-2">✅ Verified</span>';
-    statusEl.textContent  = `Verified ✓`;
-    statusEl.className    = 'text-xs mt-1 text-green-600';
-    statusEl.classList.remove('hidden');
-    toast('✅ Item verified!');
-  } else {
-    row.style.borderColor = '#ef4444';
-    row.style.background  = '#fef2f2';
-    statusEl.innerHTML    = `⚠ Wrong item! Got: <b>${scanned}</b> — Expected: <b>${expected}</b>`;
-    statusEl.className    = 'text-xs mt-1 text-red-500';
-    statusEl.classList.remove('hidden');
-    toast('Wrong code — try again or type manually', 4000);
-  }
+    if (actionEl) actionEl.innerHTML = '<span class="text-green-600 font-bold text-sm">✅</span>';
+    if (statusEl) { statusEl.textContent = 'Scanned ✓'; statusEl.className = 'text-xs mt-1 text-green-600'; statusEl.classList.remove('hidden'); }
+    toast('✅ ' + (match.asset_label || match.asset_type) + ' verified!');
 
-  activeScanAssetId = null;
-  checkAllDone();
+    // Stop scanner when all scan-required items are done
+    const pending = assets.filter(a => a.is_high_value && a.barcode && cfg.scan_required && el('row_' + a.id)?.dataset.confirmed !== '1');
+    if (!pending.length) {
+      stopScanner();
+      if (el('scanStatus')) el('scanStatus').textContent = 'All items scanned ✅';
+    } else {
+      if (el('scanStatus')) el('scanStatus').textContent = `${pending.length} item(s) left — scan next`;
+    }
+    checkAllDone();
+  } else {
+    toast('⚠ Item not recognised — try again', 3000);
+    if (el('scanStatus')) el('scanStatus').textContent = 'Unknown barcode — try another item';
+  }
 }
 
 function stopScanner() {
   scannerInstance = null;
-  if (_scanRafId) { cancelAnimationFrame(_scanRafId); _scanRafId = null; }
+  if (_scanRafId)  { cancelAnimationFrame(_scanRafId); _scanRafId = null; }
   if (_scanStream) { _scanStream.getTracks().forEach(t => t.stop()); _scanStream = null; }
   const v = el('scanVideo');
   if (v) v.srcObject = null;
-  el('scannerArea').classList.add('hidden');
 }
+
 
 function checkAllDone() {
   const allRows = document.querySelectorAll('#assetList [id^="row_"]');
