@@ -184,14 +184,20 @@ async function loadBooking() {
 
 // ─── INFO BAR ─────────────────────────────────────────────────
 function populateInfoBar() {
-  document.getElementById('refBadge').textContent  = booking.reference_number || ('#' + booking.id);
+  document.getElementById('refBadge').textContent   = booking.reference_number || ('#' + booking.id);
   document.getElementById('infoName').textContent   = booking.customer_name   || 'Customer';
   document.getElementById('infoAddress').textContent= booking.address         || '—';
   document.getElementById('infoAmount').textContent = '₹' + (booking.total_amount || 0);
-  const paid = (booking.payment_method === 'prepaid');
-  const pm   = document.getElementById('infoPayType');
-  pm.textContent  = paid ? 'Prepaid ✅' : 'COD – collect cash';
-  pm.style.color  = paid ? '#16a34a' : '#dc2626';
+  const pm = document.getElementById('infoPayType');
+  const inReturn = RETURN_PHASE.has(booking.fulfillment_status);
+  if (inReturn) {
+    pm.textContent = 'Return pickup';
+    pm.style.color = '#6b7280';
+  } else {
+    const paid = (booking.payment_method === 'prepaid');
+    pm.textContent = paid ? 'Prepaid ✅' : 'COD – collect cash';
+    pm.style.color = paid ? '#16a34a' : '#dc2626';
+  }
 }
 
 // ─── BUILD STEP LIST ──────────────────────────────────────────
@@ -732,30 +738,33 @@ async function doBundlePhoto() {
 // CONDITION PHOTO (delivery)
 function stepConditionPhoto() {
   el('stepBody').innerHTML = `
-    <div class="info-box">Take a clear photo of the PS5 and accessories showing their current condition. This is used as evidence if any damage is disputed later.</div>
-    <label class="field">Condition Photo (live camera only)</label>
-    <input type="file" accept="image/*" capture="environment" id="condFile"/>
-    <button class="btn-primary" id="condBtn" onclick="doConditionPhoto()">Submit & Continue</button>`;
+    <div class="info-box">Record a 10–30 second video showing the PS5 and all accessories. Pan across everything clearly — this is your evidence if damage is disputed.</div>
+    <label class="field">Condition Video (10–30 seconds)</label>
+    <input type="file" accept="video/*" capture="camcorder" id="condFile" onchange="validateVideoduration(this, 'condDurationMsg')"/>
+    <p id="condDurationMsg" class="text-xs text-red-500 mb-2 hidden"></p>
+    <button class="btn-primary" id="condBtn" onclick="doConditionPhoto()">Upload & Continue</button>`;
 }
 
 async function doConditionPhoto() {
   const file = el('condFile').files[0];
-  if (!file) { toast('Photo required.', 3000); return; }
+  if (!file) { toast('Video required.', 3000); return; }
+  if (el('condDurationMsg') && !el('condDurationMsg').classList.contains('hidden')) { toast('Video must be 10–30 seconds.', 3000); return; }
   el('condBtn').disabled = true; el('condBtn').textContent = 'Uploading...';
   try {
-    const url = await uploadPhoto(file, 'condition-photos');
+    const url = await uploadPhoto(file, 'condition-videos');
     window._deliveryConditionUrl = url;
     logEvent('condition_photo_delivery', { photo_url: url }).catch(()=>{});
     await advance('condition_ack_delivery');
-  } catch(e) { toast('Upload failed: ' + e.message, 4000); el('condBtn').disabled = false; el('condBtn').textContent = 'Submit & Continue'; }
+  } catch(e) { toast('Upload failed: ' + e.message, 4000); el('condBtn').disabled = false; el('condBtn').textContent = 'Upload & Continue'; }
 }
 
 // RETURN CONDITION (partner assesses)
 function stepReturnCondition() {
   el('stepBody').innerHTML = `
-    <div class="info-box">Inspect the PS5 and accessories being returned. Take a photo of their condition.</div>
-    <label class="field">Return Condition Photo (live camera only)</label>
-    <input type="file" accept="image/*" capture="environment" id="retCondFile"/>
+    <div class="info-box">Record a 10–30 second video of the PS5 and accessories being returned. Show all sides clearly.</div>
+    <label class="field">Return Condition Video (10–30 seconds)</label>
+    <input type="file" accept="video/*" capture="camcorder" id="retCondFile" onchange="validateVideoduration(this, 'retDurationMsg')"/>
+    <p id="retDurationMsg" class="text-xs text-red-500 mb-2 hidden"></p>
     <div class="checkbox-row" style="margin-top:12px">
       <input type="checkbox" id="damageFlag" onchange="el('damageBox').classList.toggle('hidden',!this.checked)"/>
       <label for="damageFlag">Damage or missing item found</label>
@@ -766,13 +775,14 @@ function stepReturnCondition() {
 
 async function doReturnCondition() {
   const file    = el('retCondFile').files[0];
-  if (!file) { toast('Photo required.', 3000); return; }
+  if (!file) { toast('Video required.', 3000); return; }
+  if (el('retDurationMsg') && !el('retDurationMsg').classList.contains('hidden')) { toast('Video must be 10–30 seconds.', 3000); return; }
   const damaged = el('damageFlag').checked;
   const notes   = el('damageBox') ? el('damageBox').value.trim() : '';
   if (damaged && !notes) { toast('Please describe the damage.', 3000); return; }
   el('retCondBtn').disabled = true; el('retCondBtn').textContent = 'Uploading...';
   try {
-    const url = await uploadPhoto(file, 'return-condition');
+    const url = await uploadPhoto(file, 'return-condition-videos');
     await db.from('condition_acknowledgements').insert({
       booking_id: booking.id, stage: 'return', acknowledged_by: 'partner',
       agreed: !damaged, dispute_notes: damaged ? notes : null, photo_url: url
