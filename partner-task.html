@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
+  @import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
     body { background: #f3f4f6; }
     .status-pending_assignment, .status-assigned { background:#fef3c7; color:#92400e; }
     .status-accepted, .status-packed_scanned, .status-out_for_delivery, .status-reached_customer { background:#dbeafe; color:#1e40af; }
@@ -22,7 +23,7 @@
   <div id="loginScreen" class="min-h-screen flex items-center justify-center px-4">
     <div class="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm">
       <div class="text-center mb-6">
-        <h1 class="text-3xl font-black italic tracking-widest text-gray-900">LEAZO</h1>
+        <h1 class="text-3xl font-extrabold italic text-gray-900" style="font-family: 'Anton', sans-serif; letter-spacing: 3px;">LEAZO</h1>
         <p class="text-sm text-gray-500 mt-1">Partner App</p>
       </div>
       <input id="phoneInput" type="tel" placeholder="Phone number" maxlength="10"
@@ -40,8 +41,8 @@
   <!-- Order List -->
   <div id="dashboard" class="hidden">
 
-    <div class="bg-[#FFD345] border-b-4 border-[#393be5] px-4 py-3 flex justify-between items-center sticky top-0 z-10 shadow-md">
-      <span class="text-xl italic" style="font-family:'Anton',sans-serif;letter-spacing:3px">LEAZO</span>
+    <div class="bg-[#FFD345] border-b-4 border-[#393be5] px-4 py-2 shadow-md flex justify-between items-center sticky top-0 z-10">
+      <span class="text-2xl md:text-4xl font-extrabold italic text-gray-900" style="font-family: 'Anton', sans-serif; letter-spacing: 3px;">LEAZO</span>
       <div class="flex items-center gap-3">
         <span id="cityBadge" class="text-xs font-bold bg-black text-white px-3 py-1 rounded-full"></span>
         <button onclick="logout()" class="text-xs text-gray-700 underline">Logout</button>
