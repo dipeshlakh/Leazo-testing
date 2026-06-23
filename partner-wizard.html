@@ -324,7 +324,7 @@ async function doReject() {
   setBusy(true, 'Rejecting...');
   try {
     await db.from('bookings').update({ fulfillment_status: 'rejected', assigned_partner_id: null }).eq('id', booking.id);
-    logEvent('rejected').then(()=>{}).catch(()=>{});
+    logEvent('rejected').catch(()=>{});
     toast('Order rejected. Admin notified.');
     setTimeout(() => goBack(), 1500);
   } catch(e) { toast('Failed to reject. Try again.', 3000); setBusy(false); }
@@ -588,7 +588,7 @@ async function doConfirmAll(scanPoint, nextStatus) {
   el('confirmAllBtn').textContent = 'Saving...';
 
   // Stop scanner if somehow still running
-  await stopScanner().catch(() => {});
+  try { stopScanner(); } catch(e) {}
 
   try {
     const geo  = await getGeo();
@@ -684,7 +684,7 @@ async function doBundlePhoto() {
   try {
     const urls = [];
     for (const f of allFiles) urls.push(await uploadPhoto(f, 'bundle-photos'));
-    logEvent('bundle_photo_done', { photo_url: urls[0], metadata: { all_urls: urls } }).then(()=>{}).catch(()=>{});
+    logEvent('bundle_photo_done', { photo_url: urls[0], metadata: { all_urls: urls } }).catch(()=>{});
     await advance('bundle_photo_done');
   } catch(e) { toast('Upload failed: ' + e.message, 4000); el('bundleBtn').disabled = false; el('bundleBtn').textContent = 'Submit & Continue'; }
 }
@@ -705,7 +705,7 @@ async function doConditionPhoto() {
   try {
     const url = await uploadPhoto(file, 'condition-photos');
     window._deliveryConditionUrl = url;
-    logEvent('condition_photo_delivery', { photo_url: url }).then(()=>{}).catch(()=>{});
+    logEvent('condition_photo_delivery', { photo_url: url }).catch(()=>{});
     await advance('condition_ack_delivery');
   } catch(e) { toast('Upload failed: ' + e.message, 4000); el('condBtn').disabled = false; el('condBtn').textContent = 'Submit & Continue'; }
 }
@@ -923,7 +923,8 @@ async function uploadPhoto(file, folder) {
 
 async function logEvent(eventType, opts) {
   opts = opts || {};
-  const geo = opts.geo_lat ? null : await getGeo().catch(() => null);
+  let geo = null;
+  if (!opts.geo_lat) { try { geo = await getGeo(); } catch(e) {} }
   await db.from('booking_events').insert({
     booking_id:  booking.id,
     event_type:  eventType,
