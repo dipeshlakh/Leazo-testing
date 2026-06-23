@@ -188,7 +188,7 @@ function populateInfoBar() {
   document.getElementById('infoName').textContent   = booking.customer_name   || 'Customer';
   document.getElementById('infoAddress').textContent= booking.address         || '—';
   document.getElementById('infoAmount').textContent = '₹' + (booking.total_amount || 0);
-  const paid = (booking.payment_status === 'paid');
+  const paid = (booking.payment_method === 'prepaid');
   const pm   = document.getElementById('infoPayType');
   pm.textContent  = paid ? 'Prepaid ✅' : 'COD – collect cash';
   pm.style.color  = paid ? '#16a34a' : '#dc2626';
@@ -212,7 +212,7 @@ function buildSteps() {
     s.push({ id:'photos',       label: cfg.installation_included ? 'Installation Photo' : 'Package Photo', produces_status:'bundle_photo_done', render: stepBundlePhoto });
     s.push({ id:'condition',    label:'Condition Photo',     produces_status:'condition_ack_delivery',  render: stepConditionPhoto });
     s.push({ id:'otp_del',      label:'Customer OTP',        produces_status:'otp_verified_delivery',   render: () => stepOtp('delivery') });
-    if (booking.payment_status !== 'paid')
+    if (booking.payment_method !== 'prepaid')
     s.push({ id:'payment',      label:'Collect Payment',     produces_status:'payment_collected',       render: stepPayment });
     s.push({ id:'done_del',     label:'Delivered',           produces_status:'delivered',               render: () => stepSimple('delivered','✅  Confirm Delivered','All steps complete. Mark the order as delivered.') });
     steps = s;
@@ -313,7 +313,7 @@ function stepAccept() {
         <div><b>Address:</b> ${d.address || '—'}</div>
         <div><b>Date:</b> ${d.booking_date || '—'} &nbsp; ${d.start_time || ''} – ${d.end_time || ''}</div>
         <div><b>Plan:</b> ${d.plan || '—'}</div>
-        <div><b>Amount:</b> <span class="text-green-700 font-bold">₹${d.total_amount || 0}</span> &nbsp; ${d.payment_status === 'paid' ? '(Prepaid ✅)' : '(COD – collect from customer)'}</div>
+        <div><b>Amount:</b> <span class="text-green-700 font-bold">₹${d.total_amount || 0}</span> &nbsp; ${d.payment_method === 'prepaid' ? '(Prepaid ✅)' : '(COD – collect from customer)'}</div>
       </div>
     </div>
     <button class="btn-primary mb-3" onclick="doAccept()">Accept Order</button>
