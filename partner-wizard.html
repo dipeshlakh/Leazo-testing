@@ -215,7 +215,7 @@ function buildSteps() {
     const s = [];
     s.push({ id:'accept',       label:'Accept Order',        produces_status:'accepted',               render: stepAccept });
     s.push({ id:'pack_scan',    label:'Pack & Verify',       produces_status:'packed_scanned',          render: () => stepScan('pack','packed_scanned') });
-    s.push({ id:'out_deliver',  label:'Out for Delivery',    produces_status:'out_for_delivery',        render: () => stepSimple('out_for_delivery','🛵  Start Delivery','Tap when you leave. Customer will be notified on WhatsApp.') });
+    s.push({ id:'out_deliver',  label:'Out for Delivery',    produces_status:'out_for_delivery',        render: () => stepDepart('out_for_delivery','🛵  Start Delivery','delivery') });
     if (cfg.id_verification_required)
     s.push({ id:'id_verify',    label:'ID Verification',     produces_status:'id_verified',             render: stepIdVerify });
     s.push({ id:'scan_deliver', label:'Verify Items',         produces_status:'items_verified_delivery', render: () => stepScan('delivery','items_verified_delivery') });
@@ -229,7 +229,7 @@ function buildSteps() {
   } else {
     // ── RETURN STEPS ──
     const s = [];
-    s.push({ id:'out_pickup',   label:'Out for Pickup',      produces_status:'out_for_pickup',         render: () => stepSimple('out_for_pickup','🛵  Start Pickup','Tap when you leave for pickup. Customer will be notified.') });
+    s.push({ id:'out_pickup',   label:'Out for Pickup',      produces_status:'out_for_pickup',         render: () => stepDepart('out_for_pickup','🛵  Start Pickup','pickup') });
     s.push({ id:'scan_ret',     label:'Verify Items',         produces_status:'items_verified_return',  render: () => stepScan('return_customer','items_verified_return') });
     s.push({ id:'cond_ret',     label:'Condition Check',     produces_status:'condition_photo_return', render: stepReturnCondition });
     s.push({ id:'otp_ret',      label:'Return OTP',          produces_status:'otp_verified_return',    render: () => stepOtp('return') });
@@ -347,26 +347,99 @@ async function doReject() {
   } catch(e) { toast('Failed to reject. Try again.', 3000); setBusy(false); }
 }
 
-// SIMPLE ACTION (out_for_delivery, reached, out_for_pickup, etc)
-function stepSimple(nextStatus, btnLabel, desc, captureGeo) {
-  el('stepBody').innerHTML = `
-    <div class="info-box">${desc}</div>
-    <button class="btn-primary" id="simpleBtn" onclick="doSimple('${nextStatus}', ${!!captureGeo})">${btnLabel}</button>`;
+// SIMPLE ACTION — for non-navigation steps (delivered, completed etc)
+function stepSimple(nextStatus, btnLabel, desc) {
+  el('stepBody').innerHTML =
+    '<div class="info-box">' + desc + '</div>'
+    + '<button class="btn-primary" id="simpleBtn" onclick="doSimple('' + nextStatus + '')">' + btnLabel + '</button>';
 }
 
-async function doSimple(nextStatus, withGeo) {
-  const btn = el('simpleBtn');
-  btn.disabled = true;
-  btn.textContent = 'Please wait...';
+async function doSimple(nextStatus) {
+  var btn = el('simpleBtn');
+  btn.disabled = true; btn.textContent = 'Please wait...';
+  await advance(nextStatus);
+}
 
-  // Notify customer on key events (fire-and-forget)
+// DEPART STEP — Out for Delivery / Out for Pickup with navigation
+// Phase 1: "Start" button → notifies customer, updates status, shows navigation
+// Phase 2: "I've Arrived" button → captures geo, advances to next step
+function stepDepart(nextStatus, btnLabel, type) {
+  el('stepBody').innerHTML =
+    '<div class="info-box">Tap when you leave. Customer will be notified on WhatsApp.</div>'
+    + '<button class="btn-primary" id="departBtn" onclick="doDepart(\'' + nextStatus + '\',\'' + type + '\')">' + btnLabel + '</button>';
+}
+
+async function doDepart(nextStatus, type) {
+  var btn = el('departBtn');
+  btn.disabled = true; btn.textContent = 'Please wait...';
+
+  // Notify customer
   if (nextStatus === 'out_for_delivery') notifyWA('out_for_delivery');
   if (nextStatus === 'out_for_pickup')   notifyWA('out_for_pickup');
 
-  let geo = null;
-  if (withGeo) geo = await getGeo();
+  // Advance status
+  await advance(nextStatus);
 
-  await advance(nextStatus, geo ? { last_partner_lat: geo.lat, last_partner_lng: geo.lng } : {});
+  // After advancing, show navigation screen
+  showNavigation(type);
+}
+
+function showNavigation(type) {
+  var lat  = booking.location_lat  || booking.customer_lat;
+  var lng  = booking.location_lng  || booking.customer_lng;
+  var addr = booking.location_address || booking.address || '';
+  var name = booking.location_name || booking.customer_name || 'Customer';
+  var isDelivery = type === 'delivery';
+
+  var mapsUrl = lat && lng
+    ? 'https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng
+    : 'https://www.google.com/maps/search/' + encodeURIComponent(addr);
+
+  var hasCoords = !!(lat && lng);
+
+  el('stepBody').innerHTML =
+    '<div class="bg-green-50 border border-green-200 rounded-xl p-3 mb-4 text-sm text-green-700 font-medium">'
+    + '✅ Customer notified on WhatsApp'
+    + '</div>'
+
+    + '<div class="card mb-4">'
+    + '<p class="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-2">📍 ' + (isDelivery ? 'Delivery' : 'Pickup') + ' Location</p>'
+    + '<p class="font-semibold text-gray-900 mb-1">' + name + '</p>'
+    + (addr ? '<p class="text-sm text-gray-500 mb-3">' + addr + '</p>' : '')
+    + (hasCoords
+        ? '<p class="text-xs text-green-600 mb-3">✅ Exact location shared by customer</p>'
+        : '<p class="text-xs text-yellow-600 mb-3">⚠ Exact coordinates not available — using text address</p>')
+    + '<a href="' + mapsUrl + '" target="_blank"'
+    + ' style="display:block;text-align:center;background:#000;color:#fff;font-weight:700;padding:12px;border-radius:12px;text-decoration:none;font-size:15px;">'
+    + '🗺 Open in Google Maps</a>'
+    + '</div>'
+
+    + '<button class="btn-primary" id="arrivedBtn" onclick="doArrived()">'
+    + '📍 I've Arrived</button>';
+}
+
+async function doArrived() {
+  var btn = el('arrivedBtn');
+  btn.disabled = true; btn.textContent = 'Getting location...';
+
+  // Capture geo and save to booking (non-blocking)
+  var geo = await getGeo();
+  if (geo) {
+    db.from('bookings').update({
+      last_partner_lat: geo.lat,
+      last_partner_lng: geo.lng
+    }).eq('id', booking.id).then(() => {
+      Object.assign(booking, { last_partner_lat: geo.lat, last_partner_lng: geo.lng });
+    });
+    logEvent('partner_arrived', { geo_lat: geo.lat, geo_lng: geo.lng }).catch(() => {});
+  }
+
+  // Move to next pending step (no status change needed — status is already out_for_delivery/pickup)
+  // findFirstPendingStep will correctly return the step after out_for_delivery/pickup
+  buildSteps();
+  stepIdx = Math.min(findFirstPendingStep(), steps.length - 1);
+  renderStep();
+  window.scrollTo(0, 0);
 }
 
 // ── BUILD ORDER ITEM LIST ─────────────────────────────────────
