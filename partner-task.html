@@ -20,11 +20,21 @@
       overscroll-behavior: none;       /* prevents pull-to-refresh and elastic scroll */
       -webkit-overflow-scrolling: touch;
     }
-    /* Login screen — full height, no scroll */
+    /* Login screen — truly fixed, zero scroll */
     #loginScreen {
-      height: 100dvh;
-      height: 100vh; /* fallback */
+      position: fixed;
+      inset: 0;
       overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    html, body {
+      overflow: hidden;
+      position: fixed;
+      width: 100%;
+      height: 100%;
     }
     /* Dashboard header — truly fixed, not sticky */
     #dashHeader {
@@ -49,7 +59,7 @@
 <body class="font-sans pb-20">
 
   <!-- Login Screen -->
-  <div id="loginScreen" class="min-h-screen flex items-center justify-center px-4">
+  <div id="loginScreen">
     <div class="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm">
       <div class="text-center mb-6">
         <h1 class="text-3xl font-extrabold italic text-gray-900" style="font-family: 'Anton', sans-serif; letter-spacing: 3px;">LEAZO</h1>
@@ -169,6 +179,13 @@
       document.getElementById("dashboard").classList.remove("hidden");
       document.getElementById("cityBadge").textContent = currentPartner.city;
       document.getElementById("partnerName").textContent = currentPartner.name;
+      // Re-enable scroll for dashboard
+      document.documentElement.style.overflow = '';
+      document.documentElement.style.position = '';
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.height = '';
       loadOrders();
     }
 
