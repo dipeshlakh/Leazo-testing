@@ -351,7 +351,7 @@ async function doReject() {
 function stepSimple(nextStatus, btnLabel, desc) {
   el('stepBody').innerHTML =
     '<div class="info-box">' + desc + '</div>'
-    + '<button class="btn-primary" id="simpleBtn" onclick="doSimple('' + nextStatus + '')">' + btnLabel + '</button>';
+    + '<button class="btn-primary" id="simpleBtn" onclick="doSimple(\'' + nextStatus + '\')"> ' + btnLabel + '</button>';
 }
 
 async function doSimple(nextStatus) {
@@ -415,7 +415,7 @@ function showNavigation(type) {
     + '</div>'
 
     + '<button class="btn-primary" id="arrivedBtn" onclick="doArrived()">'
-    + '📍 I've Arrived</button>';
+    + "📍 I've Arrived</button>";
 }
 
 async function doArrived() {
