@@ -1,0 +1,22 @@
+{
+  "name": "Leazo Partner",
+  "short_name": "Leazo",
+  "description": "Leazo Partner delivery and return management",
+  "start_url": "/partner-task.html",
+  "display": "standalone",
+  "background_color": "#FFD345",
+  "theme_color": "#FFD345",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "favicon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "favicon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
