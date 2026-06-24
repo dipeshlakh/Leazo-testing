@@ -4,6 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Leazo – Partner App</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#FFD345" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Leazo Partner" />
+  <link rel="apple-touch-icon" href="favicon.png" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -246,6 +252,10 @@
     function openOrder(bookingId) {
       location.href = `partner-wizard.html?booking_id=${bookingId}`;
     }
-  </script>
+    // Register service worker for PWA install
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+</script>
 </body>
 </html>
