@@ -29,6 +29,7 @@
       align-items: center;
       justify-content: center;
       padding: 16px;
+      background: #f3f4f6;
     }
     html, body {
       overflow: hidden;
@@ -175,7 +176,7 @@
     });
 
     function showDashboard() {
-      document.getElementById("loginScreen").classList.add("hidden");
+      document.getElementById("loginScreen").style.display = "none";
       document.getElementById("dashboard").classList.remove("hidden");
       document.getElementById("cityBadge").textContent = currentPartner.city;
       document.getElementById("partnerName").textContent = currentPartner.name;
@@ -191,7 +192,11 @@
 
     function logout() {
       sessionStorage.clear();
-      location.reload();
+      document.getElementById("loginScreen").style.display = "flex";
+      document.getElementById("dashboard").classList.add("hidden");
+      // Re-lock scroll for login screen
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
     }
 
     window.addEventListener("DOMContentLoaded", async () => {
