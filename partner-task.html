@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <title>Leazo – Partner App</title>
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#FFD345" />
@@ -14,7 +14,30 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
   @import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
-    body { background: #f3f4f6; }
+    html, body {
+      background: #f3f4f6;
+      height: 100%;
+      overscroll-behavior: none;       /* prevents pull-to-refresh and elastic scroll */
+      -webkit-overflow-scrolling: touch;
+    }
+    /* Login screen — full height, no scroll */
+    #loginScreen {
+      height: 100dvh;
+      height: 100vh; /* fallback */
+      overflow: hidden;
+    }
+    /* Dashboard header — truly fixed, not sticky */
+    #dashHeader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 50;
+    }
+    /* Push dashboard content below fixed header */
+    #dashContent {
+      padding-top: 60px;
+    }
     .status-pending_assignment, .status-assigned { background:#fef3c7; color:#92400e; }
     .status-accepted, .status-packed_scanned, .status-out_for_delivery, .status-reached_customer { background:#dbeafe; color:#1e40af; }
     .status-delivered, .status-active_rental { background:#d1fae5; color:#065f46; }
@@ -47,7 +70,7 @@
   <!-- Order List -->
   <div id="dashboard" class="hidden">
 
-    <div class="bg-[#FFD345] border-b-4 border-[#393be5] px-4 py-2 shadow-md flex justify-between items-center sticky top-0 z-10">
+    <div id="dashHeader" class="bg-[#FFD345] border-b-4 border-[#393be5] px-4 py-2 shadow-md flex justify-between items-center">
       <div class="flex flex-col items-center leading-tight">
         <span class="text-2xl font-extrabold italic text-gray-900" style="font-family: 'Anton', sans-serif; letter-spacing: 3px;">LEAZO</span>
         <span class="text-xs font-semibold text-gray-700" style="margin-top:-2px;letter-spacing:0.05em">Partner</span>
@@ -58,6 +81,7 @@
       </div>
     </div>
 
+    <div id="dashContent">
     <div class="px-4 py-3">
       <p class="text-sm text-gray-500">Welcome,</p>
       <p id="partnerName" class="text-lg font-bold text-gray-900"></p>
@@ -77,6 +101,7 @@
     <div class="fixed bottom-4 right-4">
       <button onclick="loadOrders()" class="bg-black text-white w-14 h-14 rounded-full shadow-xl flex items-center justify-center text-2xl">↻</button>
     </div>
+    </div><!-- /dashContent -->
   </div>
 
   <script>
