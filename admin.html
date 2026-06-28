@@ -295,6 +295,37 @@
   </div>
 </div>
 
+<!-- EDIT ORDER MODAL -->
+<div id="editModal" class="modal-bg hidden" onclick="closeEditModal(event)">
+  <div class="modal">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-lg font-black">Edit Order</h2>
+      <button onclick="closeEditModalDirect()" class="text-gray-400 text-2xl leading-none">&times;</button>
+    </div>
+    <p class="text-xs text-gray-400 mb-4">Only games and time slot can be edited.</p>
+
+    <label class="block text-xs font-bold text-gray-400 mb-1">GAMES</label>
+    <input type="text" id="editGames" placeholder="e.g. FIFA (FC25), GTA 5"
+      class="w-full border-2 rounded-xl px-3 py-2 text-sm mb-4 focus:outline-none focus:border-yellow-400"/>
+
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      <div>
+        <label class="block text-xs font-bold text-gray-400 mb-1">START TIME</label>
+        <input type="text" id="editStartTime" placeholder="e.g. 11:00 AM"
+          class="w-full border-2 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-yellow-400"/>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-gray-400 mb-1">END TIME</label>
+        <input type="text" id="editEndTime" placeholder="e.g. 8:00 PM"
+          class="w-full border-2 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-yellow-400"/>
+      </div>
+    </div>
+
+    <button class="btn-yellow mb-3" onclick="saveEditOrder()">Save Changes</button>
+    <button class="w-full text-sm text-gray-400 py-2" onclick="closeEditModalDirect()">Cancel</button>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div id="toast" class="toast"></div>
 
@@ -432,11 +463,14 @@ function statusLabel(s) {
 }
 
 function bookingCard(b) {
-  const date = new Date(b.created_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
-  const partner = allPartners.find(p => p.id === b.assigned_partner_id);
-  const fs = b.fulfillment_status || 'pending_assignment';
+  const date     = new Date(b.created_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+  const partner  = allPartners.find(p => p.id === b.assigned_partner_id);
+  const fs       = b.fulfillment_status || 'pending_assignment';
   const needsAssign = !b.assigned_partner_id && b.payment_status === 'paid';
-  const isDispute = fs === 'dispute_flagged';
+  const isDispute   = fs === 'dispute_flagged';
+  const isCOD       = b.payment_method !== 'prepaid';
+  const advance     = isCOD ? Math.round((b.total_amount || 0) * 0.10) : 0;
+  const timeSlot    = b.start_time ? `${b.start_time} – ${b.end_time}` : '—';
 
   return `
     <div class="card ${needsAssign ? 'ring-2 ring-yellow-400' : ''} ${isDispute ? 'ring-2 ring-red-400' : ''}">
@@ -454,7 +488,8 @@ function bookingCard(b) {
       <div class="grid grid-cols-3 gap-2 text-xs mb-3">
         <div class="bg-gray-50 rounded-xl p-2">
           <p class="text-gray-400">Plan</p>
-          <p class="font-semibold">${b.plan || '—'}</p>
+          <p class="font-semibold capitalize">${b.plan || '—'}</p>
+          <p class="text-gray-400 mt-0.5">${timeSlot}</p>
         </div>
         <div class="bg-gray-50 rounded-xl p-2">
           <p class="text-gray-400">Date</p>
@@ -463,8 +498,15 @@ function bookingCard(b) {
         <div class="bg-gray-50 rounded-xl p-2">
           <p class="text-gray-400">Amount</p>
           <p class="font-bold text-green-700">₹${b.total_amount || 0}</p>
+          ${isCOD ? `<p class="text-gray-400 mt-0.5">Adv: ₹${advance}</p>` : ''}
         </div>
       </div>
+
+      <!-- Games -->
+      ${b.games ? `<div class="bg-gray-50 rounded-xl p-2 text-xs mb-3">
+        <p class="text-gray-400 mb-0.5">Games</p>
+        <p class="font-medium">${b.games}</p>
+      </div>` : ''}
 
       <!-- Address -->
       <div class="bg-gray-50 rounded-xl p-2 text-xs mb-3">
@@ -488,9 +530,9 @@ function bookingCard(b) {
         </div>
       </div>
 
-      <!-- Action buttons -->
-      <div class="flex gap-2">
-        <a href="tel:${b.phone}" class="flex-1 text-center text-xs font-bold bg-gray-100 text-gray-700 py-2 rounded-xl">📞 ${b.phone}</a>
+      <!-- Action buttons row 1 -->
+      <div class="flex gap-2 mb-2">
+        <a href="tel:${b.phone}" class="flex-1 text-center text-xs font-bold bg-gray-100 text-gray-700 py-2 rounded-xl">📞 Call</a>
         <a href="https://wa.me/91${b.phone}" target="_blank" class="flex-1 text-center text-xs font-bold bg-green-100 text-green-700 py-2 rounded-xl">💬 WhatsApp</a>
         ${b.payment_status === 'paid'
           ? `<button onclick="openAssignModal(${b.id})" class="flex-1 text-xs font-bold ${needsAssign ? 'bg-yellow-400 text-black' : 'bg-gray-800 text-white'} py-2 rounded-xl">
@@ -499,7 +541,13 @@ function bookingCard(b) {
           : ''}
       </div>
 
-      <!-- Ref + fulfillment progress -->
+      <!-- Action buttons row 2: edit + delete -->
+      <div class="flex gap-2">
+        <button onclick="openEditModal(${b.id})" class="flex-1 text-xs font-bold bg-blue-50 text-blue-700 py-2 rounded-xl">✏ Edit</button>
+        <button onclick="deleteOrder(${b.id})" class="flex-1 text-xs font-bold bg-red-50 text-red-600 py-2 rounded-xl">🗑 Delete</button>
+      </div>
+
+      <!-- Ref + timeline -->
       <div class="flex items-center justify-between mt-3 pt-2 border-t border-gray-100 text-xs text-gray-400">
         <span>Ref: ${b.reference_number || b.id}</span>
         ${fs !== 'pending_assignment' && fs !== 'assigned' ? `<button onclick="viewTimeline(${b.id})" class="text-blue-500 underline">View timeline</button>` : ''}
@@ -869,11 +917,12 @@ async function loadAndRenderAssets(partnerId) {
         <p class="font-semibold">${a.asset_label || a.asset_type}</p>
         <p class="text-gray-400" style="font-size:11px">
           ${a.serial_number ? 'S/N: ' + a.serial_number : ''}
-          ${a.barcode ? ' · Barcode: ' + a.barcode : ''}
+          ${a.barcode ? ' · QR: ' + a.barcode : ''}
           ${a.is_high_value ? ' · 🔍 Scanned' : ''}
         </p>
       </div>
       <span class="text-xs px-2 py-0.5 rounded-full ${a.status === 'available' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${a.status}</span>
+      <button onclick="editAsset('${a.id}')" class="text-blue-400 text-xs px-2">✏</button>
       <button onclick="deleteAsset('${a.id}')" class="text-red-400 text-xs px-2">✕</button>
     </div>`).join('');
 }
@@ -926,6 +975,103 @@ async function deleteAsset(assetId) {
 async function loadPartners() {
   const { data } = await db.from('partners').select('*').order('name');
   allPartners = data || [];
+}
+
+// ── EDIT ORDER ────────────────────────────────────────────────
+let editingBookingId = null;
+
+function openEditModal(bookingId) {
+  editingBookingId = bookingId;
+  const b = allBookings.find(x => x.id === bookingId);
+  if (!b) return;
+  document.getElementById('editGames').value     = b.games || '';
+  document.getElementById('editStartTime').value = b.start_time || '';
+  document.getElementById('editEndTime').value   = b.end_time || '';
+  document.getElementById('editModal').classList.remove('hidden');
+}
+
+function closeEditModal(e) { if (e.target.id === 'editModal') closeEditModalDirect(); }
+function closeEditModalDirect() {
+  document.getElementById('editModal').classList.add('hidden');
+  editingBookingId = null;
+}
+
+async function saveEditOrder() {
+  const games     = document.getElementById('editGames').value.trim();
+  const startTime = document.getElementById('editStartTime').value.trim();
+  const endTime   = document.getElementById('editEndTime').value.trim();
+
+  const { error } = await db.from('bookings').update({
+    ...(games     && { games }),
+    ...(startTime && { start_time: startTime }),
+    ...(endTime   && { end_time: endTime }),
+  }).eq('id', editingBookingId);
+
+  if (error) { toast('Save failed: ' + error.message, 4000); return; }
+
+  const idx = allBookings.findIndex(x => x.id === editingBookingId);
+  if (idx >= 0) {
+    if (games)     allBookings[idx].games      = games;
+    if (startTime) allBookings[idx].start_time = startTime;
+    if (endTime)   allBookings[idx].end_time   = endTime;
+  }
+  toast('✅ Order updated');
+  closeEditModalDirect();
+  renderBookings();
+}
+
+// ── DELETE ORDER ──────────────────────────────────────────────
+async function deleteOrder(bookingId) {
+  const b = allBookings.find(x => x.id === bookingId);
+  if (!confirm(`Delete order for ${b?.customer_name || 'this customer'}? This cannot be undone.`)) return;
+  const { error } = await db.from('bookings').delete().eq('id', bookingId);
+  if (error) { toast('Delete failed: ' + error.message, 4000); return; }
+  allBookings = allBookings.filter(x => x.id !== bookingId);
+  updateStats();
+  renderBookings();
+  toast('Order deleted');
+}
+
+// ── EDIT ASSET ────────────────────────────────────────────────
+let editingAssetId = null;
+
+function editAsset(assetId) {
+  const a = partnerAssets.find(x => x.id === assetId);
+  if (!a) return;
+  editingAssetId = assetId;
+  // Reuse the add asset modal, pre-filled
+  document.getElementById('aType').value          = a.asset_type || 'ps5';
+  document.getElementById('aLabel').value         = a.asset_label || '';
+  document.getElementById('aSerial').value        = a.serial_number || '';
+  document.getElementById('aBarcode').value       = a.barcode || '';
+  document.getElementById('aHighValue').checked   = a.is_high_value;
+  // Change modal save button behavior
+  document.getElementById('assetModal').classList.remove('hidden');
+  // Swap saveAsset to updateAsset temporarily via flag
+  window._assetEditMode = true;
+}
+
+// Override saveAsset to handle edit mode
+const _origSaveAsset = saveAsset;
+async function saveAsset() {
+  if (!window._assetEditMode) { await _origSaveAsset(); return; }
+  // Update existing asset
+  const label = document.getElementById('aLabel').value.trim();
+  if (!label) { toast('Label required', 3000); return; }
+  const payload = {
+    asset_type:    document.getElementById('aType').value,
+    asset_label:   label,
+    serial_number: document.getElementById('aSerial').value.trim() || null,
+    barcode:       document.getElementById('aBarcode').value.trim() || null,
+    is_high_value: document.getElementById('aHighValue').checked,
+  };
+  const { error } = await db.from('partner_assets').update(payload).eq('id', editingAssetId);
+  if (error) { toast('Update failed: ' + error.message, 4000); return; }
+  toast('✅ Asset updated');
+  window._assetEditMode = false;
+  editingAssetId = null;
+  closeAssetModalDirect();
+  await loadAndRenderAssets(editingPartnerId);
 }
 
 // ── PARTNER INVENTORY CHECK ───────────────────────────────────
