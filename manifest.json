@@ -1,6 +1,6 @@
 {
   "name": "Leazo Partner",
-  "short_name": "Leazo",
+  "short_name": "LZ-Partner",
   "description": "Leazo Partner delivery and return management",
   "start_url": "/partner-task.html",
   "display": "standalone",
@@ -9,12 +9,12 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "favicon.png",
+      "src": "leazo-partner.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "favicon.png",
+      "src": "leazo-partner.png",
       "sizes": "512x512",
       "type": "image/png"
     }
