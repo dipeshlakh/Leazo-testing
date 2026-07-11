@@ -214,6 +214,17 @@
     });
 
     async function loadOrders() {
+      // Always re-fetch partner settings so admin changes apply immediately
+      const { data: freshPartner } = await db
+        .from("partners")
+        .select("display_settings")
+        .eq("id", currentPartner.id)
+        .maybeSingle();
+      if (freshPartner) {
+        currentPartner.display_settings = freshPartner.display_settings;
+        sessionStorage.setItem("partner_display_settings", JSON.stringify(freshPartner.display_settings || {}));
+      }
+
       const { data, error } = await db
         .from("bookings")
         .select("*")
