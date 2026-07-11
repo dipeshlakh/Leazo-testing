@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Leazo Partner" />
-  <link rel="apple-touch-icon" href="leazo-partner.png" />
+  <link rel="apple-touch-icon" href="favicon.png" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -168,6 +168,7 @@
       sessionStorage.setItem("partner_id", data.id);
       sessionStorage.setItem("partner_phone", data.phone);
       sessionStorage.setItem("partner_pin", pin);
+      sessionStorage.setItem("partner_display_settings", JSON.stringify(data.display_settings || {}));
       showDashboard();
     }
 
@@ -212,6 +213,7 @@
           .maybeSingle();
         if (data && data.status === "active") {
           currentPartner = data;
+          sessionStorage.setItem("partner_display_settings", JSON.stringify(data.display_settings || {}));
           showDashboard();
         } else {
           sessionStorage.clear();
@@ -269,30 +271,87 @@
       return (s || "pending_assignment").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
     }
 
+    // Helper: get display settings
+    function getDS() {
+      try { return JSON.parse(sessionStorage.getItem("partner_display_settings") || "{}"); }
+      catch(e) { return {}; }
+    }
+
     function orderCard(b) {
       const date = new Date(b.assigned_at || b.created_at).toLocaleDateString("en-IN", {
         day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"
       });
       const needsAction = b.fulfillment_status === "assigned";
+      const ds = getDS();
+      const isCOD = b.payment_method !== 'prepaid';
+      const showAmount = isCOD || ds.show_amount !== false;
+      const contactMode = ds.contact_mode ?? 'both';
+
+      // Contact buttons
+      let contactHtml = '';
+      if (contactMode === 'both' || contactMode === 'call') {
+        contactHtml += `<a href="tel:${b.phone}" onclick="event.stopPropagation()" class="flex-1 text-center text-xs font-bold bg-gray-100 text-gray-700 py-2 rounded-xl">📞 Call</a>`;
+      }
+      if (contactMode === 'both' || contactMode === 'whatsapp') {
+        contactHtml += `<a href="https://wa.me/91${b.phone}" target="_blank" onclick="event.stopPropagation()" class="flex-1 text-center text-xs font-bold bg-green-100 text-green-700 py-2 rounded-xl">💬 WhatsApp</a>`;
+      }
 
       return `
-        <div class="bg-white rounded-2xl shadow-sm p-4 space-y-3 ${needsAction ? 'ring-2 ring-yellow-400' : ''}"
+        <div class="bg-white rounded-2xl shadow-sm p-3 ${needsAction ? 'ring-2 ring-yellow-400' : ''}"
              onclick="openOrder(${b.id})">
-          <div class="flex justify-between items-start">
+
+          <!-- Header -->
+          <div class="flex justify-between items-start mb-2">
             <div>
-              <p class="font-bold text-gray-900 text-lg leading-tight">${b.customer_name || "Customer"}</p>
-              <p class="text-gray-500 text-sm">${date}</p>
+              <p class="font-bold text-gray-900 text-base leading-tight">${b.customer_name || "Customer"}</p>
+              <p class="text-gray-400 text-xs">${date}</p>
             </div>
-            <span class="status-${b.fulfillment_status || 'pending_assignment'} text-xs font-bold px-3 py-1 rounded-full">${statusLabel(b.fulfillment_status)}</span>
+            <span class="status-${b.fulfillment_status || 'pending_assignment'} text-xs font-bold px-2 py-0.5 rounded-full">${statusLabel(b.fulfillment_status)}</span>
           </div>
-          <div class="bg-gray-50 rounded-xl p-2 text-sm">
-            <p class="text-gray-400 text-xs mb-1">Address</p>
-            <p class="font-medium">${b.address || "—"}</p>
+
+          <!-- Compact grid: plan+date / amount -->
+          <div class="grid grid-cols-3 gap-1.5 mb-2 text-xs">
+            ${(ds.show_plan_time !== false) ? `
+            <div class="bg-gray-50 rounded-lg p-1.5 col-span-1">
+              <p class="text-gray-400">Plan</p>
+              <p class="font-semibold capitalize">${b.plan || '—'}</p>
+              <p class="text-gray-400" style="font-size:10px">${b.start_time || ''} – ${b.end_time || ''}</p>
+            </div>` : ''}
+            ${(ds.show_date !== false) ? `
+            <div class="bg-gray-50 rounded-lg p-1.5 col-span-1">
+              <p class="text-gray-400">Date</p>
+              <p class="font-semibold">${b.booking_date || '—'}</p>
+            </div>` : ''}
+            ${showAmount ? `
+            <div class="bg-gray-50 rounded-lg p-1.5 col-span-1">
+              <p class="text-gray-400">Amount</p>
+              <p class="font-bold text-green-700">₹${b.total_amount || 0}</p>
+              <p style="color:${isCOD?'#2563eb':'#16a34a'};font-size:10px;font-weight:700">${isCOD ? 'COD · Adv ₹' + Math.round((b.total_amount||0)*0.10) : 'Prepaid ✅'}</p>
+            </div>` : ''}
           </div>
-          <div class="flex justify-between items-center text-sm">
-            <span class="text-gray-500">Ref: ${b.reference_number || b.id}</span>
-            ${needsAction ? `<span class="text-yellow-600 font-bold text-xs">⚠ Action needed</span>` : `<span class="text-gray-400 text-xs">Tap to continue →</span>`}
+
+          <!-- Games -->
+          ${(ds.show_games !== false && b.games) ? `
+          <div class="bg-gray-50 rounded-xl p-2 text-xs mb-2">
+            <p class="text-gray-400 mb-0.5">Games & Controllers</p>
+            <p class="font-medium">${b.games}</p>
+            <p class="text-gray-500 mt-0.5">🕹 ${b.controllers_count || 1} Controller${(b.controllers_count||1)>1?'s':''}</p>
+          </div>` : ''}
+
+          <!-- Address -->
+          <div class="bg-gray-50 rounded-xl p-2 text-xs mb-2">
+            <p class="text-gray-400 mb-0.5">Address</p>
+            <p class="font-medium">${b.address || '—'}</p>
           </div>
+
+          <!-- Footer -->
+          <div class="flex justify-between items-center">
+            <span class="text-gray-400 text-xs">Ref: ${b.reference_number || b.id}</span>
+            ${needsAction ? `<span class="text-yellow-600 font-bold text-xs">⚠ Action needed</span>` : `<span class="text-gray-400 text-xs">Tap to open →</span>`}
+          </div>
+
+          <!-- Contact buttons -->
+          ${contactHtml ? `<div class="flex gap-2 mt-2">${contactHtml}</div>` : ''}
         </div>`;
     }
 
