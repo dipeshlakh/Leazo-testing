@@ -580,8 +580,8 @@
             <div class="flex items-center gap-3 rounded-2xl border border-gray-300 bg-white px-4 py-3 shadow-sm">
               <img src="dualsense.webp" alt="DualSense Controller" class="w-12 h-12 object-contain flex-shrink-0">
               <div class="flex flex-col flex-1 min-w-0">
-                <span class="text-sm font-semibold text-gray-800 leading-tight">Extra DualSense</span>
-                <span class="text-xs text-gray-400 leading-tight">PS5 includes 1 free · ₹99 each</span>
+                <span class="text-sm font-semibold text-gray-800 leading-tight">Extra Controller</span>
+                <span class="text-xs text-gray-400 leading-tight">PS5 includes 1 free</span>
                 <span id="controller-price-text" class="text-sm font-medium text-blue-600 mt-0.5">₹0</span>
               </div>
               <!-- Add button shown when qty = 0 -->
@@ -1149,6 +1149,7 @@
                 total_amount: totalAmount,
                 games: selectedGames,
                 controller_added: getControllerQty() > 0,
+                controllers_count: getControllerQty(),
                 converted: false
               };
               await db.from("leads").insert([leadData]);
@@ -1633,8 +1634,8 @@
       try {
         const controllerText = document.getElementById("controller-price-text");
         if (controllerText) {
-          if (controllerQty === 0) controllerText.textContent = `₹0`;
-          else controllerText.textContent = `₹99 × ${controllerQty} = ₹${controllerCharge}`;
+          if (controllerQty === 0) controllerText.textContent = `1 controller included`;
+          else controllerText.textContent = `+${controllerQty} extra · ₹${controllerCharge}`;
         }
       } catch (e) {
         console.error("Controller price update error:", e);
@@ -1729,7 +1730,7 @@
     <div class="mb-1 text-black font-semibold">Price Breakdown:</div>
     <div>Plan Price: ₹${planPrice}</div>
     ${gameBreakdown.join("")}
-    ${controllerCharge > 0 ? `<div>Extra DualSense (${getControllerQty()}×): ₹${controllerCharge}</div>` : ''}
+    ${controllerCharge > 0 ? `<div>Extra Controller (${getControllerQty()}×): ₹${controllerCharge}</div>` : ''}
     <div>Delivery, Installation & Pick Up: ₹${deliveryCharge}</div>
     ${couponDiscount > 0 ? `<div class='text-green-600'>Coupon Discount: -₹${couponDiscount}</div>` : ''}
     ${referralDiscount > 0 ? `<div class='text-green-600'>Gift Card Discount: -₹${referralDiscount}</div>` : ''}
@@ -2029,6 +2030,7 @@
         payment_status: "pending",
         operator_status: "new",
         controller_added: controllerAdded,
+        controllers_count: getControllerQty(),
         reference_number: refNumber
       };
 
