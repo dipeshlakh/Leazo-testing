@@ -440,7 +440,7 @@ function buildOrderItemList(partnerAssets, booking) {
   }
 
   // 2. Controllers — 1 default, 2 if customer added extra controller
-  const controllersNeeded = booking.controller_added ? 2 : 1;
+  const controllersNeeded = booking.controllers_count || 1;
   const controllers = partnerAssets.filter(a => a.asset_type === 'controller');
 
   for (let i = 0; i < controllersNeeded; i++) {
@@ -448,9 +448,9 @@ function buildOrderItemList(partnerAssets, booking) {
       items.push({ ...controllers[i], _source: 'db' });
     } else {
       items.push({
-        id: `ctrl_placeholder_${i}`,
+        id: 'ctrl_placeholder_' + i,
         asset_type: 'controller',
-        asset_label: i === 0 ? 'DualSense Controller' : 'Extra Controller',
+        asset_label: i === 0 ? 'DualSense Controller' : ('Controller ' + (i + 1)),
         is_high_value: false,
         barcode: null,
         serial_number: null,
