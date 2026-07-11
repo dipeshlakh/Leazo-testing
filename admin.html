@@ -257,11 +257,29 @@
     </div>
 
     <!-- Default config toggles -->
-    <div class="bg-gray-50 rounded-xl p-3 mb-4">
+    <div class="bg-gray-50 rounded-xl p-3 mb-3">
       <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Default Order Config</p>
       <div class="toggle-row"><span>Delivery + Installation</span><input type="checkbox" id="pInstall" class="w-5 h-5"/></div>
       <div class="toggle-row"><span>Scan Required</span><input type="checkbox" id="pScan" class="w-5 h-5"/></div>
       <div class="toggle-row"><span>ID Verification</span><input type="checkbox" id="pIdVerify" class="w-5 h-5"/></div>
+    </div>
+
+    <!-- Partner display settings -->
+    <div class="bg-gray-50 rounded-xl p-3 mb-4">
+      <p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Partner App — What to Show</p>
+      <div class="mb-2">
+        <label class="block text-xs font-bold text-gray-500 mb-1">Customer Contact</label>
+        <select id="pContactMode" class="w-full border rounded-lg px-3 py-2 text-sm">
+          <option value="both">📞 Call + 💬 WhatsApp</option>
+          <option value="call">📞 Call only</option>
+          <option value="whatsapp">💬 WhatsApp only</option>
+          <option value="none">Hide contact</option>
+        </select>
+      </div>
+      <div class="toggle-row"><span>Show Plan &amp; Time</span><input type="checkbox" id="pShowPlan" class="w-5 h-5"/></div>
+      <div class="toggle-row"><span>Show Booking Date</span><input type="checkbox" id="pShowDate" class="w-5 h-5"/></div>
+      <div class="toggle-row"><span>Show Games &amp; Controllers</span><input type="checkbox" id="pShowGames" class="w-5 h-5"/></div>
+      <div class="toggle-row"><span>Show Amount (prepaid only, COD always shown)</span><input type="checkbox" id="pShowAmount" class="w-5 h-5"/></div>
     </div>
 
     <button class="btn-yellow mb-3" id="partnerSaveBtn" onclick="savePartner()">Save Partner</button>
@@ -645,10 +663,11 @@ function bookingCard(b) {
       </div>
 
       <!-- Games -->
-      ${b.games ? `<div class="bg-gray-50 rounded-xl p-2 text-xs mb-3">
-        <p class="text-gray-400 mb-0.5">Games</p>
-        <p class="font-medium">${b.games}</p>
-      </div>` : ''}
+      <div class="bg-gray-50 rounded-xl p-2 text-xs mb-3">
+        <p class="text-gray-400 mb-0.5">Games & Controllers</p>
+        <p class="font-medium">${b.games || '—'}</p>
+        <p class="text-gray-500 mt-0.5">🕹 ${b.controllers_count || 1} Controller${(b.controllers_count || 1) > 1 ? 's' : ''}</p>
+      </div>
 
       <!-- Address -->
       <div class="bg-gray-50 rounded-xl p-2 text-xs mb-3">
@@ -656,16 +675,21 @@ function bookingCard(b) {
         <p class="font-medium">${b.address || '—'}</p>
       </div>
 
-      <!-- Partner assignment status -->
+      <!-- Partner assignment status + call + location -->
       <div class="flex items-center justify-between mb-3">
-        <div class="text-xs">
+        <div class="text-xs flex-1">
           ${partner
             ? `<span class="text-gray-400">Assigned to</span> <span class="font-bold text-gray-800">${partner.name}</span> <span class="text-gray-400">(${partner.city})</span>`
             : b.payment_status === 'paid'
               ? `<span class="text-yellow-600 font-bold">⚠ Needs assignment</span>`
               : `<span class="text-gray-400">Payment pending</span>`}
         </div>
-
+        <div class="flex items-center gap-2">
+          ${partner ? `<a href="tel:${partner.phone}" class="text-xs font-bold bg-gray-100 text-gray-700 px-3 py-1.5 rounded-xl">📞 Partner</a>` : ''}
+          ${b.location_lat
+            ? `<span class="text-xs font-semibold text-green-600">📍 Location ✅</span>`
+            : `<span class="text-xs font-semibold text-gray-400">📍 No location</span>`}
+        </div>
       </div>
 
       <!-- Action buttons -->
@@ -996,13 +1020,26 @@ async function openPartnerModal(partnerId) {
     document.getElementById('pInstall').checked     = p.default_installation_included !== false;
     document.getElementById('pScan').checked        = p.default_scan_required !== false;
     document.getElementById('pIdVerify').checked    = p.default_id_verification_required === true;
+    // Display settings
+    const ds = p.display_settings || {};
+    document.getElementById('pContactMode').value   = ds.contact_mode  ?? 'both';
+    document.getElementById('pShowPlan').checked    = ds.show_plan_time !== false;
+    document.getElementById('pShowDate').checked    = ds.show_date      !== false;
+    document.getElementById('pShowGames').checked   = ds.show_games     !== false;
+    document.getElementById('pShowAmount').checked  = ds.show_amount    !== false;
     await loadAndRenderAssets(partnerId);
   } else {
     ['pEditId','pName','pCity','pPhone','pPin','pUpi'].forEach(id => document.getElementById(id).value = '');
-    document.getElementById('pCommission').value = '20';
-    document.getElementById('pInstall').checked  = true;
-    document.getElementById('pScan').checked     = true;
-    document.getElementById('pIdVerify').checked = false;
+    document.getElementById('pCommission').value    = '20';
+    document.getElementById('pInstall').checked     = true;
+    document.getElementById('pScan').checked        = true;
+    document.getElementById('pIdVerify').checked    = false;
+    // Display settings defaults
+    document.getElementById('pContactMode').value   = 'both';
+    document.getElementById('pShowPlan').checked    = true;
+    document.getElementById('pShowDate').checked    = true;
+    document.getElementById('pShowGames').checked   = true;
+    document.getElementById('pShowAmount').checked  = true;
   }
 
   modal.classList.remove('hidden');
@@ -1028,11 +1065,18 @@ async function savePartner() {
 
   const payload = {
     name, city, phone, pin,
-    commission_percent:              Number(document.getElementById('pCommission').value) || 20,
-    upi_id:                          document.getElementById('pUpi').value.trim() || null,
-    default_installation_included:   document.getElementById('pInstall').checked,
-    default_scan_required:           document.getElementById('pScan').checked,
+    commission_percent:               Number(document.getElementById('pCommission').value) || 20,
+    upi_id:                           document.getElementById('pUpi').value.trim() || null,
+    default_installation_included:    document.getElementById('pInstall').checked,
+    default_scan_required:            document.getElementById('pScan').checked,
     default_id_verification_required: document.getElementById('pIdVerify').checked,
+    display_settings: {
+      contact_mode:   document.getElementById('pContactMode').value,
+      show_plan_time: document.getElementById('pShowPlan').checked,
+      show_date:      document.getElementById('pShowDate').checked,
+      show_games:     document.getElementById('pShowGames').checked,
+      show_amount:    document.getElementById('pShowAmount').checked,
+    },
     status: 'active'
   };
 
@@ -1110,26 +1154,33 @@ function closeAssetModalDirect() { document.getElementById('assetModal').classLi
 async function saveAsset() {
   const label = document.getElementById('aLabel').value.trim();
   if (!label) { toast('Asset label is required.', 3000); return; }
-  if (!addingAssetForPartner) { toast('No partner selected.', 3000); return; }
-
-  const barcode = document.getElementById('aBarcode').value.trim();
 
   const payload = {
-    partner_id:    addingAssetForPartner,
     asset_type:    document.getElementById('aType').value,
     asset_label:   label,
     serial_number: document.getElementById('aSerial').value.trim() || null,
-    barcode:       barcode || null,
+    barcode:       document.getElementById('aBarcode').value.trim() || null,
     is_high_value: document.getElementById('aHighValue').checked,
-    status:        'available'
   };
 
-  const { error } = await db.from('partner_assets').insert(payload);
-  if (error) { toast('Failed: ' + error.message, 4000); return; }
-
-  toast('✅ Asset added');
-  closeAssetModalDirect();
-  await loadAndRenderAssets(addingAssetForPartner);
+  if (window._assetEditMode && editingAssetId) {
+    // ── EDIT existing asset ──────────────────────────────────
+    const { error } = await db.from('partner_assets').update(payload).eq('id', editingAssetId);
+    if (error) { toast('Update failed: ' + error.message, 4000); return; }
+    toast('✅ Asset updated');
+    window._assetEditMode = false;
+    editingAssetId = null;
+    closeAssetModalDirect();
+    await loadAndRenderAssets(editingPartnerId);
+  } else {
+    // ── ADD new asset ────────────────────────────────────────
+    if (!addingAssetForPartner) { toast('No partner selected.', 3000); return; }
+    const { error } = await db.from('partner_assets').insert({ ...payload, partner_id: addingAssetForPartner, status: 'available' });
+    if (error) { toast('Failed: ' + error.message, 4000); return; }
+    toast('✅ Asset added');
+    closeAssetModalDirect();
+    await loadAndRenderAssets(addingAssetForPartner);
+  }
 }
 
 async function deleteAsset(assetId) {
@@ -1220,28 +1271,7 @@ function editAsset(assetId) {
   window._assetEditMode = true;
 }
 
-// Override saveAsset to handle edit mode
-const _origSaveAsset = saveAsset;
-async function saveAsset() {
-  if (!window._assetEditMode) { await _origSaveAsset(); return; }
-  // Update existing asset
-  const label = document.getElementById('aLabel').value.trim();
-  if (!label) { toast('Label required', 3000); return; }
-  const payload = {
-    asset_type:    document.getElementById('aType').value,
-    asset_label:   label,
-    serial_number: document.getElementById('aSerial').value.trim() || null,
-    barcode:       document.getElementById('aBarcode').value.trim() || null,
-    is_high_value: document.getElementById('aHighValue').checked,
-  };
-  const { error } = await db.from('partner_assets').update(payload).eq('id', editingAssetId);
-  if (error) { toast('Update failed: ' + error.message, 4000); return; }
-  toast('✅ Asset updated');
-  window._assetEditMode = false;
-  editingAssetId = null;
-  closeAssetModalDirect();
-  await loadAndRenderAssets(editingPartnerId);
-}
+// saveAsset handles both add and edit — see saveAsset() above
 
 // ── PARTNER INVENTORY CHECK ───────────────────────────────────
 // Runs when admin selects a partner in assignment modal.
@@ -1265,11 +1295,11 @@ async function checkPartnerInventory() {
 
   // Build required assets based on booking
   // Always: 1x PS5, 1x controller (default included)
-  // If controller_added: need 2 controllers total
+  // controllers_count: how many controllers ordered
   const required = [
     { type: 'ps5',        qty: 1, label: 'PS5 Console' },
-    { type: 'controller', qty: booking.controller_added ? 2 : 1,
-      label: booking.controller_added ? '2 Controllers (extra ordered)' : '1 Controller' }
+    { type: 'controller', qty: booking.controllers_count || 1,
+      label: (booking.controllers_count || 1) + ' Controller' + ((booking.controllers_count || 1) > 1 ? 's' : '') }
   ];
 
   // Load this partner's available assets
