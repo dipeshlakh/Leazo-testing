@@ -93,6 +93,9 @@
     </div>
   </div>
 
+  <!-- All dashboard content pushed below fixed header+nav -->
+  <div id="adminContent">
+
   <!-- Stats bar -->
   <div class="grid grid-cols-4 gap-2 px-3 py-3">
     <div class="bg-white rounded-xl p-2 text-center shadow-sm">
@@ -120,7 +123,7 @@
   </div>
 
   <!-- ORDERS PAGE -->
-  <div id="pageOrders" id="adminContent">
+  <div id="pageOrders">
 
   <!-- Filters -->
   <div class="flex gap-2 px-3 pb-2 overflow-x-auto pt-3">
@@ -166,6 +169,7 @@
     </div>
   </div>
 
+</div><!-- /adminContent -->
 </div><!-- /dashboard -->
 
 <!-- ASSIGN MODAL -->
@@ -412,13 +416,30 @@ async function loadAll() {
   await Promise.all([loadBookings(), loadPartners(), loadUrgentBreaches()]);
 }
 
+let urgentReasons = {};  // booking_id → latest breach reason
+
 async function loadUrgentBreaches() {
   const { data } = await db
     .from('sla_breach_log')
-    .select('booking_id')
-    .eq('resolved', false)
-    .eq('admin_notified', true);
+    .select('booking_id, step_name')
+    .eq('resolved', false);
+
   urgentBookingIds = new Set((data || []).map(r => r.booking_id));
+
+  // Map breach_type labels
+  const breachLabels = {
+    accept_assignment:         '⏱ Partner not accepted yet',
+    out_for_delivery:          '🚚 Not out for delivery yet',
+    return_reminder:           '📦 Return pickup not started',
+    return_overdue:            '🔴 Return overdue',
+  };
+
+  // Store latest reason per booking (last one wins)
+  urgentReasons = {};
+  (data || []).forEach(r => {
+    urgentReasons[r.booking_id] = breachLabels[r.step_name] || r.step_name;
+  });
+
   // Update urgent tab badge
   const urgentBtn = document.querySelector('[data-filter="urgent"]');
   if (urgentBtn) {
@@ -547,8 +568,14 @@ function bookingCard(b) {
   const advance     = isCOD ? Math.round((b.total_amount || 0) * 0.10) : 0;
   const timeSlot    = b.start_time ? `${b.start_time} – ${b.end_time}` : '—';
 
+  const isUrgent = urgentBookingIds.has(b.id);
+  const urgentReason = urgentReasons[b.id] || '';
+
   return `
-    <div class="card ${needsAssign ? 'ring-2 ring-yellow-400' : ''} ${isDispute ? 'ring-2 ring-red-400' : ''}">
+    <div class="card ${needsAssign ? 'ring-2 ring-yellow-400' : ''} ${isDispute ? 'ring-2 ring-red-400' : ''} ${isUrgent ? 'ring-2 ring-red-500' : ''}">
+
+      <!-- Urgent reason banner -->
+      ${isUrgent ? `<div class="bg-red-50 border border-red-200 rounded-xl px-3 py-1.5 mb-3 text-xs font-semibold text-red-600">${urgentReason}</div>` : ''}
 
       <!-- Header -->
       <div class="flex justify-between items-start mb-3">
