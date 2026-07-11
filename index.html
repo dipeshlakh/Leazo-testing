@@ -372,153 +372,192 @@
               class="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none">
             </div>
 
-            <div id="game-selection" class="flex overflow-x-auto space-x-4 px-2 py-2 snap-x scroll-smooth">
-              <!-- Each game card -->
-              <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
-                data-multiplayer="false">
-                <img src="gta5.webp" alt="GTA 5"
-                  class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto">
-                <input type="checkbox" name="Games[]" value="GTA 5" class="hidden game-checkbox" data-price="49" />
-                <span class="text-sm block mt-1 text-gray-800">GTA 5</span>
-              </label>
+          <div id="game-selection" class="flex overflow-x-auto space-x-4 px-2 py-2 snap-x scroll-smooth">
+  <!-- 2 Player Games -->
+  <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
+    data-multiplayer="true">
+    <img src="fifa.webp" alt="FIFA (FC25)"
+      class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto">
+    <input type="checkbox" name="Games[]" value="FIFA (FC25)" class="hidden game-checkbox" data-price="49" />
+    <span class="text-sm block mt-1 text-gray-800">FIFA (FC25)</span>
+  </label>
 
-              <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
-                data-multiplayer="true">
-                <img src="wwe2k25.webp" alt="WWE 2K25"
-                  class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto">
-                <input type="checkbox" name="Games[]" value="WWE 2K25" class="hidden game-checkbox" data-price="49" />
-                <span class="text-sm block mt-1 text-gray-800">WWE 2K25</span>
-              </label>
+  <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
+    data-multiplayer="true">
+    <img src="ittakestwo.webp" alt="It Takes Two"
+      class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" loading="lazy"
+      decoding="async" width="80" height="80">
+    <input type="checkbox" name="Games[]" value="It Takes Two" class="hidden game-checkbox"
+      data-price="49" />
+    <span class="text-sm block mt-1 text-gray-800">It Takes Two</span>
+  </label>
 
-              <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
-                data-multiplayer="true">
-                <img src="fifa.webp" alt="FIFA (FC25)"
-                  class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto">
-                <input type="checkbox" name="Games[]" value="FIFA (FC25)" class="hidden game-checkbox"
-                  data-price="49" />
-                <span class="text-sm block mt-1 text-gray-800">FIFA (FC25)</span>
-              </label>
+  <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
+    data-multiplayer="true">
+    <img src="f124.webp" alt="F1 24"
+      class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" loading="lazy"
+      decoding="async" width="80" height="80">
+    <input type="checkbox" name="Games[]" value="F1 24" class="hidden game-checkbox" data-price="49" />
+    <span class="text-sm block mt-1 text-gray-800">F1 24</span>
+  </label>
 
-              <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
-                data-multiplayer="false">
-                <img src="godofwar.webp" alt="God of War"
-                  class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto">
-                <input type="checkbox" name="Games[]" value="God of War" class="hidden game-checkbox" data-price="49" />
-                <span class="text-sm block mt-1 text-gray-800">God of War</span>
-              </label>
+  <!-- 1 Player Games -->
+  <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
+    data-multiplayer="false">
+    <img src="gta5.webp" alt="GTA 5"
+      class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto">
+    <input type="checkbox" name="Games[]" value="GTA 5" class="hidden game-checkbox" data-price="49" />
+    <span class="text-sm block mt-1 text-gray-800">GTA 5</span>
+  </label>
 
-              <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
-                data-multiplayer="true">
-                <img src="ufc4.webp" alt="UFC 4"
-                  class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" / loading="lazy"
-                  decoding="async" width="80" height="80">
-                <input type="checkbox" name="Games[]" value="UFC 4" class="hidden game-checkbox" data-price="49" />
-                <span class="text-sm block mt-1 text-gray-800">UFC 4</span>
-              </label>
+  <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
+    data-multiplayer="false">
+    <img src="spiderman2.webp" alt="Spiderman 2"
+      class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" loading="lazy"
+      decoding="async" width="80" height="80">
+    <input type="checkbox" name="Games[]" value="Spiderman 2" class="hidden game-checkbox"
+      data-price="49" />
+    <span class="text-sm block mt-1 text-gray-800">Spiderman 2</span>
+  </label>
 
-              <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
-                data-multiplayer="false">
-                <img src="spiderman2.webp" alt="Spiderman 2"
-                  class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" / loading="lazy"
-                  decoding="async" width="80" height="80">
-                <input type="checkbox" name="Games[]" value="Spiderman 2" class="hidden game-checkbox"
-                  data-price="49" />
-                <span class="text-sm block mt-1 text-gray-800">spiderman 2</span>
-              </label>
+  <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
+    data-multiplayer="false">
+    <img src="godofwarragnarok.webp" alt="God of War Ragnarok"
+      class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" loading="lazy"
+      decoding="async" width="80" height="80">
+    <input type="checkbox" name="Games[]" value="God of War Ragnarok" class="hidden game-checkbox" data-price="49" />
+    <span class="text-sm block mt-1 text-gray-800">God of War Ragnarok</span>
+  </label>
 
-              <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
-                data-multiplayer="true">
-                <img src="f124.webp" alt="F1 24"
-                  class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" / loading="lazy"
-                  decoding="async" width="80" height="80">
-                <input type="checkbox" name="Games[]" value="F1 24" class="hidden game-checkbox" data-price="49" />
-                <span class="text-sm block mt-1 text-gray-800">F1 24</span>
-              </label>
+  <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
+    data-multiplayer="false">
+    <img src="tlou1.webp" alt="The Last of Us Part 1"
+      class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" loading="lazy"
+      decoding="async" width="80" height="80">
+    <input type="checkbox" name="Games[]" value="The Last of Us Part 1" class="hidden game-checkbox" data-price="49" />
+    <span class="text-sm block mt-1 text-gray-800">The Last of Us Part 1</span>
+  </label>
 
+  <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
+    data-multiplayer="false">
+    <img src="uncharted4.webp" alt="Uncharted 4"
+      class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" loading="lazy"
+      decoding="async" width="80" height="80">
+    <input type="checkbox" name="Games[]" value="Uncharted 4" class="hidden game-checkbox" data-price="49" />
+    <span class="text-sm block mt-1 text-gray-800">Uncharted 4</span>
+  </label>
 
-              <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
-                data-multiplayer="true">
-                <img src="ittakestwo.webp" alt="It Takes Two"
-                  class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" / loading="lazy"
-                  decoding="async" width="80" height="80">
-                <input type="checkbox" name="Games[]" value="It Takes Two" class="hidden game-checkbox"
-                  data-price="49" />
-                <span class="text-sm block mt-1 text-gray-800">It Takes Two</span>
-              </label>
+  <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
+    data-multiplayer="false">
+    <img src="assassinscreedsyndicate.webp" alt="Assassin's Creed Syndicate"
+      class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" loading="lazy"
+      decoding="async" width="80" height="80">
+    <input type="checkbox" name="Games[]" value="Assassin's Creed Syndicate" class="hidden game-checkbox" data-price="49" />
+    <span class="text-sm block mt-1 text-gray-800">Assassin's Creed Syndicate</span>
+  </label>
 
-              <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
-                data-multiplayer="false">
-                <img src="needforspeed.webp" alt="Need for Speed"
-                  class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" / loading="lazy"
-                  decoding="async" width="80" height="80">
-                <input type="checkbox" name="Games[]" value="Need for Speed" class="hidden game-checkbox"
-                  data-price="49" />
-                <span class="text-sm block mt-1 text-gray-800">Need for Speed</span>
-              </label>
+  <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
+    data-multiplayer="false">
+    <img src="unchartedlostlegacy.webp" alt="Uncharted: The Lost Legacy"
+      class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" loading="lazy"
+      decoding="async" width="80" height="80">
+    <input type="checkbox" name="Games[]" value="Uncharted: The Lost Legacy" class="hidden game-checkbox" data-price="49" />
+    <span class="text-sm block mt-1 text-gray-800">Uncharted: The Lost Legacy</span>
+  </label>
 
-              <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
-                data-multiplayer="false">
-                <img src="starwarsjedisurvivor.webp" alt="SW Jedi: Survivor"
-                  class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" / loading="lazy"
-                  decoding="async" width="80" height="80">
-                <input type="checkbox" name="Games[]" value="SW Jedi: Survivor" class="hidden game-checkbox"
-                  data-price="49" />
-                <span class="text-sm block mt-1 text-gray-800">SW Jedi: Survivor</span>
-              </label>
+  <!-- Removed (not in requested list) -->
+  <!--
+  <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
+    data-multiplayer="true">
+    <img src="wwe2k25.webp" alt="WWE 2K25"
+      class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto">
+    <input type="checkbox" name="Games[]" value="WWE 2K25" class="hidden game-checkbox" data-price="49" />
+    <span class="text-sm block mt-1 text-gray-800">WWE 2K25</span>
+  </label>
 
-              <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
-                data-multiplayer="false">
-                <img src="starwarsjedifallenorder.webp" alt="SW Jedi: Fallen Order"
-                  class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" / loading="lazy"
-                  decoding="async" width="80" height="80">
-                <input type="checkbox" name="Games[]" value="SW Jedi: Fallen Order" class="hidden game-checkbox"
-                  data-price="49" />
-                <span class="text-sm block mt-1 text-gray-800">SW Jedi: Fallen Order</span>
-              </label>
+  <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
+    data-multiplayer="false">
+    <img src="godofwar.webp" alt="God of War"
+      class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto">
+    <input type="checkbox" name="Games[]" value="God of War" class="hidden game-checkbox" data-price="49" />
+    <span class="text-sm block mt-1 text-gray-800">God of War</span>
+  </label>
 
-              <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
-                data-multiplayer="true">
-                <img src="starwarsbattlefrontii.webp" alt="SW Battlefront II"
-                  class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" / loading="lazy"
-                  decoding="async" width="80" height="80">
-                <input type="checkbox" name="Games[]" value="SW Battlefront II" class="hidden game-checkbox"
-                  data-price="49" />
-                <span class="text-sm block mt-1 text-gray-800">SW Battlefront II</span>
-              </label>
+  <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
+    data-multiplayer="true">
+    <img src="ufc4.webp" alt="UFC 4"
+      class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" loading="lazy"
+      decoding="async" width="80" height="80">
+    <input type="checkbox" name="Games[]" value="UFC 4" class="hidden game-checkbox" data-price="49" />
+    <span class="text-sm block mt-1 text-gray-800">UFC 4</span>
+  </label>
 
-              <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
-                data-multiplayer="false">
-                <img src="starwarsjedisquadrons.webp" alt="SW Jedi: Squadrons"
-                  class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" / loading="lazy"
-                  decoding="async" width="80" height="80">
-                <input type="checkbox" name="Games[]" value="SW Jedi: Squadrons" class="hidden game-checkbox"
-                  data-price="49" />
-                <span class="text-sm block mt-1 text-gray-800">SW Jedi: Squadrons</span>
-              </label>
+  <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
+    data-multiplayer="false">
+    <img src="needforspeed.webp" alt="Need for Speed"
+      class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" loading="lazy"
+      decoding="async" width="80" height="80">
+    <input type="checkbox" name="Games[]" value="Need for Speed" class="hidden game-checkbox" data-price="49" />
+    <span class="text-sm block mt-1 text-gray-800">Need for Speed</span>
+  </label>
 
-              <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
-                data-multiplayer="false">
-                <img src="battlefield2042.webp" alt="Battlefield 2042"
-                  class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" / loading="lazy"
-                  decoding="async" width="80" height="80">
-                <input type="checkbox" name="Games[]" value="Battlefield 2042" class="hidden game-checkbox"
-                  data-price="49" />
-                <span class="text-sm block mt-1 text-gray-800">Battlefield 2042</span>
-              </label>
+  <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
+    data-multiplayer="false">
+    <img src="starwarsjedisurvivor.webp" alt="SW Jedi: Survivor"
+      class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" loading="lazy"
+      decoding="async" width="80" height="80">
+    <input type="checkbox" name="Games[]" value="SW Jedi: Survivor" class="hidden game-checkbox" data-price="49" />
+    <span class="text-sm block mt-1 text-gray-800">SW Jedi: Survivor</span>
+  </label>
 
-              <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
-                data-multiplayer="false">
-                <img src="battlefieldv.webp" alt="Battlefield V"
-                  class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" / loading="lazy"
-                  decoding="async" width="80" height="80">
-                <input type="checkbox" name="Games[]" value="Battlefield V" class="hidden game-checkbox"
-                  data-price="49" />
-                <span class="text-sm block mt-1 text-gray-800">Battlefield V</span>
-              </label>
+  <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
+    data-multiplayer="false">
+    <img src="starwarsjedifallenorder.webp" alt="SW Jedi: Fallen Order"
+      class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" loading="lazy"
+      decoding="async" width="80" height="80">
+    <input type="checkbox" name="Games[]" value="SW Jedi: Fallen Order" class="hidden game-checkbox" data-price="49" />
+    <span class="text-sm block mt-1 text-gray-800">SW Jedi: Fallen Order</span>
+  </label>
 
+  <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
+    data-multiplayer="true">
+    <img src="starwarsbattlefrontii.webp" alt="SW Battlefront II"
+      class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" loading="lazy"
+      decoding="async" width="80" height="80">
+    <input type="checkbox" name="Games[]" value="SW Battlefront II" class="hidden game-checkbox" data-price="49" />
+    <span class="text-sm block mt-1 text-gray-800">SW Battlefront II</span>
+  </label>
 
-              <!-- Add more game cards as needed -->
-            </div>
+  <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
+    data-multiplayer="false">
+    <img src="starwarsjedisquadrons.webp" alt="SW Jedi: Squadrons"
+      class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" loading="lazy"
+      decoding="async" width="80" height="80">
+    <input type="checkbox" name="Games[]" value="SW Jedi: Squadrons" class="hidden game-checkbox" data-price="49" />
+    <span class="text-sm block mt-1 text-gray-800">SW Jedi: Squadrons</span>
+  </label>
+
+  <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
+    data-multiplayer="false">
+    <img src="battlefield2042.webp" alt="Battlefield 2042"
+      class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" loading="lazy"
+      decoding="async" width="80" height="80">
+    <input type="checkbox" name="Games[]" value="Battlefield 2042" class="hidden game-checkbox" data-price="49" />
+    <span class="text-sm block mt-1 text-gray-800">Battlefield 2042</span>
+  </label>
+
+  <label class="game-card min-w-[100px] flex-shrink-0 cursor-pointer text-center snap-center"
+    data-multiplayer="false">
+    <img src="battlefieldv.webp" alt="Battlefield V"
+      class="game-img w-20 h-20 rounded-lg object-cover border-2 border-gray-200 mx-auto" loading="lazy"
+      decoding="async" width="80" height="80">
+    <input type="checkbox" name="Games[]" value="Battlefield V" class="hidden game-checkbox" data-price="49" />
+    <span class="text-sm block mt-1 text-gray-800">Battlefield V</span>
+  </label>
+  -->
+
+  <!-- Add more game cards as needed -->
+</div>
           </div>
 
           <p class="text-xs text-gray-500 text-center mb-1">⬅️ Swipe to see more games ➡️</p>
@@ -545,12 +584,22 @@
                 <span class="text-sm text-gray-500">₹100 each · Max 2</span>
                 <span id="controller-price-text" class="text-base font-medium text-blue-600 mt-1">₹0</span>
               </div>
-              <div class="flex items-center gap-2 flex-shrink-0">
+              <!-- Add button shown when qty = 0 -->
+              <button type="button" id="controllerAddBtn" onclick="changeControllerQty(1)"
+                class="flex-shrink-0 bg-[#393be5] text-white text-sm font-bold px-5 py-2.5 rounded-full hover:bg-blue-700 transition">
+                + Add
+              </button>
+              <!-- Qty selector shown when qty > 0 -->
+              <div id="controllerQtySelector" style="display:none;" class="flex-shrink-0 items-center gap-3">
                 <button type="button" onclick="changeControllerQty(-1)"
-                  class="w-8 h-8 rounded-full border-2 border-gray-300 text-gray-600 font-bold text-lg flex items-center justify-center hover:border-blue-500 hover:text-blue-600 transition">−</button>
-                <span id="controllerQty" class="text-lg font-bold text-gray-900 w-5 text-center">0</span>
+                  style="width:36px;height:36px;border-radius:50%;border:2px solid #d1d5db;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;color:#4b5563;background:white;cursor:pointer;flex-shrink:0;padding-bottom:2px;">
+                  &minus;
+                </button>
+                <span id="controllerQty" class="text-lg font-bold text-gray-900" style="min-width:20px;text-align:center;">0</span>
                 <button type="button" onclick="changeControllerQty(1)"
-                  class="w-8 h-8 rounded-full border-2 border-gray-300 text-gray-600 font-bold text-lg flex items-center justify-center hover:border-blue-500 hover:text-blue-600 transition">+</button>
+                  style="width:36px;height:36px;border-radius:50%;border:2px solid #d1d5db;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;color:#4b5563;background:white;cursor:pointer;flex-shrink:0;padding-bottom:2px;">
+                  &#43;
+                </button>
               </div>
               <input type="hidden" id="addController" value="0"/>
             </div>
@@ -760,11 +809,12 @@
             <p class="font-semibold mb-2 text-gray-700">Select Payment Method:</p>
 
             <div class="flex w-full gap-1">
-              <!-- UPI -->
-              <div onclick="selectPayment('upi')"
+              <!-- Prepaid / Online -->
+              <div onclick="selectPayment('prepaid')"
                 class="flex-1 payment-option border px-3 py-3 rounded-xl cursor-pointer hover:bg-gray-100 transition flex flex-col items-center justify-center gap-1">
-                <img src="upi.webp" alt="UPI" class="w-7 h-3.5">
-                <span class="text-md font-medium text-center leading-tight">UPI (Extra 10% Off)</span>
+                <img src="upi.webp" alt="Pay Online" class="w-7 h-3.5">
+                <span class="text-md font-medium text-center leading-tight">Pay Online</span>
+                <span class="text-xs text-green-600 font-bold">5% OFF</span>
               </div>
 
               <!-- COD -->
@@ -772,8 +822,13 @@
                 class="flex-1 payment-option border px-3 py-3 rounded-xl cursor-pointer hover:bg-gray-100 transition flex flex-col items-center justify-center gap-1">
                 <img src="cod.webp" alt="Cash on Delivery" class="w-6 h-3">
                 <span class="text-md font-medium text-center leading-tight">Cash on Delivery</span>
+                <span class="text-xs text-gray-500 font-medium">10% advance</span>
               </div>
             </div>
+
+            <!-- Payment info line -->
+            <div id="paymentInfoLine" class="hidden mt-2 text-sm text-center font-medium rounded-lg px-3 py-2 bg-blue-50 text-blue-700"></div>
+
             <input type="hidden" name="payment-method" id="paymentMethod" />
           </div>
 
@@ -803,6 +858,13 @@
   <!-- [UNCHANGED HTML ABOVE] -->
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = 'https://rohybhpktpfmeashdlzz.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvaHliaHBrdHBmbWVhc2hkbHp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3MzcwMTYsImV4cCI6MjA5MzMxMzAxNn0.NhM9DnXOl_7h3NHh1r78cPNvbogO_qOEhPfQauyKHJE';
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  </script>
 
   <script>
     let alertShown = false;
@@ -874,14 +936,13 @@
           const hasMultiplayer = Array.from(gameCheckboxes).some(input =>
             input.checked && input.closest('label').dataset.multiplayer === 'true'
           );
-
           controllerOption.classList.toggle('hidden', !hasMultiplayer);
-
           if (!hasMultiplayer) {
             document.getElementById("controllerQty").textContent = "0";
             document.getElementById("addController").value = "0";
+            document.getElementById("controllerAddBtn").classList.remove("hidden");
+            document.getElementById("controllerQtySelector").style.display = "none";
           }
-
           updateSummary();
         });
       });
@@ -998,7 +1059,6 @@
         const hasMultiplayerGame = Array.from(document.querySelectorAll('.game-checkbox')).some(input =>
           input.checked && input.closest('label')?.dataset.multiplayer === 'true'
         );
-
         if (hasMultiplayerGame && getControllerQty() === 0) {
           showToast("Add a controller for 2 Player games");
         }
@@ -1060,20 +1120,50 @@
           setHiddenField("Total Amount", `₹${totalAmount}`);
 
 
-          // Send silently to Formcarry
-          fetch("https://formcarry.com/s/mNJ2DZIHpcR", {
-            method: "POST",
-            body: new FormData(form),
-            headers: { 'Accept': 'application/json' }
-          })
-            .then(response => {
-              if (response.ok) {
-                console.log("✅ Step 2 form data submitted silently");
-              } else {
-                console.error("❌ Silent submission failed");
-              }
-            })
-            .catch(err => console.error("❌ Network error", err));
+          // Capture lead silently to Supabase
+          (async () => {
+            try {
+              const selectedCity = localStorage.getItem("selectedCity") || "Not Selected";
+              const plan = localStorage.getItem("selectedRentalPlan") || "hourly";
+              const startTimeEl = document.getElementById("startTime");
+              const endTimeEl = document.getElementById("endTime");
+              const fixedStartEl = document.getElementById("fixedStartTime");
+              const fixedEndEl = document.getElementById("fixedEndTime");
+              const startTime = plan === "hourly"
+                ? (startTimeEl?.selectedOptions?.[0]?.textContent || "")
+                : (fixedStartEl?.value || "");
+              const endTime = plan === "hourly"
+                ? (endTimeEl?.selectedOptions?.[0]?.textContent || "")
+                : (fixedEndEl?.value || "");
+              const selectedGames = Array.from(document.querySelectorAll('input[name="Games[]"]:checked'))
+                .map(i => i.value).join(", ");
+              const totalAmount = parseInt(document.getElementById("totalAmount")?.textContent || "0");
+              const leadData = {
+                customer_name: document.getElementById("name")?.value || "",
+                phone: document.getElementById("phone")?.value || "",
+                city: selectedCity,
+                plan: plan,
+                booking_date: document.getElementById("booking-date")?.value || "",
+                start_time: startTime,
+                end_time: endTime,
+                total_amount: totalAmount,
+                games: selectedGames,
+                controller_added: getControllerQty() > 0,
+                converted: false
+              };
+              await db.from("leads").insert([leadData]);
+
+              // Notify admin about new lead (silent)
+              fetch("https://rohybhpktpfmeashdlzz.supabase.co/functions/v1/send-notification", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+                },
+                body: JSON.stringify({ type: "new_lead", lead: leadData })
+              }).catch(() => {});
+            } catch (e) { /* silent fail */ }
+          })();
 
           // Finally, move to Step 3
           goToStep(3);
@@ -1169,29 +1259,25 @@
     // ✅ Multiplayer toggle with toast on missing controller
     document.getElementById("multiplayerToggle")?.addEventListener("change", function () {
       const showOnlyMultiplayer = this.checked;
-
       document.querySelectorAll(".game-card").forEach(card => {
         const label = card.querySelector("label");
         const isMultiplayer = label?.dataset.multiplayer === "true";
         card.classList.toggle("hidden", showOnlyMultiplayer && !isMultiplayer);
       });
-
       setTimeout(() => {
         const controllerOption = document.getElementById("controller-option");
-
         const hasMultiplayer = Array.from(document.querySelectorAll('.game-checkbox')).some(input =>
           input.checked && input.closest('label')?.dataset.multiplayer === 'true'
         );
-
         if (hasMultiplayer) {
           controllerOption?.classList.remove("hidden");
-          if (getControllerQty() === 0) {
-            showToast("Add a controller for 2 Player");
-          }
+          if (getControllerQty() === 0) showToast("Add a controller for 2 Player");
         } else {
           controllerOption?.classList.add("hidden");
           document.getElementById("controllerQty").textContent = "0";
           document.getElementById("addController").value = "0";
+          document.getElementById("controllerAddBtn").classList.remove("hidden");
+          document.getElementById("controllerQtySelector").style.display = "none";
           updateSummary();
         }
       }, 100);
@@ -1321,12 +1407,28 @@
     function selectPayment(method) {
       document.getElementById("paymentMethod").value = method;
       document.querySelectorAll(".payment-option").forEach(el =>
-        el.classList.remove("ring", "ring-blue-500", "ring-2")
+        el.classList.remove("ring", "ring-blue-500", "ring-2", "ring-green-500")
       );
       document.querySelector(`.payment-option[onclick*='${method}']`)
-        .classList.add("ring", "ring-blue-500", "ring-2");
+        .classList.add("ring", "ring-2", method === "prepaid" ? "ring-green-500" : "ring-blue-500");
 
-      updateSummary(); // <-- important to refresh pricing
+      // Show payment info line
+      const base = parseInt(document.getElementById("totalAmount")?.textContent || "0");
+      const infoLine = document.getElementById("paymentInfoLine");
+      if (infoLine && base > 0) {
+        if (method === "prepaid") {
+          const discounted = Math.round(base * 0.95);
+          infoLine.textContent = `🎉 You save ₹${base - discounted}! Pay ₹${discounted} now — full payment online.`;
+          infoLine.className = "mt-2 text-sm text-center font-medium rounded-lg px-3 py-2 bg-green-50 text-green-700";
+        } else {
+          const advance = Math.max(1, Math.round(base * 0.10));
+          infoLine.textContent = `Pay ₹${advance} now to confirm. Remaining ₹${base - advance} paid on delivery.`;
+          infoLine.className = "mt-2 text-sm text-center font-medium rounded-lg px-3 py-2 bg-blue-50 text-blue-700";
+        }
+        infoLine.classList.remove("hidden");
+      }
+
+      updateSummary();
     }
 
 
@@ -1374,15 +1476,15 @@
 
     async function loadReferralCodes() {
       try {
-        const webappURL = "https://script.google.com/macros/s/AKfycbx-J5qod-YnxNoy3mBQ-_BKQKvtQ7UnnG4sqSkIN1r165P3dB1wKd9zblBqRmNdvDkXKw/exec"; // <-- replace with your Apps Script URL
-        const res = await fetch(webappURL + "?all=1");
-        const data = await res.json();
-        if (data.ok && data.codes) {
-          referralCodesCache = data.codes;
-          console.log("Referral codes loaded:", referralCodesCache);
+        const { data, error } = await db.from("gift_cards").select("code, discount");
+        if (error) throw error;
+        if (data) {
+          data.forEach(row => {
+            referralCodesCache[row.code.toLowerCase()] = row.discount;
+          });
         }
       } catch (err) {
-        console.error("Failed to load referral codes", err);
+        console.log("Gift cards not loaded:", err.message);
       }
     }
 
@@ -1435,10 +1537,19 @@
     function changeControllerQty(delta) {
       const qtyEl = document.getElementById("controllerQty");
       const hiddenEl = document.getElementById("addController");
+      const addBtn = document.getElementById("controllerAddBtn");
+      const qtySelector = document.getElementById("controllerQtySelector");
       let qty = parseInt(qtyEl?.textContent || "0");
       qty = Math.min(MAX_CONTROLLERS, Math.max(0, qty + delta));
       if (qtyEl) qtyEl.textContent = qty;
       if (hiddenEl) hiddenEl.value = qty;
+      if (qty === 0) {
+        addBtn?.classList.remove("hidden");
+        if (qtySelector) qtySelector.style.display = "none";
+      } else {
+        addBtn?.classList.add("hidden");
+        if (qtySelector) qtySelector.style.display = "flex";
+      }
       updateSummary();
     }
     function getControllerQty() {
@@ -1494,8 +1605,6 @@
       // Controller pricing — ₹100 per controller
       const controllerQty = getControllerQty();
       let controllerCharge = controllerQty * 100;
-
-      // Update controller price text
       try {
         const controllerText = document.getElementById("controller-price-text");
         if (controllerText) {
@@ -1668,38 +1777,7 @@
     }
 
     document.getElementById("bookingForm").addEventListener("submit", function (e) {
-      e.preventDefault(); // stop default page reload
-
-      const btn = document.getElementById("bookBtn");
-      btn.disabled = true;
-      btn.innerHTML = `
-    <svg class="animate-spin h-5 w-5 mr-2 inline" viewBox="0 0 24 24">
-      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
-      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.372 0 0 5.372 0 12h4z"/>
-    </svg> Booking...
-  `;
-
-      fetch(this.action, {
-        method: this.method,
-        body: new FormData(this),
-        headers: { 'Accept': 'application/json' }
-      }).then(response => {
-        if (response.ok) {
-          showToast('Booking Confirmed');
-          this.reset();
-          btn.disabled = false;
-          btn.textContent = 'Book Now';
-          document.getElementById('bookingModal').classList.add('hidden'); // close modal
-        } else {
-          showToast('Something went wrong\nPlease try again or Call/Whatsapp on 9202227070');
-          btn.disabled = false;
-          btn.textContent = 'Book Now';
-        }
-      }).catch(error => {
-        showToast('Network error\nCheck your connection or Call/Whatsapp on 9202227070');
-        btn.disabled = false;
-        btn.textContent = 'Book Now';
-      });
+      e.preventDefault(); // booking is handled by the bookBtn click handler above
     });
 
 
@@ -1717,11 +1795,10 @@
       // ✅ Reset controller
       const controllerOption = document.getElementById("controller-option");
       const controllerText = document.getElementById("controller-price-text");
-      const controllerQtyEl = document.getElementById("controllerQty");
-      const controllerHidden = document.getElementById("addController");
-
-      if (controllerQtyEl) controllerQtyEl.textContent = "0";
-      if (controllerHidden) controllerHidden.value = "0";
+      if (document.getElementById("controllerQty")) document.getElementById("controllerQty").textContent = "0";
+      if (document.getElementById("addController")) document.getElementById("addController").value = "0";
+      if (document.getElementById("controllerAddBtn")) document.getElementById("controllerAddBtn").classList.remove("hidden");
+      if (document.getElementById("controllerQtySelector")) document.getElementById("controllerQtySelector").style.display = "none";
       if (controllerOption) controllerOption.classList.add("hidden");
       if (controllerText) controllerText.textContent = "₹0";
 
@@ -1833,20 +1910,20 @@
     }
 
     function generateReferenceNumber() {
-      // Simple random 8-digit alphanumeric code
-      return 'LEAZO-' + Math.floor(100000 + Math.random() * 900000);
+      // LZ-XXXXXX format — 6 digits combining random + timestamp tail for uniqueness
+      const rand = Math.floor(Math.random() * 9000) + 1000;
+      const ts   = Date.now() % 10000;
+      const num  = String((rand * 10000 + ts) % 900000 + 100000).padStart(6, '0');
+      return 'LZ-' + num;
     }
 
-    document.getElementById("bookBtn").addEventListener("click", function (e) {
+    document.getElementById("bookBtn").addEventListener("click", async function (e) {
       e.preventDefault();
 
       const form = document.getElementById("bookingForm");
 
-      // Remove required from hidden fields before validating
       document.querySelectorAll("[required]").forEach(el => {
-        if (el.offsetParent === null) { // hidden element
-          el.required = false;
-        }
+        if (el.offsetParent === null) el.required = false;
       });
 
       if (!form.checkValidity()) {
@@ -1854,78 +1931,139 @@
         return;
       }
 
-
-      // Gather extra booking details
-      const selectedCity = localStorage.getItem("selectedCity") || "Not Selected";
-      const controllerSelected = getControllerQty() > 0 ? `${getControllerQty()} controller(s)` : "No";
-      const twoPlayerToggle = document.getElementById("filterMultiplayer")?.checked ? "On" : "Off";
-      const couponCode = document.getElementById("couponCode")?.value || "None";
-      const referralCodeInput = document.getElementById("referralCodeInput")?.value || "None";
-
-      // Read breakdown & total from Step 3
-      const priceBreakdown = document.getElementById("summaryBreakdown")?.innerText || "";
-      const totalAmount = document.getElementById("totalAmount")?.innerText || "0";
-
-      // Helper to create/update hidden inputs
-      function setHiddenField(name, value) {
-        let input = form.querySelector(`input[name="${name}"]`);
-        if (!input) {
-          input = document.createElement("input");
-          input.type = "hidden";
-          input.name = name;
-          form.appendChild(input);
-        }
-        input.value = value;
+      const paymentMethod = document.getElementById("paymentMethod")?.value;
+      if (!paymentMethod || paymentMethod === "no choose") {
+        showToast("Please select a payment method");
+        return;
       }
-      const refNumber = generateReferenceNumber();
 
-      // Append all extra fields
-      setHiddenField("Submission Stage", "Final Confirmed Booking");
-      setHiddenField("Selected City", selectedCity);
-      setHiddenField("Extra Controller Selected", controllerSelected);
-      setHiddenField("2 Player Toggle", twoPlayerToggle);
-      setHiddenField("Coupon Code", couponCode);
-      setHiddenField("Referral Code", referralCodeInput);
-      setHiddenField("Price Breakdown", priceBreakdown);
-      setHiddenField("Total Amount", `₹${totalAmount}`);
-      setHiddenField("Reference Number", refNumber);
-
-
-      // Button loading state
       const btn = this;
       btn.disabled = true;
       btn.innerHTML = `
-    <svg class="animate-spin h-5 w-5 mr-2 inline" viewBox="0 0 24 24">
-      <circle class="opacity-25" cx="12" cy="12" r="10"
-        stroke="currentColor" stroke-width="4" fill="none"/>
-      <path class="opacity-75" fill="currentColor"
-        d="M4 12a8 8 0 018-8V0C5.372 0 0 5.372 0 12h4z"/>
-    </svg> Booking...
-  `;
+        <svg class="animate-spin h-5 w-5 mr-2 inline" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.372 0 0 5.372 0 12h4z"/>
+        </svg> Processing...`;
 
-      // Send to Formcarry
-      fetch("https://formcarry.com/s/CPgVxLB5qnD", {
-        method: "POST",
-        body: new FormData(form),
-        headers: { 'Accept': 'application/json' }
-      })
-        .then(response => {
-          if (response.ok) {
+      const selectedCity = localStorage.getItem("selectedCity") || "Not selected";
+      const plan = localStorage.getItem("selectedRentalPlan") || "hourly";
 
-            // Redirect to thank-you page with reference number in URL
-            window.location.href = `booking-confirmation.html?ref=${encodeURIComponent(refNumber)}`;
-          } else {
-            showToast("Click again");
+      const selectedGames = Array.from(document.querySelectorAll('input[name="Games[]"]:checked'))
+        .map(i => i.value).join(", ");
+
+      const startTimeEl = document.getElementById("startTime");
+      const endTimeEl = document.getElementById("endTime");
+      const fixedStartEl = document.getElementById("fixedStartTime");
+      const fixedEndEl = document.getElementById("fixedEndTime");
+
+      const startTime = plan === "hourly"
+        ? (startTimeEl?.selectedOptions?.[0]?.textContent || "")
+        : (fixedStartEl?.value || "");
+      const endTime = plan === "hourly"
+        ? (endTimeEl?.selectedOptions?.[0]?.textContent || "")
+        : (fixedEndEl?.value || "");
+
+      const couponCode = document.getElementById("couponCode")?.value || "";
+      const referralCode = document.getElementById("referralCodeInput")?.value || "";
+      const controllerAdded = getControllerQty() > 0;
+      const refNumber = generateReferenceNumber();
+
+      const customerName = document.getElementById("name")?.value || "";
+      const customerPhone = document.getElementById("phone")?.value || "";
+
+      // Calculate amounts
+      let baseAmount = parseInt(document.getElementById("totalAmount")?.textContent || "0");
+      let finalAmount = baseAmount;
+      let chargeAmount = baseAmount; // amount to charge now
+
+      const isPrepaid = paymentMethod === "prepaid" || paymentMethod === "online";
+
+      if (isPrepaid) {
+        // 5% off for prepaid
+        finalAmount = Math.round(baseAmount * 0.95);
+        chargeAmount = finalAmount; // full payment
+      } else {
+        // COD: charge 10% advance now
+        finalAmount = baseAmount;
+        chargeAmount = Math.max(1, Math.round(baseAmount * 0.10));
+      }
+
+      const bookingData = {
+        customer_name: customerName,
+        phone: customerPhone,
+        address: document.getElementById("address-line")?.value || "",
+        city: selectedCity,
+        plan: plan,
+        games: selectedGames,
+        booking_date: document.getElementById("booking-date")?.value || "",
+        start_time: startTime,
+        end_time: endTime,
+        total_amount: finalAmount,
+        coupon_code: couponCode || referralCode || "none",
+        payment_method: paymentMethod,
+        payment_status: "pending",
+        operator_status: "new",
+        controller_added: controllerAdded,
+        reference_number: refNumber
+      };
+
+      try {
+        // 1. Save booking to Supabase first
+        const { error: dbError } = await db.from("bookings").insert([bookingData]);
+        if (dbError) {
+          console.error("Supabase error:", JSON.stringify(dbError));
+          throw new Error(dbError.message || "Booking save failed");
+        }
+
+        // 2. Send WhatsApp notifications (silent — don't block payment if this fails)
+        fetch("https://rohybhpktpfmeashdlzz.supabase.co/functions/v1/send-notification", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+          },
+          body: JSON.stringify({ type: "new_booking", booking: bookingData })
+        }).catch(e => console.log("Notification failed silently:", e));
+
+        // 3. Create Cashfree order via Edge Function
+        const fnResponse = await fetch(
+          "https://rohybhpktpfmeashdlzz.supabase.co/functions/v1/create-cashfree-order",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+            },
+            body: JSON.stringify({
+              order_id: refNumber,
+              order_amount: chargeAmount,
+              customer_name: customerName,
+              customer_phone: customerPhone,
+              customer_email: "customer@leazo.in",
+              return_url: `https://leazo.in/booking-confirmation.html?ref=${encodeURIComponent(refNumber)}`
+            })
           }
-        })
+        );
 
-        .catch(() => {
-          showToast("Network error\nCall/Whatsapp on 9202227070");
-        })
-        .finally(() => {
-          btn.disabled = false;
-          btn.textContent = "Book Now";
+        const cfData = await fnResponse.json();
+
+        if (!fnResponse.ok || cfData.error) {
+          throw new Error(cfData.error || "Payment setup failed");
+        }
+
+        // 3. Launch Cashfree checkout via SDK
+        const cashfree = Cashfree({ mode: "production" }); // change to "production" when going live
+        cashfree.checkout({
+          paymentSessionId: cfData.payment_session_id,
+          returnUrl: `https://leazo.in/booking-confirmation.html?ref=${encodeURIComponent(refNumber)}`,
         });
+
+      } catch (err) {
+        console.error("Booking error:", err);
+        showToast("Something went wrong\nPlease call/WhatsApp 9202227070");
+        btn.disabled = false;
+        btn.textContent = "Book Now";
+      }
     });
 
 
