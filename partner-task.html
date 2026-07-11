@@ -31,12 +31,7 @@
       padding: 16px;
       background: #f3f4f6;
     }
-    html, body {
-      overflow: hidden;
-      position: fixed;
-      width: 100%;
-      height: 100%;
-    }
+    /* Body scroll unlocked — loginScreen overlay covers everything via position:fixed */
     /* Dashboard header — truly fixed, not sticky */
     #dashHeader {
       position: fixed;
@@ -195,9 +190,6 @@
       sessionStorage.clear();
       document.getElementById("loginScreen").style.display = "flex";
       document.getElementById("dashboard").classList.add("hidden");
-      // Re-lock scroll for login screen
-      document.documentElement.style.overflow = 'hidden';
-      document.body.style.overflow = 'hidden';
     }
 
     window.addEventListener("DOMContentLoaded", async () => {
@@ -344,14 +336,18 @@
             <p class="font-medium">${b.address || '—'}</p>
           </div>
 
-          <!-- Footer -->
-          <div class="flex justify-between items-center">
-            <span class="text-gray-400 text-xs">Ref: ${b.reference_number || b.id}</span>
-            ${needsAction ? `<span class="text-yellow-600 font-bold text-xs">⚠ Action needed</span>` : `<span class="text-gray-400 text-xs">Tap to open →</span>`}
+          <!-- Action row: primary open button + small contact icons -->
+          <div class="flex gap-2 mt-2 items-center">
+            <button onclick="event.stopPropagation(); openOrder(${b.id})"
+              class="flex-1 text-xs font-bold py-2 rounded-xl text-white ${needsAction ? 'bg-yellow-500' : 'bg-black'}">
+              ${needsAction ? '⚠ Action Needed' : '▶ Open Order'}
+            </button>
+            ${contactMode !== 'none' ? `
+              ${(contactMode === 'both' || contactMode === 'call') ? `<a href="tel:${b.phone}" onclick="event.stopPropagation()" title="Call" class="flex items-center justify-center w-9 h-9 rounded-xl bg-gray-100 text-gray-700 text-base">📞</a>` : ''}
+              ${(contactMode === 'both' || contactMode === 'whatsapp') ? `<a href="https://wa.me/91${b.phone}" target="_blank" onclick="event.stopPropagation()" title="WhatsApp" class="flex items-center justify-center w-9 h-9 rounded-xl bg-green-100 text-green-700 text-base">💬</a>` : ''}
+            ` : ''}
           </div>
-
-          <!-- Contact buttons -->
-          ${contactHtml ? `<div class="flex gap-2 mt-2">${contactHtml}</div>` : ''}
+          <p class="text-gray-400 text-xs mt-1.5">Ref: ${b.reference_number || b.id}</p>
         </div>`;
     }
 
