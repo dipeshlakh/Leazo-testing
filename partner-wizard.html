@@ -188,19 +188,31 @@ async function loadBooking() {
 
 // ─── INFO BAR ─────────────────────────────────────────────────
 function populateInfoBar() {
-  document.getElementById('refBadge').textContent   = booking.reference_number || ('#' + booking.id);
-  document.getElementById('infoName').textContent   = booking.customer_name   || 'Customer';
-  document.getElementById('infoAddress').textContent= booking.address         || '—';
-  document.getElementById('infoAmount').textContent = '₹' + (booking.total_amount || 0);
-  const pm = document.getElementById('infoPayType');
-  const inReturn = RETURN_PHASE.has(booking.fulfillment_status);
-  if (inReturn) {
-    pm.textContent = 'Return pickup';
-    pm.style.color = '#6b7280';
+  const ds = getDS();
+  const isCOD = booking.payment_method !== 'prepaid';
+  const showAmt = isCOD || ds.show_amount !== false; // COD always shown
+
+  document.getElementById('refBadge').textContent    = booking.reference_number || ('#' + booking.id);
+  document.getElementById('infoName').textContent    = booking.customer_name    || 'Customer';
+  document.getElementById('infoAddress').textContent = booking.address          || '—';
+
+  const amtEl = document.getElementById('infoAmount');
+  const pmEl  = document.getElementById('infoPayType');
+  if (showAmt) {
+    amtEl.textContent = '₹' + (booking.total_amount || 0);
+    amtEl.style.display = '';
+    const inReturn = RETURN_PHASE.has(booking.fulfillment_status);
+    if (inReturn) {
+      pmEl.textContent = 'Return pickup';
+      pmEl.style.color = '#6b7280';
+    } else {
+      pmEl.textContent = isCOD ? 'COD – collect cash' : 'Prepaid ✅';
+      pmEl.style.color = isCOD ? '#dc2626' : '#16a34a';
+    }
+    pmEl.style.display = '';
   } else {
-    const paid = (booking.payment_method === 'prepaid');
-    pm.textContent = paid ? 'Prepaid ✅' : 'COD – collect cash';
-    pm.style.color = paid ? '#16a34a' : '#dc2626';
+    amtEl.style.display = 'none';
+    pmEl.style.display  = 'none';
   }
 }
 
@@ -405,7 +417,18 @@ function stepNavigate(type) {
     + '🗺 Open in Google Maps</a>'
     + '</div>'
     + '<button class="btn-primary" id="arrivedBtn" onclick="doArrived(\'' + nextStatus + '\')">'
-    + "📍 I've Arrived</button>";
+    + "📍 I've Arrived</button>"
+    + (function(){
+        var ds2 = getDS();
+        var mode = ds2.contact_mode ?? 'both';
+        var phone = booking.phone || '';
+        var btns = '';
+        if (mode === 'both' || mode === 'call')
+          btns += '<a href="tel:' + phone + '" style="display:block;text-align:center;background:#f3f4f6;color:#374151;font-weight:700;padding:12px;border-radius:12px;text-decoration:none;font-size:14px;margin-top:8px;">📞 Call Customer</a>';
+        if (mode === 'both' || mode === 'whatsapp')
+          btns += '<a href="https://wa.me/91' + phone + '" target="_blank" style="display:block;text-align:center;background:#dcfce7;color:#15803d;font-weight:700;padding:12px;border-radius:12px;text-decoration:none;font-size:14px;margin-top:8px;">💬 WhatsApp Customer</a>';
+        return btns;
+      })();
 }
 
 async function doArrived(nextStatus) {
@@ -977,6 +1000,10 @@ async function doPayment() {
 
 // ─── UTILITIES ────────────────────────────────────────────────
 function el(id) { return document.getElementById(id); }
+function getDS() {
+  try { return JSON.parse(sessionStorage.getItem('partner_display_settings') || '{}'); }
+  catch(e) { return {}; }
+}
 function show(id) { el(id).classList.remove('hidden'); }
 function hide(id) { el(id).classList.add('hidden'); }
 
