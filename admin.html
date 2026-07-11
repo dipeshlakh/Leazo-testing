@@ -503,7 +503,10 @@ function renderBookings() {
 
   // Tab filter
   if (currentFilter === 'urgent')
-    filtered = filtered.filter(b => urgentBookingIds.has(b.id));
+    filtered = filtered.filter(b =>
+      urgentBookingIds.has(b.id) &&
+      !['completed','rated','rejected'].includes(b.fulfillment_status)
+    );
   else if (currentFilter === 'unassigned')
     filtered = filtered.filter(b => !b.assigned_partner_id && b.payment_status === 'paid');
   else if (currentFilter === 'in_progress')
