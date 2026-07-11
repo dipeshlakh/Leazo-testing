@@ -577,27 +577,27 @@
 
 
           <div id="controller-option" class="hidden mt-3">
-            <div class="flex items-center gap-4 rounded-2xl border border-gray-300 bg-white px-4 py-3 shadow-sm">
-              <img src="dualsense.webp" alt="DualSense Controller" class="w-16 h-16 object-contain flex-shrink-0">
-              <div class="flex flex-col flex-1">
-                <span class="text-md font-semibold text-gray-800">Extra Controllers</span>
-                <span class="text-sm text-gray-500">₹100 each · Max 2</span>
-                <span id="controller-price-text" class="text-base font-medium text-blue-600 mt-1">₹0</span>
+            <div class="flex items-center gap-3 rounded-2xl border border-gray-300 bg-white px-4 py-3 shadow-sm">
+              <img src="dualsense.webp" alt="DualSense Controller" class="w-12 h-12 object-contain flex-shrink-0">
+              <div class="flex flex-col flex-1 min-w-0">
+                <span class="text-sm font-semibold text-gray-800 leading-tight">Extra DualSense</span>
+                <span class="text-xs text-gray-400 leading-tight">PS5 includes 1 free · ₹99 each</span>
+                <span id="controller-price-text" class="text-sm font-medium text-blue-600 mt-0.5">₹0</span>
               </div>
               <!-- Add button shown when qty = 0 -->
               <button type="button" id="controllerAddBtn" onclick="changeControllerQty(1)"
-                class="flex-shrink-0 bg-[#393be5] text-white text-sm font-bold px-5 py-2.5 rounded-full hover:bg-blue-700 transition">
+                class="flex-shrink-0 bg-[#393be5] text-white text-sm font-bold px-4 py-2 rounded-full hover:bg-blue-700 transition">
                 + Add
               </button>
               <!-- Qty selector shown when qty > 0 -->
-              <div id="controllerQtySelector" style="display:none;" class="flex-shrink-0 items-center gap-3">
+              <div id="controllerQtySelector" style="display:none;" class="flex-shrink-0 items-center gap-2">
                 <button type="button" onclick="changeControllerQty(-1)"
-                  style="width:36px;height:36px;border-radius:50%;border:2px solid #d1d5db;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;color:#4b5563;background:white;cursor:pointer;flex-shrink:0;padding-bottom:2px;">
+                  style="width:32px;height:32px;border-radius:50%;border:2px solid #d1d5db;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;color:#4b5563;background:white;cursor:pointer;flex-shrink:0;padding-bottom:1px;">
                   &minus;
                 </button>
-                <span id="controllerQty" class="text-lg font-bold text-gray-900" style="min-width:20px;text-align:center;">0</span>
-                <button type="button" onclick="changeControllerQty(1)"
-                  style="width:36px;height:36px;border-radius:50%;border:2px solid #d1d5db;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;color:#4b5563;background:white;cursor:pointer;flex-shrink:0;padding-bottom:2px;">
+                <span id="controllerQty" class="text-base font-bold text-gray-900" style="min-width:16px;text-align:center;">0</span>
+                <button type="button" id="controllerPlusBtn" onclick="changeControllerQty(1)"
+                  style="width:32px;height:32px;border-radius:50%;border:2px solid #d1d5db;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;color:#4b5563;background:white;cursor:pointer;flex-shrink:0;padding-bottom:1px;">
                   &#43;
                 </button>
               </div>
@@ -1534,15 +1534,26 @@
 
     // ── Controller quantity helpers ──
     const MAX_CONTROLLERS = 2;
+    const CONTROLLER_PRICE = 99;
     function changeControllerQty(delta) {
       const qtyEl = document.getElementById("controllerQty");
       const hiddenEl = document.getElementById("addController");
       const addBtn = document.getElementById("controllerAddBtn");
       const qtySelector = document.getElementById("controllerQtySelector");
+      const plusBtn = document.getElementById("controllerPlusBtn");
       let qty = parseInt(qtyEl?.textContent || "0");
+
+      // Check max before incrementing
+      if (delta > 0 && qty >= MAX_CONTROLLERS) {
+        showToast(`Max ${MAX_CONTROLLERS} extra controllers allowed`);
+        return;
+      }
+
       qty = Math.min(MAX_CONTROLLERS, Math.max(0, qty + delta));
       if (qtyEl) qtyEl.textContent = qty;
       if (hiddenEl) hiddenEl.value = qty;
+
+      // Toggle Add button vs qty selector
       if (qty === 0) {
         addBtn?.classList.remove("hidden");
         if (qtySelector) qtySelector.style.display = "none";
@@ -1550,6 +1561,20 @@
         addBtn?.classList.add("hidden");
         if (qtySelector) qtySelector.style.display = "flex";
       }
+
+      // Disable/style plus button at max
+      if (plusBtn) {
+        if (qty >= MAX_CONTROLLERS) {
+          plusBtn.style.opacity = "0.35";
+          plusBtn.style.cursor = "not-allowed";
+          plusBtn.style.borderColor = "#e5e7eb";
+        } else {
+          plusBtn.style.opacity = "1";
+          plusBtn.style.cursor = "pointer";
+          plusBtn.style.borderColor = "#d1d5db";
+        }
+      }
+
       updateSummary();
     }
     function getControllerQty() {
@@ -1602,14 +1627,14 @@
 
 
 
-      // Controller pricing — ₹100 per controller
+      // Controller pricing — ₹99 per extra controller
       const controllerQty = getControllerQty();
-      let controllerCharge = controllerQty * 100;
+      let controllerCharge = controllerQty * 99;
       try {
         const controllerText = document.getElementById("controller-price-text");
         if (controllerText) {
           if (controllerQty === 0) controllerText.textContent = `₹0`;
-          else controllerText.textContent = `₹${controllerCharge} (${controllerQty} × ₹100)`;
+          else controllerText.textContent = `₹99 × ${controllerQty} = ₹${controllerCharge}`;
         }
       } catch (e) {
         console.error("Controller price update error:", e);
@@ -1704,7 +1729,7 @@
     <div class="mb-1 text-black font-semibold">Price Breakdown:</div>
     <div>Plan Price: ₹${planPrice}</div>
     ${gameBreakdown.join("")}
-    ${controllerCharge > 0 ? `<div>Extra Controllers (${getControllerQty()}×): ₹${controllerCharge}</div>` : ''}
+    ${controllerCharge > 0 ? `<div>Extra DualSense (${getControllerQty()}×): ₹${controllerCharge}</div>` : ''}
     <div>Delivery, Installation & Pick Up: ₹${deliveryCharge}</div>
     ${couponDiscount > 0 ? `<div class='text-green-600'>Coupon Discount: -₹${couponDiscount}</div>` : ''}
     ${referralDiscount > 0 ? `<div class='text-green-600'>Gift Card Discount: -₹${referralDiscount}</div>` : ''}
