@@ -372,9 +372,26 @@ let currentFilter = 'all';
 let modalBookingId = null;
 
 // ── AUTH ──────────────────────────────────────────────────────
+// Cookie helpers — more persistent than localStorage across browser restarts
+function setRememberCookie() {
+  const exp = new Date();
+  exp.setDate(exp.getDate() + 30);
+  document.cookie = 'admin_remembered=1; expires=' + exp.toUTCString() + '; path=/';
+  localStorage.setItem('admin_remembered', '1'); // fallback
+}
+function getRememberCookie() {
+  return document.cookie.split(';').some(c => c.trim().startsWith('admin_remembered=1'))
+    || localStorage.getItem('admin_remembered') === '1';
+}
+function clearRememberCookie() {
+  document.cookie = 'admin_remembered=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
+  localStorage.removeItem('admin_remembered');
+}
+
 function doLogin() {
   const pass = document.getElementById('adminPass').value.trim();
   if (pass === ADMIN_PASSWORD) {
+    if (document.getElementById('rememberMe').checked) setRememberCookie();
     sessionStorage.setItem('admin_auth', '1');
     showDashboard();
   } else {
@@ -385,7 +402,7 @@ document.getElementById('adminPass').addEventListener('keydown', e => { if (e.ke
 
 function doLogout() {
   sessionStorage.clear();
-  localStorage.removeItem('admin_remembered');
+  clearRememberCookie();
   const ls = document.getElementById('loginScreen');
   ls.removeAttribute('hidden');
   ls.style.display      = 'flex';
@@ -398,11 +415,14 @@ function doLogout() {
 
 window.addEventListener('DOMContentLoaded', () => {
   try {
-    const hasSession   = sessionStorage.getItem('admin_auth') === '1';
-    const hasRemember  = localStorage.getItem('admin_remembered') === '1';
+    const hasSession  = sessionStorage.getItem('admin_auth') === '1';
+    const hasRemember = getRememberCookie();
     console.log('Auth check — session:', hasSession, '| remember:', hasRemember);
     if (hasSession || hasRemember) {
-      if (hasRemember) sessionStorage.setItem('admin_auth', '1'); // Refresh session too
+      if (hasRemember) {
+        setRememberCookie();                    // Refresh cookie expiry
+        sessionStorage.setItem('admin_auth', '1');
+      }
       showDashboard();
     }
   } catch(e) {
