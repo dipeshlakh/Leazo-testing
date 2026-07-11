@@ -397,7 +397,17 @@ function doLogout() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  if (sessionStorage.getItem('admin_auth') === '1' || localStorage.getItem('admin_remembered') === '1') showDashboard();
+  try {
+    const hasSession   = sessionStorage.getItem('admin_auth') === '1';
+    const hasRemember  = localStorage.getItem('admin_remembered') === '1';
+    console.log('Auth check — session:', hasSession, '| remember:', hasRemember);
+    if (hasSession || hasRemember) {
+      if (hasRemember) sessionStorage.setItem('admin_auth', '1'); // Refresh session too
+      showDashboard();
+    }
+  } catch(e) {
+    console.error('Auto-login error:', e);
+  }
 });
 
 function showDashboard() {
@@ -413,7 +423,12 @@ function showDashboard() {
 let urgentBookingIds = new Set();
 
 async function loadAll() {
-  await Promise.all([loadBookings(), loadPartners(), loadUrgentBreaches()]);
+  try {
+    await Promise.all([loadBookings(), loadPartners(), loadUrgentBreaches()]);
+    renderBookings(); // Render once after ALL data is ready — partners + bookings both loaded
+  } catch(e) {
+    console.error('loadAll error:', e);
+  }
 }
 
 let urgentReasons = {};  // booking_id → latest breach reason
