@@ -538,21 +538,22 @@
 
 
           <div id="controller-option" class="hidden mt-3">
-            <label for="addController"
-              class="group flex items-center gap-4 rounded-2xl border border-gray-300 bg-white px-4 py-3 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer">
-
-              <img src="dualsense.webp" alt="DualSense Controller" class="w-16 h-16 object-contain">
-
+            <div class="flex items-center gap-4 rounded-2xl border border-gray-300 bg-white px-4 py-3 shadow-sm">
+              <img src="dualsense.webp" alt="DualSense Controller" class="w-16 h-16 object-contain flex-shrink-0">
               <div class="flex flex-col flex-1">
-                <span class="text-md font-semibold text-gray-800">Add Extra Controller</span>
-                <span class="text-sm text-gray-500">Required for 2 players</span>
-                <span id="controller-price-text" class="text-base font-medium text-blue-600 mt-1">₹99</span>
+                <span class="text-md font-semibold text-gray-800">Extra Controllers</span>
+                <span class="text-sm text-gray-500">₹100 each · Max 2</span>
+                <span id="controller-price-text" class="text-base font-medium text-blue-600 mt-1">₹0</span>
               </div>
-
-              <input type="checkbox" id="addController"
-                class="w-5 h-5 text-blue-600 rounded-md border-gray-300 focus:outline-none focus:ring-blue-700"
-                aria-describedby="controller-desc controller-price" />
-            </label>
+              <div class="flex items-center gap-2 flex-shrink-0">
+                <button type="button" onclick="changeControllerQty(-1)"
+                  class="w-8 h-8 rounded-full border-2 border-gray-300 text-gray-600 font-bold text-lg flex items-center justify-center hover:border-blue-500 hover:text-blue-600 transition">−</button>
+                <span id="controllerQty" class="text-lg font-bold text-gray-900 w-5 text-center">0</span>
+                <button type="button" onclick="changeControllerQty(1)"
+                  class="w-8 h-8 rounded-full border-2 border-gray-300 text-gray-600 font-bold text-lg flex items-center justify-center hover:border-blue-500 hover:text-blue-600 transition">+</button>
+              </div>
+              <input type="hidden" id="addController" value="0"/>
+            </div>
           </div>
 
 
@@ -759,12 +760,11 @@
             <p class="font-semibold mb-2 text-gray-700">Select Payment Method:</p>
 
             <div class="flex w-full gap-1">
-              <!-- Prepaid / Online -->
-              <div onclick="selectPayment('prepaid')"
+              <!-- UPI -->
+              <div onclick="selectPayment('upi')"
                 class="flex-1 payment-option border px-3 py-3 rounded-xl cursor-pointer hover:bg-gray-100 transition flex flex-col items-center justify-center gap-1">
-                <img src="upi.webp" alt="Pay Online" class="w-7 h-3.5">
-                <span class="text-md font-medium text-center leading-tight">Pay Online</span>
-                <span class="text-xs text-green-600 font-bold">5% OFF</span>
+                <img src="upi.webp" alt="UPI" class="w-7 h-3.5">
+                <span class="text-md font-medium text-center leading-tight">UPI (Extra 10% Off)</span>
               </div>
 
               <!-- COD -->
@@ -772,13 +772,8 @@
                 class="flex-1 payment-option border px-3 py-3 rounded-xl cursor-pointer hover:bg-gray-100 transition flex flex-col items-center justify-center gap-1">
                 <img src="cod.webp" alt="Cash on Delivery" class="w-6 h-3">
                 <span class="text-md font-medium text-center leading-tight">Cash on Delivery</span>
-                <span class="text-xs text-gray-500 font-medium">10% advance</span>
               </div>
             </div>
-
-            <!-- Payment info line -->
-            <div id="paymentInfoLine" class="hidden mt-2 text-sm text-center font-medium rounded-lg px-3 py-2 bg-blue-50 text-blue-700"></div>
-
             <input type="hidden" name="payment-method" id="paymentMethod" />
           </div>
 
@@ -808,13 +803,6 @@
   <!-- [UNCHANGED HTML ABOVE] -->
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-  <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    const SUPABASE_URL = 'https://rohybhpktpfmeashdlzz.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvaHliaHBrdHBmbWVhc2hkbHp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3MzcwMTYsImV4cCI6MjA5MzMxMzAxNn0.NhM9DnXOl_7h3NHh1r78cPNvbogO_qOEhPfQauyKHJE';
-    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  </script>
 
   <script>
     let alertShown = false;
@@ -880,7 +868,6 @@
 
       const gameCheckboxes = document.querySelectorAll('.game-checkbox');
       const controllerOption = document.getElementById('controller-option');
-      const controllerCheckbox = document.getElementById('addController');
 
       gameCheckboxes.forEach(cb => {
         cb.addEventListener('change', () => {
@@ -891,10 +878,11 @@
           controllerOption.classList.toggle('hidden', !hasMultiplayer);
 
           if (!hasMultiplayer) {
-            controllerCheckbox.checked = false;
+            document.getElementById("controllerQty").textContent = "0";
+            document.getElementById("addController").value = "0";
           }
 
-          updateSummary(); // Ensure pricing is updated
+          updateSummary();
         });
       });
 
@@ -1007,12 +995,11 @@
         }
 
         // ✅ Multiplayer warning before proceeding
-        const controllerCheckbox = document.getElementById("addController");
         const hasMultiplayerGame = Array.from(document.querySelectorAll('.game-checkbox')).some(input =>
           input.checked && input.closest('label')?.dataset.multiplayer === 'true'
         );
 
-        if (hasMultiplayerGame && !controllerCheckbox?.checked) {
+        if (hasMultiplayerGame && getControllerQty() === 0) {
           showToast("Add a controller for 2 Player games");
         }
 
@@ -1048,7 +1035,7 @@
 
           // Same extra fields logic as Book Now button
           const selectedCity = localStorage.getItem("selectedCity") || "Not Selected";
-          const controllerSelected = document.getElementById("addController")?.checked ? "Yes" : "No";
+          const controllerSelected = getControllerQty() > 0 ? `${getControllerQty()} controller(s)` : "No";
           const twoPlayerToggle = document.getElementById("filterMultiplayer")?.checked ? "On" : "Off";
           const couponCode = document.getElementById("couponCode")?.value || "None";
           const priceBreakdown = document.getElementById("summaryBreakdown")?.innerText || "";
@@ -1073,50 +1060,20 @@
           setHiddenField("Total Amount", `₹${totalAmount}`);
 
 
-          // Capture lead silently to Supabase
-          (async () => {
-            try {
-              const selectedCity = localStorage.getItem("selectedCity") || "Not Selected";
-              const plan = localStorage.getItem("selectedRentalPlan") || "hourly";
-              const startTimeEl = document.getElementById("startTime");
-              const endTimeEl = document.getElementById("endTime");
-              const fixedStartEl = document.getElementById("fixedStartTime");
-              const fixedEndEl = document.getElementById("fixedEndTime");
-              const startTime = plan === "hourly"
-                ? (startTimeEl?.selectedOptions?.[0]?.textContent || "")
-                : (fixedStartEl?.value || "");
-              const endTime = plan === "hourly"
-                ? (endTimeEl?.selectedOptions?.[0]?.textContent || "")
-                : (fixedEndEl?.value || "");
-              const selectedGames = Array.from(document.querySelectorAll('input[name="Games[]"]:checked'))
-                .map(i => i.value).join(", ");
-              const totalAmount = parseInt(document.getElementById("totalAmount")?.textContent || "0");
-              const leadData = {
-                customer_name: document.getElementById("name")?.value || "",
-                phone: document.getElementById("phone")?.value || "",
-                city: selectedCity,
-                plan: plan,
-                booking_date: document.getElementById("booking-date")?.value || "",
-                start_time: startTime,
-                end_time: endTime,
-                total_amount: totalAmount,
-                games: selectedGames,
-                controller_added: document.getElementById("addController")?.checked || false,
-                converted: false
-              };
-              await db.from("leads").insert([leadData]);
-
-              // Notify admin about new lead (silent)
-              fetch("https://rohybhpktpfmeashdlzz.supabase.co/functions/v1/send-notification", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
-                },
-                body: JSON.stringify({ type: "new_lead", lead: leadData })
-              }).catch(() => {});
-            } catch (e) { /* silent fail */ }
-          })();
+          // Send silently to Formcarry
+          fetch("https://formcarry.com/s/mNJ2DZIHpcR", {
+            method: "POST",
+            body: new FormData(form),
+            headers: { 'Accept': 'application/json' }
+          })
+            .then(response => {
+              if (response.ok) {
+                console.log("✅ Step 2 form data submitted silently");
+              } else {
+                console.error("❌ Silent submission failed");
+              }
+            })
+            .catch(err => console.error("❌ Network error", err));
 
           // Finally, move to Step 3
           goToStep(3);
@@ -1213,17 +1170,14 @@
     document.getElementById("multiplayerToggle")?.addEventListener("change", function () {
       const showOnlyMultiplayer = this.checked;
 
-      // Show/hide games based on multiplayer status
       document.querySelectorAll(".game-card").forEach(card => {
         const label = card.querySelector("label");
         const isMultiplayer = label?.dataset.multiplayer === "true";
         card.classList.toggle("hidden", showOnlyMultiplayer && !isMultiplayer);
       });
 
-      // ⏱ Wait for the DOM to settle, then check if multiplayer games are selected
       setTimeout(() => {
         const controllerOption = document.getElementById("controller-option");
-        const controllerCheckbox = document.getElementById("addController");
 
         const hasMultiplayer = Array.from(document.querySelectorAll('.game-checkbox')).some(input =>
           input.checked && input.closest('label')?.dataset.multiplayer === 'true'
@@ -1231,15 +1185,16 @@
 
         if (hasMultiplayer) {
           controllerOption?.classList.remove("hidden");
-
-          if (!controllerCheckbox?.checked) {
+          if (getControllerQty() === 0) {
             showToast("Add a controller for 2 Player");
           }
         } else {
           controllerOption?.classList.add("hidden");
-          if (controllerCheckbox) controllerCheckbox.checked = false;
+          document.getElementById("controllerQty").textContent = "0";
+          document.getElementById("addController").value = "0";
+          updateSummary();
         }
-      }, 100); // Short delay ensures updated DOM state
+      }, 100);
     });
 
     // 🆕 Setup dynamic flatpickr minDate
@@ -1366,28 +1321,12 @@
     function selectPayment(method) {
       document.getElementById("paymentMethod").value = method;
       document.querySelectorAll(".payment-option").forEach(el =>
-        el.classList.remove("ring", "ring-blue-500", "ring-2", "ring-green-500")
+        el.classList.remove("ring", "ring-blue-500", "ring-2")
       );
       document.querySelector(`.payment-option[onclick*='${method}']`)
-        .classList.add("ring", "ring-2", method === "prepaid" ? "ring-green-500" : "ring-blue-500");
+        .classList.add("ring", "ring-blue-500", "ring-2");
 
-      // Show payment info line
-      const base = parseInt(document.getElementById("totalAmount")?.textContent || "0");
-      const infoLine = document.getElementById("paymentInfoLine");
-      if (infoLine && base > 0) {
-        if (method === "prepaid") {
-          const discounted = Math.round(base * 0.95);
-          infoLine.textContent = `🎉 You save ₹${base - discounted}! Pay ₹${discounted} now — full payment online.`;
-          infoLine.className = "mt-2 text-sm text-center font-medium rounded-lg px-3 py-2 bg-green-50 text-green-700";
-        } else {
-          const advance = Math.max(1, Math.round(base * 0.10));
-          infoLine.textContent = `Pay ₹${advance} now to confirm. Remaining ₹${base - advance} paid on delivery.`;
-          infoLine.className = "mt-2 text-sm text-center font-medium rounded-lg px-3 py-2 bg-blue-50 text-blue-700";
-        }
-        infoLine.classList.remove("hidden");
-      }
-
-      updateSummary();
+      updateSummary(); // <-- important to refresh pricing
     }
 
 
@@ -1435,15 +1374,15 @@
 
     async function loadReferralCodes() {
       try {
-        const { data, error } = await db.from("gift_cards").select("code, discount");
-        if (error) throw error;
-        if (data) {
-          data.forEach(row => {
-            referralCodesCache[row.code.toLowerCase()] = row.discount;
-          });
+        const webappURL = "https://script.google.com/macros/s/AKfycbx-J5qod-YnxNoy3mBQ-_BKQKvtQ7UnnG4sqSkIN1r165P3dB1wKd9zblBqRmNdvDkXKw/exec"; // <-- replace with your Apps Script URL
+        const res = await fetch(webappURL + "?all=1");
+        const data = await res.json();
+        if (data.ok && data.codes) {
+          referralCodesCache = data.codes;
+          console.log("Referral codes loaded:", referralCodesCache);
         }
       } catch (err) {
-        console.log("Gift cards not loaded:", err.message);
+        console.error("Failed to load referral codes", err);
       }
     }
 
@@ -1491,6 +1430,21 @@
       "Mandsaur": 49
     };
 
+    // ── Controller quantity helpers ──
+    const MAX_CONTROLLERS = 2;
+    function changeControllerQty(delta) {
+      const qtyEl = document.getElementById("controllerQty");
+      const hiddenEl = document.getElementById("addController");
+      let qty = parseInt(qtyEl?.textContent || "0");
+      qty = Math.min(MAX_CONTROLLERS, Math.max(0, qty + delta));
+      if (qtyEl) qtyEl.textContent = qty;
+      if (hiddenEl) hiddenEl.value = qty;
+      updateSummary();
+    }
+    function getControllerQty() {
+      return parseInt(document.getElementById("addController")?.value || "0");
+    }
+
     function updateSummary() {
       const plan = localStorage.getItem("selectedRentalPlan") || "hourly";
       const bookingDate = document.getElementById("booking-date")?.value || "";
@@ -1537,22 +1491,16 @@
 
 
 
-      // Controller pricing – dynamic based on plan
-      const addController = document.getElementById("addController")?.checked;
-      let controllerCharge = 0;
-      if (addController) {
-        if (plan === "hourly") controllerCharge = 29 * (hours || 2); // assume 2 hrs min if missing
-        else if (plan === "day") controllerCharge = 99;
-        else if (plan === "night") controllerCharge = 99;
-      }
+      // Controller pricing — ₹100 per controller
+      const controllerQty = getControllerQty();
+      let controllerCharge = controllerQty * 100;
 
-      // Update controller price text dynamically
+      // Update controller price text
       try {
         const controllerText = document.getElementById("controller-price-text");
         if (controllerText) {
-          if (plan === "hourly") controllerText.textContent = `₹29/hr`;
-          else if (plan === "day") controllerText.textContent = `₹99`;
-          else if (plan === "night") controllerText.textContent = `₹99`;
+          if (controllerQty === 0) controllerText.textContent = `₹0`;
+          else controllerText.textContent = `₹${controllerCharge} (${controllerQty} × ₹100)`;
         }
       } catch (e) {
         console.error("Controller price update error:", e);
@@ -1647,7 +1595,7 @@
     <div class="mb-1 text-black font-semibold">Price Breakdown:</div>
     <div>Plan Price: ₹${planPrice}</div>
     ${gameBreakdown.join("")}
-    ${controllerCharge > 0 ? `<div>Extra Controller: ₹${controllerCharge}</div>` : ''}
+    ${controllerCharge > 0 ? `<div>Extra Controllers (${getControllerQty()}×): ₹${controllerCharge}</div>` : ''}
     <div>Delivery, Installation & Pick Up: ₹${deliveryCharge}</div>
     ${couponDiscount > 0 ? `<div class='text-green-600'>Coupon Discount: -₹${couponDiscount}</div>` : ''}
     ${referralDiscount > 0 ? `<div class='text-green-600'>Gift Card Discount: -₹${referralDiscount}</div>` : ''}
@@ -1720,7 +1668,38 @@
     }
 
     document.getElementById("bookingForm").addEventListener("submit", function (e) {
-      e.preventDefault(); // booking is handled by the bookBtn click handler above
+      e.preventDefault(); // stop default page reload
+
+      const btn = document.getElementById("bookBtn");
+      btn.disabled = true;
+      btn.innerHTML = `
+    <svg class="animate-spin h-5 w-5 mr-2 inline" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.372 0 0 5.372 0 12h4z"/>
+    </svg> Booking...
+  `;
+
+      fetch(this.action, {
+        method: this.method,
+        body: new FormData(this),
+        headers: { 'Accept': 'application/json' }
+      }).then(response => {
+        if (response.ok) {
+          showToast('Booking Confirmed');
+          this.reset();
+          btn.disabled = false;
+          btn.textContent = 'Book Now';
+          document.getElementById('bookingModal').classList.add('hidden'); // close modal
+        } else {
+          showToast('Something went wrong\nPlease try again or Call/Whatsapp on 9202227070');
+          btn.disabled = false;
+          btn.textContent = 'Book Now';
+        }
+      }).catch(error => {
+        showToast('Network error\nCheck your connection or Call/Whatsapp on 9202227070');
+        btn.disabled = false;
+        btn.textContent = 'Book Now';
+      });
     });
 
 
@@ -1736,13 +1715,15 @@
       );
 
       // ✅ Reset controller
-      const controllerCheckbox = document.getElementById("addController");
       const controllerOption = document.getElementById("controller-option");
       const controllerText = document.getElementById("controller-price-text");
+      const controllerQtyEl = document.getElementById("controllerQty");
+      const controllerHidden = document.getElementById("addController");
 
-      if (controllerCheckbox) controllerCheckbox.checked = false;
-      if (controllerOption) controllerOption.classList.add("hidden"); // hide if no multiplayer
-      if (controllerText) controllerText.textContent = "₹99"; // reset default price
+      if (controllerQtyEl) controllerQtyEl.textContent = "0";
+      if (controllerHidden) controllerHidden.value = "0";
+      if (controllerOption) controllerOption.classList.add("hidden");
+      if (controllerText) controllerText.textContent = "₹0";
 
       // ✅ Reset multiplayer toggle
       const multiplayerToggle = document.getElementById("multiplayerToggle");
@@ -1856,13 +1837,16 @@
       return 'LEAZO-' + Math.floor(100000 + Math.random() * 900000);
     }
 
-    document.getElementById("bookBtn").addEventListener("click", async function (e) {
+    document.getElementById("bookBtn").addEventListener("click", function (e) {
       e.preventDefault();
 
       const form = document.getElementById("bookingForm");
 
+      // Remove required from hidden fields before validating
       document.querySelectorAll("[required]").forEach(el => {
-        if (el.offsetParent === null) el.required = false;
+        if (el.offsetParent === null) { // hidden element
+          el.required = false;
+        }
       });
 
       if (!form.checkValidity()) {
@@ -1870,139 +1854,78 @@
         return;
       }
 
-      const paymentMethod = document.getElementById("paymentMethod")?.value;
-      if (!paymentMethod || paymentMethod === "no choose") {
-        showToast("Please select a payment method");
-        return;
-      }
 
+      // Gather extra booking details
+      const selectedCity = localStorage.getItem("selectedCity") || "Not Selected";
+      const controllerSelected = getControllerQty() > 0 ? `${getControllerQty()} controller(s)` : "No";
+      const twoPlayerToggle = document.getElementById("filterMultiplayer")?.checked ? "On" : "Off";
+      const couponCode = document.getElementById("couponCode")?.value || "None";
+      const referralCodeInput = document.getElementById("referralCodeInput")?.value || "None";
+
+      // Read breakdown & total from Step 3
+      const priceBreakdown = document.getElementById("summaryBreakdown")?.innerText || "";
+      const totalAmount = document.getElementById("totalAmount")?.innerText || "0";
+
+      // Helper to create/update hidden inputs
+      function setHiddenField(name, value) {
+        let input = form.querySelector(`input[name="${name}"]`);
+        if (!input) {
+          input = document.createElement("input");
+          input.type = "hidden";
+          input.name = name;
+          form.appendChild(input);
+        }
+        input.value = value;
+      }
+      const refNumber = generateReferenceNumber();
+
+      // Append all extra fields
+      setHiddenField("Submission Stage", "Final Confirmed Booking");
+      setHiddenField("Selected City", selectedCity);
+      setHiddenField("Extra Controller Selected", controllerSelected);
+      setHiddenField("2 Player Toggle", twoPlayerToggle);
+      setHiddenField("Coupon Code", couponCode);
+      setHiddenField("Referral Code", referralCodeInput);
+      setHiddenField("Price Breakdown", priceBreakdown);
+      setHiddenField("Total Amount", `₹${totalAmount}`);
+      setHiddenField("Reference Number", refNumber);
+
+
+      // Button loading state
       const btn = this;
       btn.disabled = true;
       btn.innerHTML = `
-        <svg class="animate-spin h-5 w-5 mr-2 inline" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.372 0 0 5.372 0 12h4z"/>
-        </svg> Processing...`;
+    <svg class="animate-spin h-5 w-5 mr-2 inline" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10"
+        stroke="currentColor" stroke-width="4" fill="none"/>
+      <path class="opacity-75" fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.372 0 0 5.372 0 12h4z"/>
+    </svg> Booking...
+  `;
 
-      const selectedCity = localStorage.getItem("selectedCity") || "Not selected";
-      const plan = localStorage.getItem("selectedRentalPlan") || "hourly";
+      // Send to Formcarry
+      fetch("https://formcarry.com/s/CPgVxLB5qnD", {
+        method: "POST",
+        body: new FormData(form),
+        headers: { 'Accept': 'application/json' }
+      })
+        .then(response => {
+          if (response.ok) {
 
-      const selectedGames = Array.from(document.querySelectorAll('input[name="Games[]"]:checked'))
-        .map(i => i.value).join(", ");
-
-      const startTimeEl = document.getElementById("startTime");
-      const endTimeEl = document.getElementById("endTime");
-      const fixedStartEl = document.getElementById("fixedStartTime");
-      const fixedEndEl = document.getElementById("fixedEndTime");
-
-      const startTime = plan === "hourly"
-        ? (startTimeEl?.selectedOptions?.[0]?.textContent || "")
-        : (fixedStartEl?.value || "");
-      const endTime = plan === "hourly"
-        ? (endTimeEl?.selectedOptions?.[0]?.textContent || "")
-        : (fixedEndEl?.value || "");
-
-      const couponCode = document.getElementById("couponCode")?.value || "";
-      const referralCode = document.getElementById("referralCodeInput")?.value || "";
-      const controllerAdded = document.getElementById("addController")?.checked || false;
-      const refNumber = generateReferenceNumber();
-
-      const customerName = document.getElementById("name")?.value || "";
-      const customerPhone = document.getElementById("phone")?.value || "";
-
-      // Calculate amounts
-      let baseAmount = parseInt(document.getElementById("totalAmount")?.textContent || "0");
-      let finalAmount = baseAmount;
-      let chargeAmount = baseAmount; // amount to charge now
-
-      const isPrepaid = paymentMethod === "prepaid" || paymentMethod === "online";
-
-      if (isPrepaid) {
-        // 5% off for prepaid
-        finalAmount = Math.round(baseAmount * 0.95);
-        chargeAmount = finalAmount; // full payment
-      } else {
-        // COD: charge 10% advance now
-        finalAmount = baseAmount;
-        chargeAmount = Math.max(1, Math.round(baseAmount * 0.10));
-      }
-
-      const bookingData = {
-        customer_name: customerName,
-        phone: customerPhone,
-        address: document.getElementById("address-line")?.value || "",
-        city: selectedCity,
-        plan: plan,
-        games: selectedGames,
-        booking_date: document.getElementById("booking-date")?.value || "",
-        start_time: startTime,
-        end_time: endTime,
-        total_amount: finalAmount,
-        coupon_code: couponCode || referralCode || "none",
-        payment_method: paymentMethod,
-        payment_status: "pending",
-        operator_status: "new",
-        controller_added: controllerAdded,
-        reference_number: refNumber
-      };
-
-      try {
-        // 1. Save booking to Supabase first
-        const { error: dbError } = await db.from("bookings").insert([bookingData]);
-        if (dbError) {
-          console.error("Supabase error:", JSON.stringify(dbError));
-          throw new Error(dbError.message || "Booking save failed");
-        }
-
-        // 2. Send WhatsApp notifications (silent — don't block payment if this fails)
-        fetch("https://rohybhpktpfmeashdlzz.supabase.co/functions/v1/send-notification", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
-          },
-          body: JSON.stringify({ type: "new_booking", booking: bookingData })
-        }).catch(e => console.log("Notification failed silently:", e));
-
-        // 3. Create Cashfree order via Edge Function
-        const fnResponse = await fetch(
-          "https://rohybhpktpfmeashdlzz.supabase.co/functions/v1/create-cashfree-order",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
-            },
-            body: JSON.stringify({
-              order_id: refNumber,
-              order_amount: chargeAmount,
-              customer_name: customerName,
-              customer_phone: customerPhone,
-              customer_email: "customer@leazo.in",
-              return_url: `https://leazo.in/booking-confirmation.html?ref=${encodeURIComponent(refNumber)}`
-            })
+            // Redirect to thank-you page with reference number in URL
+            window.location.href = `booking-confirmation.html?ref=${encodeURIComponent(refNumber)}`;
+          } else {
+            showToast("Click again");
           }
-        );
+        })
 
-        const cfData = await fnResponse.json();
-
-        if (!fnResponse.ok || cfData.error) {
-          throw new Error(cfData.error || "Payment setup failed");
-        }
-
-        // 3. Launch Cashfree checkout via SDK
-        const cashfree = Cashfree({ mode: "sandbox" }); // change to "production" when going live
-        cashfree.checkout({
-          paymentSessionId: cfData.payment_session_id,
-          returnUrl: `https://leazo.in/booking-confirmation.html?ref=${encodeURIComponent(refNumber)}`,
+        .catch(() => {
+          showToast("Network error\nCall/Whatsapp on 9202227070");
+        })
+        .finally(() => {
+          btn.disabled = false;
+          btn.textContent = "Book Now";
         });
-
-      } catch (err) {
-        console.error("Booking error:", err);
-        showToast("Something went wrong\nPlease call/WhatsApp 9202227070");
-        btn.disabled = false;
-        btn.textContent = "Book Now";
-      }
     });
 
 
