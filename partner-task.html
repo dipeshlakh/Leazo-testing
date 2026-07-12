@@ -65,6 +65,10 @@
         class="w-full border-2 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:border-yellow-400 mb-3" />
       <input id="pinInput" type="password" placeholder="4-digit PIN" maxlength="4" inputmode="numeric"
         class="w-full border-2 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:border-yellow-400 mb-4" />
+      <label class="flex items-center gap-2 text-sm text-gray-600 mb-4 cursor-pointer">
+        <input type="checkbox" id="rememberMe" class="w-4 h-4"/>
+        Remember me on this device
+      </label>
       <button onclick="checkLogin()"
         class="w-full bg-yellow-400 border-b-4 border-yellow-600 text-black font-bold py-3 rounded-xl hover:bg-yellow-500 transition">
         Login
@@ -128,6 +132,30 @@
     ];
     const COMPLETED_STATUSES = ["completed","rated"];
 
+    // Cookie helpers — persist across browser restarts (30 days)
+    function setPartnerCookie(id, phone, pin) {
+      const exp = new Date();
+      exp.setDate(exp.getDate() + 30);
+      const val = JSON.stringify({ id, phone, pin });
+      document.cookie = 'partner_auth=' + encodeURIComponent(val) + '; expires=' + exp.toUTCString() + '; path=/';
+      localStorage.setItem('partner_auth', val);
+    }
+    function getPartnerCookie() {
+      try {
+        // Try cookie first
+        const match = document.cookie.split(';').find(c => c.trim().startsWith('partner_auth='));
+        if (match) return JSON.parse(decodeURIComponent(match.split('=')[1]));
+        // Fallback to localStorage
+        const ls = localStorage.getItem('partner_auth');
+        if (ls) return JSON.parse(ls);
+      } catch(e) {}
+      return null;
+    }
+    function clearPartnerCookie() {
+      document.cookie = 'partner_auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
+      localStorage.removeItem('partner_auth');
+    }
+
     async function checkLogin() {
       const phone = document.getElementById("phoneInput").value.trim();
       const pin = document.getElementById("pinInput").value.trim();
@@ -164,6 +192,9 @@
       sessionStorage.setItem("partner_phone", data.phone);
       sessionStorage.setItem("partner_pin", pin);
       sessionStorage.setItem("partner_display_settings", JSON.stringify(data.display_settings || {}));
+      if (document.getElementById("rememberMe").checked) {
+        setPartnerCookie(data.id, data.phone, pin);
+      }
       showDashboard();
     }
 
@@ -188,27 +219,40 @@
 
     function logout() {
       sessionStorage.clear();
+      clearPartnerCookie();
       document.getElementById("loginScreen").style.display = "flex";
       document.getElementById("dashboard").classList.add("hidden");
     }
 
     window.addEventListener("DOMContentLoaded", async () => {
-      const pid = sessionStorage.getItem("partner_id");
-      const phone = sessionStorage.getItem("partner_phone");
-      const pin = sessionStorage.getItem("partner_pin");
-      if (pid && phone && pin) {
+      // Check sessionStorage first, then cookie
+      let pid   = sessionStorage.getItem("partner_id");
+      let phone = sessionStorage.getItem("partner_phone");
+      let pin   = sessionStorage.getItem("partner_pin");
+
+      if (!pid) {
+        const saved = getPartnerCookie();
+        if (saved) { pid = saved.id; phone = saved.phone; pin = saved.pin; }
+      }
+
+      if (pid && pin) {
         const { data } = await db
           .from("partners")
-          .select("id, name, city, phone, status")
+          .select("id, name, city, phone, status, display_settings")
           .eq("id", pid)
           .eq("pin", pin)
           .maybeSingle();
         if (data && data.status === "active") {
           currentPartner = data;
+          sessionStorage.setItem("partner_id", data.id);
+          sessionStorage.setItem("partner_phone", data.phone);
+          sessionStorage.setItem("partner_pin", pin);
           sessionStorage.setItem("partner_display_settings", JSON.stringify(data.display_settings || {}));
+          setPartnerCookie(data.id, data.phone, pin); // Refresh cookie expiry
           showDashboard();
         } else {
           sessionStorage.clear();
+          clearPartnerCookie();
         }
       }
     });
@@ -280,6 +324,51 @@
       catch(e) { return {}; }
     }
 
+    // Accept order directly from list (no wizard step needed)
+    async function acceptOrder(bookingId, event) {
+      event.stopPropagation();
+      const btn = event.target;
+      btn.disabled = true; btn.textContent = 'Accepting...';
+      const { error } = await db.from('bookings')
+        .update({ fulfillment_status: 'accepted' })
+        .eq('id', bookingId);
+      if (error) { toast('Failed: ' + error.message); btn.disabled = false; btn.textContent = 'Accept'; return; }
+      // Update local state
+      const b = allOrders.find(x => x.id === bookingId);
+      if (b) b.fulfillment_status = 'accepted';
+      renderOrders();
+    }
+
+    // Parse booking date+time into Date object
+    function parseBookingTime(dateStr, timeStr) {
+      if (!dateStr || !timeStr) return null;
+      try {
+        const dm = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (!dm) return null;
+        const am = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+        if (!am) return null;
+        let h = parseInt(am[1]);
+        if (am[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+        if (am[3].toUpperCase() === 'AM' && h === 12) h = 0;
+        return new Date(parseInt(dm[3]), parseInt(dm[2])-1, parseInt(dm[1]), h, parseInt(am[2]));
+      } catch(e) { return null; }
+    }
+
+    function getCountdownBadge(b) {
+      if (!['accepted','packed_scanned'].includes(b.fulfillment_status)) return '';
+      const dt = parseBookingTime(b.booking_date, b.start_time);
+      if (!dt) return '';
+      const mins = (dt - Date.now()) / 60000;
+      if (mins < 0) return '<span style="background:#fee2e2;color:#dc2626;font-weight:700;font-size:11px;padding:3px 8px;border-radius:8px">⚠ Overdue</span>';
+      if (mins <= 30) return '<span style="background:#fef3c7;color:#92400e;font-weight:700;font-size:11px;padding:3px 8px;border-radius:8px">⏰ Pack now! ' + Math.round(mins) + 'm left</span>';
+      const h = Math.floor(mins/60), m = Math.round(mins%60);
+      const label = h > 0 ? h + 'h ' + m + 'm' : m + 'm';
+      return '<span style="background:#f0fdf4;color:#15803d;font-size:11px;padding:3px 8px;border-radius:8px">🕐 ' + label + ' until delivery</span>';
+    }
+
+    // Refresh countdown every minute
+    setInterval(() => { if (document.getElementById('dashboard') && !document.getElementById('dashboard').classList.contains('hidden')) renderOrders(); }, 60000);
+
     function orderCard(b) {
       const date = new Date(b.assigned_at || b.created_at).toLocaleDateString("en-IN", {
         day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"
@@ -347,12 +436,21 @@
             <p class="font-medium">${b.address || '—'}</p>
           </div>
 
-          <!-- Action row: primary open button + small contact icons -->
+          <!-- Countdown badge -->
+          ${getCountdownBadge(b)}
+
+          <!-- Action row -->
           <div class="flex gap-2 mt-2 items-center">
-            <button onclick="event.stopPropagation(); openOrder(${b.id})"
-              class="flex-1 text-xs font-bold py-2 rounded-xl text-white ${needsAction ? 'bg-yellow-500' : 'bg-black'}">
-              ${needsAction ? '⚠ Action Needed' : '▶ Open Order'}
-            </button>
+            ${b.fulfillment_status === 'assigned'
+              ? `<button onclick="acceptOrder(${b.id}, event)"
+                  class="flex-1 text-xs font-bold py-2.5 rounded-xl text-black bg-yellow-400 border-b-2 border-yellow-600">
+                  ✅ Accept Order
+                 </button>`
+              : `<button onclick="event.stopPropagation(); openOrder(${b.id})"
+                  class="flex-1 text-xs font-bold py-2 rounded-xl text-white bg-black">
+                  ▶ Open Order
+                 </button>`
+            }
             ${contactMode !== 'none' ? `
               ${(contactMode === 'both' || contactMode === 'call') ? `<a href="tel:${b.phone}" onclick="event.stopPropagation()" title="Call" class="flex items-center justify-center w-9 h-9 rounded-xl bg-gray-100 text-gray-700 text-base">📞</a>` : ''}
               ${(contactMode === 'both' || contactMode === 'whatsapp') ? `<a href="https://wa.me/91${b.phone}" target="_blank" onclick="event.stopPropagation()" title="WhatsApp" class="flex items-center justify-center w-9 h-9 rounded-xl bg-green-100 text-green-700 text-base">💬</a>` : ''}
