@@ -229,7 +229,7 @@ function buildSteps() {
     const s = [];
     // Accept is handled in partner-task order list — not a wizard step
     s.push({ id:'pack_scan',    label:'📦 Pack & Verify',    produces_status:'packed_scanned',          render: () => stepScan('pack','packed_scanned') });
-    s.push({ id:'out_deliver',  label:'Out for Delivery',    produces_status:'out_for_delivery',        render: () => stepDepart('out_for_delivery','🛵  Start Delivery','delivery') });
+    s.push({ id:'out_deliver',  label:'Start Delivery',       produces_status:'reached_customer',        render: () => stepDepart('out_for_delivery','🛵  Start Delivery','delivery') });
     s.push({ id:'scan_deliver', label:'✅ Verify Items',     produces_status:'items_verified_delivery', render: () => stepScan('delivery','items_verified_delivery') });
     if (cfg.bundle_photo_required)
     s.push({ id:'photos',       label: cfg.installation_included ? 'Installation Photo' : 'Package Photo', produces_status:'bundle_photo_done', render: stepBundlePhoto });
@@ -245,7 +245,7 @@ function buildSteps() {
   } else {
     // ── RETURN STEPS ──
     const s = [];
-    s.push({ id:'out_pickup',   label:'Out for Pickup',      produces_status:'out_for_pickup',         render: () => stepDepart('out_for_pickup','🛵  Start Pickup','pickup') });
+    s.push({ id:'out_pickup',   label:'Start Pickup',         produces_status:'reached_pickup',          render: () => stepDepart('out_for_pickup','🛵  Start Pickup','pickup') });
     s.push({ id:'scan_ret',     label:'Verify Items',         produces_status:'items_verified_return',  render: () => stepScan('return_customer','items_verified_return') });
     s.push({ id:'cond_ret',     label:'Condition Check',     produces_status:'condition_photo_return', render: stepReturnCondition });
     s.push({ id:'otp_ret',      label:'Return OTP',          produces_status:'otp_verified_return',    render: () => stepOtp('return') });
@@ -403,7 +403,9 @@ function _getNavHtml(type) {
 function stepDepart(departStatus, btnLabel, type) {
   var arrivedStatus = type === 'delivery' ? 'reached_customer' : 'reached_pickup';
   // If already departed (refreshed after clicking start), show nav + arrived button
-  var alreadyDeparted = booking.fulfillment_status === departStatus;
+  // Show arrived view if already departed (booking at transit status after start was clicked)
+  var alreadyDeparted = (departStatus === 'out_for_delivery' && booking.fulfillment_status === 'out_for_delivery')
+                     || (departStatus === 'out_for_pickup'   && booking.fulfillment_status === 'out_for_pickup');
   if (alreadyDeparted) {
     _showArrivedView(type, arrivedStatus);
     return;
