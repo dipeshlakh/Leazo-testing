@@ -407,7 +407,7 @@ function stepDepart(departStatus, btnLabel, type) {
   var alreadyDeparted = (departStatus === 'out_for_delivery' && booking.fulfillment_status === 'out_for_delivery')
                      || (departStatus === 'out_for_pickup'   && booking.fulfillment_status === 'out_for_pickup');
   if (alreadyDeparted) {
-    _showArrivedView(type, arrivedStatus, true); // countdown since just clicked
+    _showArrivedView(type, arrivedStatus, false); // no countdown — already departed
     return;
   }
   el('stepBody').innerHTML =
