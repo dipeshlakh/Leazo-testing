@@ -205,6 +205,14 @@
         <span>ID Verification Required</span>
         <input type="checkbox" id="cfgIdVerify" class="w-5 h-5"/>
       </label>
+      <label class="flex items-center justify-between text-sm">
+        <span>Installation Photo Required</span>
+        <input type="checkbox" id="cfgBundlePhoto" class="w-5 h-5"/>
+      </label>
+      <label class="flex items-center justify-between text-sm">
+        <span>Condition Video Required</span>
+        <input type="checkbox" id="cfgCondVideo" class="w-5 h-5"/>
+      </label>
     </div>
 
     <!-- Inventory check result -->
@@ -772,9 +780,11 @@ function openAssignModal(bookingId) {
   document.getElementById('partnerSelect').innerHTML = opts;
 
   // Set config toggles to current effective values
-  document.getElementById('cfgInstall').checked   = b.installation_included_override !== false;
-  document.getElementById('cfgScan').checked       = b.scan_required_override !== false;
-  document.getElementById('cfgIdVerify').checked   = b.id_verification_required_override === true;
+  document.getElementById('cfgInstall').checked      = b.installation_included_override !== false;
+  document.getElementById('cfgScan').checked          = b.scan_required_override !== false;
+  document.getElementById('cfgIdVerify').checked      = b.id_verification_required_override === true;
+  document.getElementById('cfgBundlePhoto').checked   = b.bundle_photo_required !== false;
+  document.getElementById('cfgCondVideo').checked     = b.condition_video_required !== false;
 
   // Reset inventory check state when modal opens
   document.getElementById('inventoryCheck').classList.add('hidden');
@@ -825,6 +835,8 @@ async function doAssign() {
       installation_included_override:    install,
       scan_required_override:            scan,
       id_verification_required_override: idVerify,
+      bundle_photo_required:             document.getElementById('cfgBundlePhoto').checked,
+      condition_video_required:          document.getElementById('cfgCondVideo').checked,
     }).eq('id', modalBookingId);
 
     if (error) throw error;
