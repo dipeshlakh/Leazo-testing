@@ -463,6 +463,14 @@
     function openOrder(bookingId) {
       location.href = `partner-wizard.html?booking_id=${bookingId}`;
     }
+
+    // Refresh orders when returning from wizard via back button (bfcache restore)
+    window.addEventListener('pageshow', function(e) {
+      if (e.persisted && currentPartner) {
+        loadOrders();
+      }
+    });
+
     // Register service worker for PWA install
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
