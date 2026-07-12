@@ -110,8 +110,8 @@ const db           = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 // Delivery phase statuses in order:
 const DELIVERY_ORDER = [
   'assigned','accepted','packed_scanned','out_for_delivery','reached_customer',
-  'id_verified','items_verified_delivery','bundle_photo_done','condition_ack_delivery',
-  'otp_verified_delivery','payment_collected','delivered'
+  'items_verified_delivery','bundle_photo_done','condition_ack_delivery',
+  'id_verified','payment_collected','otp_verified_delivery','delivered'
 ];
 // Return phase statuses in order:
 const RETURN_ORDER = [
@@ -148,7 +148,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   await loadBooking();
 });
 
-function goBack() { location.href = 'partner-task.html'; }
+function goBack() { history.back(); }
 
 // ─── LOAD ─────────────────────────────────────────────────────
 async function loadBooking() {
@@ -159,7 +159,9 @@ async function loadBooking() {
     booking = b;
 
     const { data: c } = await db.from('booking_effective_config').select('*').eq('booking_id', bookingId).maybeSingle();
-    cfg = c || { scan_required: false, installation_included: true, id_verification_required: false, bundle_photo_count: 1, is_delivery_only: false };
+    cfg = c || { scan_required: false, installation_included: true, id_verification_required: false, bundle_photo_count: 1, is_delivery_only: false, bundle_photo_required: true, condition_video_required: true };
+    cfg.bundle_photo_required  = booking.bundle_photo_required  !== false;
+    cfg.condition_video_required = booking.condition_video_required !== false;
 
     // Build order-specific item list:
     // 1. PS5 + correct number of controllers from partner_assets (high value = scan required)
@@ -225,19 +227,21 @@ function buildSteps() {
   if (!inReturn) {
     // ── DELIVERY STEPS ──
     const s = [];
-    s.push({ id:'accept',       label:'Accept Order',        produces_status:'accepted',               render: stepAccept });
-    s.push({ id:'pack_scan',    label:'Pack & Verify',       produces_status:'packed_scanned',          render: () => stepScan('pack','packed_scanned') });
+    // Accept is handled in partner-task order list — not a wizard step
+    s.push({ id:'pack_scan',    label:'📦 Pack & Verify',    produces_status:'packed_scanned',          render: () => stepScan('pack','packed_scanned') });
     s.push({ id:'out_deliver',  label:'Out for Delivery',    produces_status:'out_for_delivery',        render: () => stepDepart('out_for_delivery','🛵  Start Delivery','delivery') });
-    s.push({ id:'navigate_del',  label:'Navigate to Customer', produces_status:'reached_customer',        render: () => stepNavigate('delivery') });
+    s.push({ id:'navigate_del', label:'Navigate',            produces_status:'reached_customer',        render: () => stepNavigate('delivery') });
+    s.push({ id:'scan_deliver', label:'✅ Verify Items',     produces_status:'items_verified_delivery', render: () => stepScan('delivery','items_verified_delivery') });
+    if (cfg.bundle_photo_required)
+    s.push({ id:'photos',       label: cfg.installation_included ? 'Installation Photo' : 'Package Photo', produces_status:'bundle_photo_done', render: stepBundlePhoto });
+    if (cfg.condition_video_required)
+    s.push({ id:'condition',    label:'Condition Video',     produces_status:'condition_ack_delivery',  render: stepConditionPhoto });
     if (cfg.id_verification_required)
     s.push({ id:'id_verify',    label:'ID Verification',     produces_status:'id_verified',             render: stepIdVerify });
-    s.push({ id:'scan_deliver', label:'Verify Items',         produces_status:'items_verified_delivery', render: () => stepScan('delivery','items_verified_delivery') });
-    s.push({ id:'photos',       label: cfg.installation_included ? 'Installation Photo' : 'Package Photo', produces_status:'bundle_photo_done', render: stepBundlePhoto });
-    s.push({ id:'condition',    label:'Condition Photo',     produces_status:'condition_ack_delivery',  render: stepConditionPhoto });
-    s.push({ id:'otp_del',      label:'Customer OTP',        produces_status:'otp_verified_delivery',   render: () => stepOtp('delivery') });
     if (booking.payment_method !== 'prepaid')
     s.push({ id:'payment',      label:'Collect Payment',     produces_status:'payment_collected',       render: stepPayment });
-    s.push({ id:'done_del',     label:'Delivered',           produces_status:'delivered',               render: () => stepSimple('delivered','✅  Confirm Delivered','All steps complete. Mark the order as delivered.') });
+    s.push({ id:'otp_del',      label:'Customer OTP',        produces_status:'otp_verified_delivery',   render: () => stepOtp('delivery') });
+    // No separate Delivered step — OTP advances directly to delivered
     steps = s;
   } else {
     // ── RETURN STEPS ──
@@ -815,6 +819,10 @@ function stepConditionPhoto() {
     <label class="field">Condition Video (10–30 seconds)</label>
     <input type="file" accept="video/*" capture="camcorder" id="condFile" onchange="validateVideoduration(this, 'condDurationMsg')"/>
     <p id="condDurationMsg" class="text-xs text-red-500 mb-2 hidden"></p>
+    <div style="margin:8px 0 12px;text-align:center">
+      <p style="font-size:11px;color:#9ca3af;margin-bottom:4px">Example:</p>
+      <img src="example-condition.gif" alt="Example condition video" style="width:100%;max-width:280px;border-radius:10px;border:1px solid #e5e7eb" onerror="this.style.display='none'"/>
+    </div>
     <button class="btn-primary" id="condBtn" onclick="doConditionPhoto()">Upload & Continue</button>`;
 }
 
@@ -838,6 +846,10 @@ function stepReturnCondition() {
     <label class="field">Return Condition Video (10–30 seconds)</label>
     <input type="file" accept="video/*" capture="camcorder" id="retCondFile" onchange="validateVideoduration(this, 'retDurationMsg')"/>
     <p id="retDurationMsg" class="text-xs text-red-500 mb-2 hidden"></p>
+    <div style="margin:8px 0 12px;text-align:center">
+      <p style="font-size:11px;color:#9ca3af;margin-bottom:4px">Example:</p>
+      <img src="example-return-condition.gif" alt="Example return video" style="width:100%;max-width:280px;border-radius:10px;border:1px solid #e5e7eb" onerror="this.style.display='none'"/>
+    </div>
     <div class="checkbox-row" style="margin-top:12px">
       <input type="checkbox" id="damageFlag" onchange="el('damageBox').classList.toggle('hidden',!this.checked)"/>
       <label for="damageFlag">Damage or missing item found</label>
@@ -938,7 +950,13 @@ async function doVerifyOtp(stage) {
   if (entered !== expected) { toast('Incorrect OTP. Ask customer to check WhatsApp.', 3000); return; }
   el('verifyBtn').disabled = true; el('verifyBtn').textContent = 'Verifying...';
   const extra = stage === 'delivery' ? { delivery_otp_verified: true } : { return_otp_verified: true };
-  await advance(stage === 'delivery' ? 'otp_verified_delivery' : 'otp_verified_return', extra);
+  if (stage === 'delivery') {
+    // Skip separate delivered step — OTP verification marks as delivered directly
+    await advance('otp_verified_delivery', extra);
+    await advance('delivered');
+  } else {
+    await advance('otp_verified_return', extra);
+  }
 }
 
 async function doOtpFallback(stage) {
@@ -951,7 +969,13 @@ async function doOtpFallback(stage) {
     });
   } catch(e) { console.warn('logEvent fallback:', e); }
   const extra = stage === 'delivery' ? { delivery_otp_verified: false } : { return_otp_verified: false };
-  await advance(stage === 'delivery' ? 'otp_verified_delivery' : 'otp_verified_return', extra);
+  if (stage === 'delivery') {
+    // Skip separate delivered step — OTP verification marks as delivered directly
+    await advance('otp_verified_delivery', extra);
+    await advance('delivered');
+  } else {
+    await advance('otp_verified_return', extra);
+  }
   toast('Marked via fallback. Admin will review.');
 }
 
