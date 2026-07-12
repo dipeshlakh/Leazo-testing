@@ -89,7 +89,7 @@
     <div class="text-6xl mb-4" id="doneIcon">✅</div>
     <p class="text-2xl font-black text-gray-900 mb-2" id="doneTitle"></p>
     <p class="text-gray-500 mb-8" id="doneMsg"></p>
-    <button onclick="goBack()" class="btn-primary" style="max-width:200px;margin:0 auto;">Back to Orders</button>
+    <button onclick="location.replace('partner-task.html')" class="btn-primary" style="max-width:200px;margin:0 auto;">Back to Orders</button>
   </div>
 
 </div>
@@ -359,7 +359,7 @@ async function doReject() {
     await db.from('bookings').update({ fulfillment_status: 'rejected', assigned_partner_id: null }).eq('id', booking.id);
     logEvent('rejected').catch(()=>{});
     toast('Order rejected. Admin notified.');
-    setTimeout(() => goBack(), 1500);
+    setTimeout(() => location.replace('partner-task.html'), 1500);
   } catch(e) { toast('Failed to reject. Try again.', 3000); setBusy(false); }
 }
 
@@ -1093,10 +1093,34 @@ function getGeo() {
   });
 }
 
+// Compress images before upload — reduces 4MB phone photo to ~300KB
+async function compressImage(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const MAX = 1280;
+      let w = img.width, h = img.height;
+      if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(blob => {
+        resolve(new File([blob], 'photo.jpg', { type: 'image/jpeg' }));
+      }, 'image/jpeg', 0.75); // 75% quality — good balance of size vs clarity
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); }; // fallback
+    img.src = url;
+  });
+}
+
 async function uploadPhoto(file, folder) {
-  const ext  = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  // Compress images — videos are uploaded as-is
+  const toUpload = file.type.startsWith('image/') ? await compressImage(file) : file;
+  const ext  = file.type.startsWith('image/') ? 'jpg' : (file.name.split('.').pop() || 'mp4').toLowerCase();
   const path = `${folder}/${booking.id}_${Date.now()}.${ext}`;
-  const { error } = await db.storage.from(BUCKET).upload(path, file, { upsert: true });
+  const { error } = await db.storage.from(BUCKET).upload(path, toUpload, { upsert: true });
   if (error) throw new Error('Storage: ' + (error.message || JSON.stringify(error)));
   const { data } = db.storage.from(BUCKET).getPublicUrl(path);
   return data.publicUrl;
