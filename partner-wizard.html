@@ -407,7 +407,7 @@ function stepDepart(departStatus, btnLabel, type) {
   var alreadyDeparted = (departStatus === 'out_for_delivery' && booking.fulfillment_status === 'out_for_delivery')
                      || (departStatus === 'out_for_pickup'   && booking.fulfillment_status === 'out_for_pickup');
   if (alreadyDeparted) {
-    _showArrivedView(type, arrivedStatus);
+    _showArrivedView(type, arrivedStatus, true); // countdown since just clicked
     return;
   }
   el('stepBody').innerHTML =
@@ -426,27 +426,32 @@ async function doDepart(departStatus, type, arrivedStatus) {
   if (error) { toast('Failed: ' + error.message, 3000); btn.disabled = false; btn.textContent = 'Try again'; return; }
   booking.fulfillment_status = departStatus;
   logEvent(departStatus, {}).catch(() => {});
-  _showArrivedView(type, arrivedStatus);
+  _showArrivedView(type, arrivedStatus, true); // countdown since just clicked
 }
 
-function _showArrivedView(type, arrivedStatus) {
+function _showArrivedView(type, arrivedStatus, withCountdown) {
   el('stepBody').innerHTML =
     '<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:13px;font-weight:600;color:#15803d">✅ Customer notified on WhatsApp</div>'
     + _getNavHtml(type)
-    + '<button class="btn-primary" id="arrivedBtn" disabled style="opacity:0.5;margin-top:12px">'
-    + "📍 I've Arrived <span id='arrivedTimer'>(30s)</span></button>";
-  // 30s countdown then enable
-  var secs = 30;
-  var timer = setInterval(function() {
-    secs--;
-    var t = el('arrivedTimer');
-    if (t) t.textContent = secs > 0 ? '(' + secs + 's)' : '';
-    if (secs <= 0) {
-      clearInterval(timer);
-      var b = el('arrivedBtn');
-      if (b) { b.disabled = false; b.style.opacity = '1'; b.onclick = function(){ doArrived(arrivedStatus); }; }
-    }
-  }, 1000);
+    + '<button class="btn-primary" id="arrivedBtn" '
+    + (withCountdown ? 'disabled style="opacity:0.5;margin-top:12px"' : 'style="margin-top:12px"')
+    + ' onclick="doArrived(\'' + arrivedStatus + '\')">📍 I\'ve Arrived'
+    + (withCountdown ? " <span id='arrivedTimer'>(30s)</span>" : '')
+    + '</button>';
+
+  if (withCountdown) {
+    var secs = 30;
+    var timer = setInterval(function() {
+      secs--;
+      var t = el('arrivedTimer');
+      if (t) t.textContent = secs > 0 ? '(' + secs + 's)' : '';
+      if (secs <= 0) {
+        clearInterval(timer);
+        var b = el('arrivedBtn');
+        if (b) { b.disabled = false; b.style.opacity = '1'; }
+      }
+    }, 1000);
+  }
 }
 
 async function doArrived(nextStatus) {
