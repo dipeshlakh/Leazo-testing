@@ -419,7 +419,11 @@ async function doDepart(departStatus, type, arrivedStatus) {
   btn.disabled = true; btn.textContent = 'Starting...';
   if (departStatus === 'out_for_delivery') notifyWA('out_for_delivery');
   if (departStatus === 'out_for_pickup')   notifyWA('out_for_pickup');
-  await advance(departStatus);
+  // Update DB directly — do NOT call advance() as it would re-render to Verify Items
+  const { error } = await db.from('bookings').update({ fulfillment_status: departStatus }).eq('id', booking.id);
+  if (error) { toast('Failed: ' + error.message, 3000); btn.disabled = false; btn.textContent = 'Try again'; return; }
+  booking.fulfillment_status = departStatus;
+  logEvent(departStatus, {}).catch(() => {});
   _showArrivedView(type, arrivedStatus);
 }
 
@@ -749,7 +753,11 @@ function stepIdVerify() {
     <input type="file" accept="image/*" capture="environment" id="idFile"/>
     <label class="field">Signature Photo</label>
     <input type="file" accept="image/*" capture="environment" id="sigFile"/>
-    <button class="btn-primary" onclick="doIdVerify()">Submit & Continue</button>`;
+    <button class="btn-primary" onclick="doIdVerify()">Submit & Continue</button>
+    <div style="margin:14px 0 4px;text-align:center">
+      <p style="font-size:11px;color:#9ca3af;margin-bottom:6px">📸 Example Aadhaar photo:</p>
+      <img src="example-aadhaar.jpg" alt="Example ID" style="width:100%;max-width:300px;border-radius:10px;border:1px solid #e5e7eb;display:block;margin:0 auto" onerror="this.style.display='none'"/>
+    </div>`;
 }
 
 async function doIdVerify() {
@@ -784,7 +792,11 @@ function stepBundlePhoto() {
     <label class="field">Photo (live camera only)</label>
     <input type="file" accept="image/*" capture="environment" id="bundleFile" onchange="previewBundle(this)"/>
     <button class="btn-secondary mb-3" style="margin-top:4px" onclick="addMorePhoto()">+ Add Another Photo</button>
-    <button class="btn-primary" id="bundleBtn" onclick="doBundlePhoto()">Submit & Continue</button>`;
+    <button class="btn-primary" id="bundleBtn" onclick="doBundlePhoto()">Submit & Continue</button>
+    <div style="margin:14px 0 4px;text-align:center">
+      <p style="font-size:11px;color:#9ca3af;margin-bottom:6px">📸 Example ${isInstall ? 'installation' : 'package'} photo:</p>
+      <img src="${isInstall ? 'example-install.jpg' : 'example-package.jpg'}" alt="Example" style="width:100%;max-width:300px;border-radius:10px;border:1px solid #e5e7eb;display:block;margin:0 auto" onerror="this.style.display='none'"/>
+    </div>`;
   window._bundlePhotos = [];
 }
 
