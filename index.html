@@ -584,18 +584,13 @@
                 <span class="text-xs text-gray-400 leading-tight">PS5 includes 1 free</span>
                 <span id="controller-price-text" class="text-sm font-medium text-blue-600 mt-0.5">₹0</span>
               </div>
-              <!-- Add button shown when qty = 0 -->
-              <button type="button" id="controllerAddBtn" onclick="changeControllerQty(1)"
-                class="flex-shrink-0 bg-[#393be5] text-white text-sm font-bold px-4 py-2 rounded-full hover:bg-blue-700 transition">
-                + Add
-              </button>
-              <!-- Qty selector shown when qty > 0 -->
-              <div id="controllerQtySelector" style="display:none;" class="flex-shrink-0 items-center gap-2">
-                <button type="button" onclick="changeControllerQty(-1)"
-                  style="width:32px;height:32px;border-radius:50%;border:2px solid #d1d5db;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;color:#4b5563;background:white;cursor:pointer;flex-shrink:0;padding-bottom:1px;">
+              <!-- Total controllers stepper (default 1 = included) -->
+              <div id="controllerQtySelector" style="display:flex;" class="flex-shrink-0 items-center gap-2">
+                <button type="button" id="controllerMinusBtn" onclick="changeControllerQty(-1)"
+                  style="width:32px;height:32px;border-radius:50%;border:2px solid #d1d5db;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;color:#4b5563;background:white;cursor:not-allowed;opacity:0.35;flex-shrink:0;padding-bottom:1px;">
                   &minus;
                 </button>
-                <span id="controllerQty" class="text-base font-bold text-gray-900" style="min-width:16px;text-align:center;">0</span>
+                <span id="controllerQty" class="text-base font-bold text-gray-900" style="min-width:16px;text-align:center;">1</span>
                 <button type="button" id="controllerPlusBtn" onclick="changeControllerQty(1)"
                   style="width:32px;height:32px;border-radius:50%;border:2px solid #d1d5db;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;color:#4b5563;background:white;cursor:pointer;flex-shrink:0;padding-bottom:1px;">
                   &#43;
@@ -938,10 +933,7 @@
           );
           controllerOption.classList.toggle('hidden', !hasMultiplayer);
           if (!hasMultiplayer) {
-            document.getElementById("controllerQty").textContent = "0";
-            document.getElementById("addController").value = "0";
-            document.getElementById("controllerAddBtn").classList.remove("hidden");
-            document.getElementById("controllerQtySelector").style.display = "none";
+            resetController();
           }
           updateSummary();
         });
@@ -1137,7 +1129,7 @@
                 : (fixedEndEl?.value || "");
               const selectedGames = Array.from(document.querySelectorAll('input[name="Games[]"]:checked'))
                 .map(i => i.value).join(", ");
-              const totalAmount = parseInt(document.getElementById("totalAmount")?.textContent || "0");
+              const totalAmount = window._lastCalculatedTotal || parseInt(document.getElementById("totalAmount")?.textContent || "0");
               const leadData = {
                 customer_name: document.getElementById("name")?.value || "",
                 phone: document.getElementById("phone")?.value || "",
@@ -1148,20 +1140,20 @@
                 end_time: endTime,
                 total_amount: totalAmount,
                 games: selectedGames,
-                controller_added: getControllerQty() > 0,
-                controllers_count: getControllerQty(),
+                controllers_count: getControllerTotal(),
                 converted: false
               };
               await db.from("leads").insert([leadData]);
 
               // Notify admin about new lead (silent)
+              console.log("Lead amount being sent:", leadData.total_amount);
               fetch("https://rohybhpktpfmeashdlzz.supabase.co/functions/v1/send-notification", {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
                   "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
                 },
-                body: JSON.stringify({ type: "new_lead", lead: leadData })
+                body: JSON.stringify({ type: "new_lead", lead: { ...leadData, total_amount: window._lastCalculatedTotal || leadData.total_amount } })
               }).catch(() => {});
             } catch (e) { /* silent fail */ }
           })();
@@ -1275,10 +1267,7 @@
           if (getControllerQty() === 0) showToast("Add a controller for 2 Player");
         } else {
           controllerOption?.classList.add("hidden");
-          document.getElementById("controllerQty").textContent = "0";
-          document.getElementById("addController").value = "0";
-          document.getElementById("controllerAddBtn").classList.remove("hidden");
-          document.getElementById("controllerQtySelector").style.display = "none";
+          resetController();
           updateSummary();
         }
       }, 100);
@@ -1535,47 +1524,37 @@
 
     // ── Controller quantity helpers ──
     const MAX_CONTROLLERS = 2;
-    const CONTROLLER_PRICE = 99;
-    function changeControllerQty(delta) {
+    const CONTROLLER_PRICE_HOURLY = 29; // per hour per controller
+    const CONTROLLER_PRICE_FLAT = 99;   // per controller for day/night
+    // Stepper shows TOTAL controllers (1 included .. 1+MAX). Hidden #addController holds EXTRAS.
+    function renderControllerStepper(total) {
       const qtyEl = document.getElementById("controllerQty");
       const hiddenEl = document.getElementById("addController");
-      const addBtn = document.getElementById("controllerAddBtn");
-      const qtySelector = document.getElementById("controllerQtySelector");
+      const minusBtn = document.getElementById("controllerMinusBtn");
       const plusBtn = document.getElementById("controllerPlusBtn");
-      let qty = parseInt(qtyEl?.textContent || "0");
-
-      // Check max before incrementing
-      if (delta > 0 && qty >= MAX_CONTROLLERS) {
+      const maxTotal = 1 + MAX_CONTROLLERS;
+      if (qtyEl) qtyEl.textContent = total;
+      if (hiddenEl) hiddenEl.value = total - 1;
+      const dim = (btn, off) => {
+        if (!btn) return;
+        btn.style.opacity = off ? "0.35" : "1";
+        btn.style.cursor = off ? "not-allowed" : "pointer";
+        btn.style.borderColor = off ? "#e5e7eb" : "#d1d5db";
+      };
+      dim(minusBtn, total <= 1);
+      dim(plusBtn, total >= maxTotal);
+    }
+    function resetController() { renderControllerStepper(1); }
+    function getControllerTotal() { return 1 + getControllerQty(); }
+    function changeControllerQty(delta) {
+      let total = parseInt(document.getElementById("controllerQty")?.textContent || "1");
+      const maxTotal = 1 + MAX_CONTROLLERS;
+      if (delta > 0 && total >= maxTotal) {
         showToast(`Max ${MAX_CONTROLLERS} extra controllers allowed`);
         return;
       }
-
-      qty = Math.min(MAX_CONTROLLERS, Math.max(0, qty + delta));
-      if (qtyEl) qtyEl.textContent = qty;
-      if (hiddenEl) hiddenEl.value = qty;
-
-      // Toggle Add button vs qty selector
-      if (qty === 0) {
-        addBtn?.classList.remove("hidden");
-        if (qtySelector) qtySelector.style.display = "none";
-      } else {
-        addBtn?.classList.add("hidden");
-        if (qtySelector) qtySelector.style.display = "flex";
-      }
-
-      // Disable/style plus button at max
-      if (plusBtn) {
-        if (qty >= MAX_CONTROLLERS) {
-          plusBtn.style.opacity = "0.35";
-          plusBtn.style.cursor = "not-allowed";
-          plusBtn.style.borderColor = "#e5e7eb";
-        } else {
-          plusBtn.style.opacity = "1";
-          plusBtn.style.cursor = "pointer";
-          plusBtn.style.borderColor = "#d1d5db";
-        }
-      }
-
+      if (delta < 0 && total <= 1) return;
+      renderControllerStepper(Math.min(maxTotal, Math.max(1, total + delta)));
       updateSummary();
     }
     function getControllerQty() {
@@ -1628,13 +1607,18 @@
 
 
 
-      // Controller pricing — ₹99 per extra controller
+      // Controller pricing — ₹29/hr for hourly, ₹99 flat for day/night
       const controllerQty = getControllerQty();
-      let controllerCharge = controllerQty * 99;
+      let controllerCharge = 0;
+      if (controllerQty > 0) {
+        if (plan === "hourly") controllerCharge = controllerQty * 29 * (hours || 0);
+        else controllerCharge = controllerQty * 99;
+      }
       try {
         const controllerText = document.getElementById("controller-price-text");
         if (controllerText) {
           if (controllerQty === 0) controllerText.textContent = `1 controller included`;
+          else if (plan === "hourly") controllerText.textContent = `+${controllerQty} extra · ₹${controllerQty * 29}/hr`;
           else controllerText.textContent = `+${controllerQty} extra · ₹${controllerCharge}`;
         }
       } catch (e) {
@@ -1697,6 +1681,7 @@
 
       const total = Math.max(afterCoupon - upiDiscount, 0);
       document.getElementById("totalAmount").textContent = total;
+      window._lastCalculatedTotal = total; // persist for lead capture
 
       let couponAmountText = "";
       if (["Pratapgarh", "Neemuch"].includes(selectedCity)) {
@@ -1821,10 +1806,7 @@
       // ✅ Reset controller
       const controllerOption = document.getElementById("controller-option");
       const controllerText = document.getElementById("controller-price-text");
-      if (document.getElementById("controllerQty")) document.getElementById("controllerQty").textContent = "0";
-      if (document.getElementById("addController")) document.getElementById("addController").value = "0";
-      if (document.getElementById("controllerAddBtn")) document.getElementById("controllerAddBtn").classList.remove("hidden");
-      if (document.getElementById("controllerQtySelector")) document.getElementById("controllerQtySelector").style.display = "none";
+      resetController();
       if (controllerOption) controllerOption.classList.add("hidden");
       if (controllerText) controllerText.textContent = "₹0";
 
@@ -1991,7 +1973,7 @@
 
       const couponCode = document.getElementById("couponCode")?.value || "";
       const referralCode = document.getElementById("referralCodeInput")?.value || "";
-      const controllerAdded = getControllerQty() > 0;
+
       const refNumber = generateReferenceNumber();
 
       const customerName = document.getElementById("name")?.value || "";
@@ -2029,8 +2011,7 @@
         payment_method: paymentMethod,
         payment_status: "pending",
         operator_status: "new",
-        controller_added: controllerAdded,
-        controllers_count: getControllerQty(),
+        controllers_count: getControllerTotal(),
         reference_number: refNumber
       };
 
