@@ -650,6 +650,9 @@
 
 
 
+          <!-- Live console availability (filled by refreshAvailability) -->
+          <div id="slotBadge" style="display:none;" class="mb-4 rounded-lg px-4 py-2 text-sm font-semibold"></div>
+
           <div class="sticky bottom-0 bg-white px-4 py-3 border-t border-gray-300 -mx-4 pb-2">
             <div class="text-right">
               <button type="button" id="nextToStep2"
@@ -1045,6 +1048,11 @@
             showToast("Minimum 2 hours booking required");
             return;
           }
+        }
+
+        if (window._slotSoldOut) {
+          showToast("This time is sold out\nPlease choose another time or date");
+          return;
         }
 
         // ✅ Multiplayer warning before proceeding
@@ -1500,6 +1508,103 @@
       }
     }
 
+    // ── Console availability (SQL: check_slot, hourly_availability) ──
+    // Real numbers only: counts bookable PS5s in the city minus bookings at that time.
+    window._slotSoldOut = false;
+    window._availKey = null;
+    let _availTimer = null;
+    const _hourlyCache = {};
+
+    function scheduleAvailabilityCheck() {
+      clearTimeout(_availTimer);
+      _availTimer = setTimeout(refreshAvailability, 350);
+    }
+
+    function showSlotBadge(left, configured) {
+      const el = document.getElementById("slotBadge");
+      if (!el) return;
+      if (!configured || left == null) { el.style.display = "none"; window._slotSoldOut = false; return; }
+      window._slotSoldOut = left <= 0;
+      el.style.display = "block";
+      if (left <= 0) {
+        el.style.background = "#fee2e2"; el.style.color = "#b91c1c";
+        el.textContent = "❌ Sold out for this time. Please choose another time or date.";
+      } else if (left <= 3) {
+        el.style.background = "#fff7ed"; el.style.color = "#c2410c";
+        el.textContent = left === 1 ? "🔥 Only 1 console left for this time" : `🔥 Only ${left} consoles left for this time`;
+      } else {
+        el.style.background = "#ecfdf5"; el.style.color = "#047857";
+        el.textContent = `✅ ${left} consoles available for this time`;
+      }
+    }
+
+    function markHourlyOptions(hours) {
+      const sel = document.getElementById("startTime");
+      if (!sel) return;
+      Array.from(sel.options).forEach(opt => {
+        if (!opt.value) return;
+        const left = hours ? hours[String(parseInt(opt.value))] : undefined;
+        const soldOut = left !== undefined && left <= 0;
+        opt.disabled = soldOut;
+        opt.style.color = soldOut ? "#9ca3af" : "";
+      });
+      if (sel.value && sel.selectedOptions[0]?.disabled) {
+        sel.value = "";
+        showToast("That time is sold out\nPlease pick another delivery time");
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      ["startTime", "endTime", "booking-date"].forEach(id =>
+        document.getElementById(id)?.addEventListener("change", () => setTimeout(scheduleAvailabilityCheck, 150)));
+    });
+
+    async function refreshAvailability() {
+      try {
+        const city = localStorage.getItem("selectedCity") || "";
+        const plan = localStorage.getItem("selectedRentalPlan") || "hourly";
+        const date = document.getElementById("booking-date")?.value || "";
+        let start = "", end = "";
+        if (plan === "hourly") {
+          const sEl = document.getElementById("startTime"), eEl = document.getElementById("endTime");
+          if (sEl?.value) start = sEl.selectedOptions[0]?.textContent || "";
+          if (eEl?.value) end = eEl.selectedOptions[0]?.textContent || "";
+          if (start && !end) { // until return time is chosen, check the minimum 2 hours
+            const h = parseInt(sEl.value) + 2;
+            end = `${h % 12 === 0 ? 12 : h % 12}:00 ${h < 12 ? "AM" : "PM"}`;
+          }
+        } else {
+          start = document.getElementById("fixedStartTime")?.value || "";
+          end = document.getElementById("fixedEndTime")?.value || "";
+        }
+        if (!city || !date) { showSlotBadge(null, false); return; }
+
+        // Hourly: grey out sold-out delivery times for the chosen date
+        if (plan === "hourly") {
+          const hk = city + "|" + date;
+          if (!_hourlyCache[hk] || Date.now() - _hourlyCache[hk].t > 60000) {
+            const { data } = await db.rpc("hourly_availability", { p_city: city, p_date: date });
+            _hourlyCache[hk] = { t: Date.now(), data };
+          }
+          const hd = _hourlyCache[hk].data;
+          markHourlyOptions(hd && hd.configured ? hd.hours : null);
+        }
+
+        if (!start || !end) { showSlotBadge(null, false); return; }
+        const key = [city, plan, date, start, end].join("|");
+        if (key === window._availKey && Date.now() - (window._availAt || 0) < 60000) return;
+        window._availKey = key; window._availAt = Date.now();
+
+        const { data, error } = await db.rpc("check_slot", { p_city: city, p_date: date, p_start: start, p_end: end });
+        if (error) { console.log("Availability check error:", error.message); showSlotBadge(null, false); return; }
+        if (key !== window._availKey) return; // a newer check started
+        showSlotBadge(data?.left, !!data?.configured);
+      } catch (e) {
+        console.log("Availability check failed:", e);
+        showSlotBadge(null, false);
+      }
+    }
+
     const cityDeliveryPrices = {
       "Neemuch": 99,
       "Pratapgarh": 99,
@@ -1683,6 +1788,7 @@
       const total = Math.max(afterCoupon - upiDiscount, 0);
       document.getElementById("totalAmount").textContent = total;
       window._lastCalculatedTotal = total; // persist for lead capture
+      scheduleAvailabilityCheck();
 
       let couponAmountText = "";
       if (["Pratapgarh", "Neemuch"].includes(selectedCity)) {
@@ -2090,7 +2196,13 @@
 
       } catch (err) {
         console.error("Booking error:", err);
-        showToast("Something went wrong\nPlease call/WhatsApp 9202227070");
+        if (String(err?.message || "").includes("SLOT_FULL")) {
+          showToast("This slot just got booked\nPlease choose another time or date");
+          window._availKey = null; // force a fresh availability check
+          scheduleAvailabilityCheck();
+        } else {
+          showToast("Something went wrong\nPlease call/WhatsApp 9202227070");
+        }
         btn.disabled = false;
         btn.textContent = "Book Now";
       }
