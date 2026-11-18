@@ -15,6 +15,7 @@
   .status-out_for_pickup,.status-reached_pickup,.status-otp_verified_return{background:#ede9fe;color:#5b21b6;}
   .status-completed,.status-rated{background:#e5e7eb;color:#374151;}
   .status-dispute_flagged,.status-rejected{background:#fee2e2;color:#991b1b;}
+  .status-cancelled{background:#e5e7eb;color:#4b5563;}
   .status-payment_collected,.status-items_verified_delivery,.status-bundle_photo_done,.status-condition_ack_delivery,.status-id_verified,.status-items_verified_return,.status-condition_photo_return{background:#fef9c3;color:#713f12;}
   .tab-btn{padding:8px 18px;border-radius:999px;font-size:13px;font-weight:600;border:2px solid transparent;white-space:nowrap;cursor:pointer;}
   .tab-btn.active{background:#000;color:#fff;}
@@ -140,6 +141,7 @@
     <button class="tab-btn"        data-filter="delivered"   onclick="setFilter(this)">Delivered</button>
     <button class="tab-btn"        data-filter="completed"   onclick="setFilter(this)">Completed</button>
     <button class="tab-btn"        data-filter="dispute"     onclick="setFilter(this)">Disputes</button>
+    <button class="tab-btn"        data-filter="cancelled"   onclick="setFilter(this)">Cancelled</button>
   </div>
 
   <!-- Search + City filter -->
@@ -606,6 +608,32 @@
   </div>
 </div>
 
+<!-- ACTION (cancel / delete) MODAL -->
+<div id="actionModal" class="modal-bg hidden" onclick="if(event.target.id==='actionModal')closeAction()">
+  <div class="modal">
+    <h2 id="actTitle" class="text-lg font-black mb-3"></h2>
+    <div id="actBody" class="text-sm text-gray-600 mb-3"></div>
+    <div id="actInputWrap" class="mb-3">
+      <label id="actInputLabel" class="block text-xs font-bold text-gray-400 mb-1"></label>
+      <input type="text" id="actInput" onkeydown="if(event.key==='Enter'&&_actionRun)_actionRun()"/>
+    </div>
+    <p id="actErr" class="text-xs text-red-500 mb-2"></p>
+    <button id="actConfirm" onclick="_actionRun && _actionRun()" class="w-full font-bold py-3 rounded-xl mb-2"></button>
+    <button class="w-full text-sm text-gray-400 py-2" onclick="closeAction()">Back</button>
+  </div>
+</div>
+
+<!-- PHOTO / VIDEO VIEWER -->
+<div id="mediaModal" class="modal-bg hidden" onclick="if(event.target.id==='mediaModal')closeMedia()">
+  <div class="modal">
+    <div class="flex justify-between items-center mb-3">
+      <h2 class="text-lg font-black">Photo / Video</h2>
+      <button onclick="closeMedia()" class="text-gray-400 text-2xl leading-none">&times;</button>
+    </div>
+    <div id="mediaBody" class="text-sm text-gray-500 text-center"></div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div id="toast" class="toast"></div>
 
@@ -698,43 +726,46 @@ async function loadAll() {
   try {
     await Promise.all([loadBookings(), loadPartners(), loadUrgentBreaches()]);
     renderBookings(); // Render once after ALL data is ready — partners + bookings both loaded
-    reconcileLedger();   // money split for newly completed orders (never blocks the page)
   } catch(e) {
     console.error('loadAll error:', e);
   }
 }
 
-let urgentReasons = {};  // booking_id → latest breach reason
+let urgentReasons = {};  // booking_id → most serious urgent reason
+
+// Every step_name that sla-checker writes, in plain words. kind 'reminder' is NOT urgent.
+const SLA_STEPS = {
+  accept_assignment:            { label: '⏱ Partner has not accepted yet',              kind: 'urgent',   rank: 2 },
+  out_for_delivery_before_slot: { label: '🚚 Not out for delivery yet — slot is close', kind: 'urgent',   rank: 3 },
+  out_for_pickup_before_return: { label: '🔔 Reminder: pickup is due soon',             kind: 'reminder', rank: 1 },
+  return_overdue:               { label: '🔴 Return overdue — pickup is late',          kind: 'urgent',   rank: 4 },
+  // older names, kept so old rows still read well
+  out_for_delivery:             { label: '🚚 Not out for delivery yet — slot is close', kind: 'urgent',   rank: 3 },
+  return_reminder:              { label: '🔔 Reminder: pickup is due soon',             kind: 'reminder', rank: 1 },
+};
+let reminderReasons = {};   // booking_id → reminder text (shown in amber, never in Urgent)
+let _breachRows = [];
 
 async function loadUrgentBreaches() {
-  const { data } = await db
-    .from('sla_breach_log')
-    .select('booking_id, step_name')
-    .eq('resolved', false);
+  const { data } = await db.from('sla_breach_log').select('booking_id, step_name').eq('resolved', false);
+  _breachRows = data || [];
+  recomputeUrgent();
+}
 
-  urgentBookingIds = new Set((data || []).map(r => r.booking_id));
-
-  // Map breach_type labels
-  const breachLabels = {
-    accept_assignment:         '⏱ Partner not accepted yet',
-    out_for_delivery:          '🚚 Not out for delivery yet',
-    return_reminder:           '📦 Return pickup not started',
-    return_overdue:            '🔴 Return overdue',
-  };
-
-  // Store latest reason per booking (last one wins)
-  urgentReasons = {};
-  (data || []).forEach(r => {
-    urgentReasons[r.booking_id] = breachLabels[r.step_name] || r.step_name;
+function recomputeUrgent() {
+  urgentBookingIds = new Set(); urgentReasons = {}; reminderReasons = {};
+  const bestU = {}, bestR = {};
+  _breachRows.forEach(r => {
+    const info = SLA_STEPS[r.step_name] || { label: '⚠ ' + String(r.step_name || '').replace(/_/g, ' '), kind: 'urgent', rank: 0 };
+    const bucket = info.kind === 'reminder' ? bestR : bestU;
+    if (!bucket[r.booking_id] || info.rank >= bucket[r.booking_id].rank) bucket[r.booking_id] = info;
   });
-
-  // Update urgent tab badge
+  // only bookings that are still open count (finished / cancelled ones are closed by sla-checker on its next run)
+  const open = id => { const b = allBookings.find(x => x.id === id); return !b || (!isCancelled(b) && !['completed','rated','rejected'].includes(b.fulfillment_status)); };
+  Object.keys(bestU).map(Number).filter(open).forEach(id => { urgentBookingIds.add(id); urgentReasons[id] = bestU[id].label; });
+  Object.keys(bestR).map(Number).filter(open).forEach(id => { reminderReasons[id] = bestR[id].label; });
   const urgentBtn = document.querySelector('[data-filter="urgent"]');
-  if (urgentBtn) {
-    urgentBtn.textContent = urgentBookingIds.size > 0
-      ? `🚨 Urgent (${urgentBookingIds.size})`
-      : '🚨 Urgent';
-  }
+  if (urgentBtn) urgentBtn.textContent = urgentBookingIds.size > 0 ? `🚨 Urgent (${urgentBookingIds.size})` : '🚨 Urgent';
 }
 
 async function loadBookings() {
@@ -766,7 +797,7 @@ async function loadPartners() {
 // ── STATS ─────────────────────────────────────────────────────
 function updateStats() {
   const unassigned = allBookings.filter(b => !b.assigned_partner_id && canAssign(b)).length;
-  const active     = allBookings.filter(b => b.assigned_partner_id && !['completed','rated','rejected'].includes(b.fulfillment_status)).length;
+  const active     = allBookings.filter(b => !isCancelled(b) && b.assigned_partner_id && !['completed','rated','rejected'].includes(b.fulfillment_status)).length;
   const delivered  = allBookings.filter(b => ['delivered','active_rental'].includes(b.fulfillment_status)).length;
   const disputes   = allBookings.filter(b => b.fulfillment_status === 'dispute_flagged').length;
   document.getElementById('statUnassigned').textContent = unassigned;
@@ -785,6 +816,11 @@ function setFilter(btn) {
 function renderBookings() {
   const city    = document.getElementById('cityFilter').value;
   let filtered  = allBookings;
+
+  recomputeUrgent();
+
+  // Cancelled orders only show in the Cancelled tab
+  filtered = currentFilter === 'cancelled' ? filtered.filter(isCancelled) : filtered.filter(b => !isCancelled(b));
 
   // City filter
   if (city) filtered = filtered.filter(b => b.city === city);
@@ -816,11 +852,8 @@ function renderBookings() {
 
   // Sort: In Progress tab → sort by delivery time (nearest first)
   if (currentFilter === 'in_progress') {
-    filtered = filtered.slice().sort((a, b) => {
-      const timeA = a.start_time ? a.booking_date + ' ' + a.start_time : '9999';
-      const timeB = b.start_time ? b.booking_date + ' ' + b.start_time : '9999';
-      return timeA.localeCompare(timeB);
-    });
+    const dt = x => x.delivery_at ? new Date(x.delivery_at).getTime() : Infinity;   // real time, not text
+    filtered = filtered.slice().sort((a, b) => (dt(a) - dt(b)) || (a.id - b.id));
   }
 
   const list = document.getElementById('bookingList');
@@ -844,7 +877,7 @@ function statusLabel(s) {
     out_for_pickup: 'Out for Pickup', reached_pickup: 'Reached Pickup',
     items_verified_return: 'Items Checked', condition_photo_return: 'Condition Checked',
     otp_verified_return: 'Return OTP OK', completed: 'Completed',
-    dispute_flagged: '⚠ Dispute', rejected: 'Rejected', rated: 'Rated'
+    dispute_flagged: '⚠ Dispute', rejected: 'Rejected', rated: 'Rated', cancelled: 'Cancelled'
   };
   return map[s] || (s || 'Pending').replace(/_/g,' ');
 }
@@ -865,8 +898,9 @@ function bookingCard(b) {
   return `
     <div class="card ${needsAssign ? 'ring-2 ring-yellow-400' : ''} ${isDispute ? 'ring-2 ring-red-400' : ''} ${isUrgent ? 'ring-2 ring-red-500' : ''}">
 
-      <!-- Urgent reason banner -->
-      ${isUrgent ? `<div class="bg-red-50 border border-red-200 rounded-xl px-3 py-1.5 mb-3 text-xs font-semibold text-red-600">${urgentReason}</div>` : ''}
+      <!-- Urgent / reminder / cancelled banner -->
+      ${isCancelled(b) ? `<div class="bg-gray-100 border border-gray-300 rounded-xl px-3 py-1.5 mb-3 text-xs font-semibold text-gray-600">✖ Cancelled</div>` : ''}
+      ${isUrgent ? `<div class="bg-red-50 border border-red-200 rounded-xl px-3 py-1.5 mb-3 text-xs font-semibold text-red-600">${urgentReason}</div>` : (reminderReasons[b.id] ? `<div class="bg-amber-50 border border-amber-200 rounded-xl px-3 py-1.5 mb-3 text-xs font-semibold text-amber-700">${reminderReasons[b.id]}</div>` : '')}
 
       <!-- Header -->
       <div class="flex justify-between items-start mb-3">
@@ -951,8 +985,9 @@ function bookingCard(b) {
             ⋯
           </button>
           <div id="more_${b.id}" class="dropdown-menu">
-            <button onclick="openEditModal(${b.id})" class="dropdown-item">✏ Edit Order</button>
-            <button onclick="deleteOrder(${b.id})" class="dropdown-item danger">🗑 Delete</button>
+            ${isCancelled(b) ? '' : `<button onclick="openEditModal(${b.id})" class="dropdown-item">✏ Edit Order</button>`}
+            ${isCancelled(b) || ['completed','rated'].includes(fs) ? '' : `<button onclick="openCancelOrder(${b.id})" class="dropdown-item danger">✖ Cancel order</button>`}
+            ${isTestOrder(b) ? `<button onclick="openDeleteTest(${b.id})" class="dropdown-item danger">🗑 Delete test order</button>` : ''}
           </div>
         </div>
       </div>
@@ -1229,29 +1264,79 @@ async function notifyPartner(booking, partner) {
   }
 }
 
+// ── PHOTOS / VIDEOS (private bucket → signed links) ───────────
+const MEDIA_BUCKET = 'partner-uploads';
+// Rows store either a full storage URL or a bare path. Both are turned into a path inside the bucket.
+function mediaPathOf(u) {
+  if (!u) return null;
+  const str = String(u).split('?')[0];
+  const m = str.match(/\/partner-uploads\/(.+)$/);
+  if (m) return decodeURIComponent(m[1]);
+  return /^https?:/i.test(str) ? null : str;
+}
+async function signedMediaUrl(u) {
+  const p = mediaPathOf(u);
+  if (!p) return u;                                         // not ours (e.g. an old external link)
+  const { data, error } = await db.storage.from(MEDIA_BUCKET).createSignedUrl(p, 3600);   // valid 1 hour
+  if (error || !data) throw new Error(error ? error.message : 'could not sign link');
+  return data.signedUrl;
+}
+async function openMedia(u) {
+  const body = document.getElementById('mediaBody');
+  body.textContent = 'Loading...';
+  document.getElementById('mediaModal').classList.remove('hidden');
+  try {
+    const url = await signedMediaUrl(u);
+    const isVideo = /\.(mp4|mov|webm|m4v|3gp)$/i.test((mediaPathOf(u) || String(u)).split('?')[0]);
+    body.innerHTML = (isVideo
+      ? `<video src="${url}" controls playsinline style="width:100%;border-radius:12px;background:#000"></video>`
+      : `<img src="${url}" alt="photo" style="width:100%;border-radius:12px"/>`)
+      + `<a href="${url}" target="_blank" class="block mt-3 text-blue-500 underline text-xs">Open in new tab (link works for 1 hour)</a>`;
+  } catch (e) {
+    body.innerHTML = `<p class="text-red-500">Could not open this file: ${escH(e.message || e)}</p><p class="text-xs mt-2">If this keeps happening, check the storage policy for the partner-uploads bucket (read access for signed links).</p>`;
+  }
+}
+function closeMedia() { document.getElementById('mediaModal').classList.add('hidden'); document.getElementById('mediaBody').innerHTML = ''; }
+const mediaBtn = (u, label) => `<button type="button" data-u="${escH(u)}" onclick="openMedia(this.dataset.u)" class="text-xs text-blue-500 underline mr-3">${escH(label)}</button>`;
+
 // ── TIMELINE MODAL ────────────────────────────────────────────
 async function viewTimeline(bookingId) {
-  const { data: events } = await db
-    .from('booking_events')
-    .select('*')
-    .eq('booking_id', bookingId)
-    .order('created_at', { ascending: true });
+  const [evRes, ackRes, verRes] = await Promise.all([
+    db.from('booking_events').select('*').eq('booking_id', bookingId).order('created_at', { ascending: true }),
+    db.from('condition_acknowledgements').select('stage, acknowledged_by, photo_url, agreed, dispute_notes, created_at').eq('booking_id', bookingId),
+    db.from('customer_verifications').select('id_photo_url, signature_url').eq('booking_id', bookingId)
+  ]);
+  const events = evRes.data || [], acks = ackRes.data || [], vers = verRes.data || [];
+  if (!events.length && !acks.length && !vers.length) { toast('No timeline events yet', 2500); return; }
 
-  if (!events || !events.length) { toast('No timeline events yet', 2500); return; }
-
+  const shown = new Set();
   const rows = events.map(e => {
     const t = new Date(e.created_at).toLocaleString('en-IN', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+    const urls = [];
+    if (e.photo_url) urls.push(e.photo_url);
+    if (e.metadata && Array.isArray(e.metadata.all_urls)) e.metadata.all_urls.forEach(u => { if (!urls.includes(u)) urls.push(u); });
+    urls.forEach(u => shown.add(u));
+    const isVid = u => /\.(mp4|mov|webm|m4v|3gp)$/i.test(String(u).split('?')[0]);
     return `<div class="flex gap-3 text-sm pb-3 border-b border-gray-100 last:border-0">
       <div class="w-2 h-2 rounded-full bg-yellow-400 mt-1.5 flex-shrink-0"></div>
       <div class="flex-1">
-        <p class="font-semibold text-gray-800">${e.event_type.replace(/_/g,' ')}</p>
-        <p class="text-xs text-gray-400">${t} · ${e.actor_type}${e.actor_id ? ' · ' + e.actor_id : ''}</p>
-        ${e.notes ? `<p class="text-xs text-gray-500 mt-0.5">${e.notes}</p>` : ''}
-        ${e.photo_url ? `<a href="${e.photo_url}" target="_blank" class="text-xs text-blue-500 underline">View photo</a>` : ''}
-        ${e.geo_lat ? `<a href="https://maps.google.com/?q=${e.geo_lat},${e.geo_lng}" target="_blank" class="text-xs text-blue-500 underline ml-2">View location</a>` : ''}
+        <p class="font-semibold text-gray-800">${escH(e.event_type.replace(/_/g,' '))}</p>
+        <p class="text-xs text-gray-400">${t} · ${escH(e.actor_type)}${e.actor_id ? ' · ' + escH(e.actor_id) : ''}</p>
+        ${e.notes ? `<p class="text-xs text-gray-500 mt-0.5">${escH(e.notes)}</p>` : ''}
+        ${urls.map((u, i) => mediaBtn(u, isVid(u) ? '▶ Play video' : (urls.length > 1 ? 'View photo ' + (i + 1) : 'View photo'))).join('')}
+        ${e.geo_lat ? `<a href="https://maps.google.com/?q=${e.geo_lat},${e.geo_lng}" target="_blank" class="text-xs text-blue-500 underline">View location</a>` : ''}
       </div>
     </div>`;
   }).join('');
+
+  // media that is not attached to a timeline row
+  const extra = [];
+  acks.forEach(a => { if (a.photo_url && !shown.has(a.photo_url)) { shown.add(a.photo_url); extra.push(mediaBtn(a.photo_url, `▶ Condition video (${a.stage}, ${a.acknowledged_by})`)); } });
+  vers.forEach(v => {
+    if (v.id_photo_url && !shown.has(v.id_photo_url))   extra.push(mediaBtn(v.id_photo_url, '🪪 ID photo'));
+    if (v.signature_url && !shown.has(v.signature_url)) extra.push(mediaBtn(v.signature_url, '✍ Signature'));
+  });
+  const extraHtml = extra.length ? `<div class="mt-4 pt-3 border-t border-gray-200"><p class="text-xs font-bold text-gray-400 uppercase mb-2">Other photos &amp; videos</p><div class="flex flex-wrap gap-y-2">${extra.join('')}</div></div>` : '';
 
   const b = allBookings.find(x => x.id === bookingId);
   document.getElementById('assignModal').classList.remove('hidden');
@@ -1260,8 +1345,8 @@ async function viewTimeline(bookingId) {
       <h2 class="text-lg font-black">Timeline</h2>
       <button onclick="closeModalDirect()" class="text-gray-400 text-2xl leading-none">&times;</button>
     </div>
-    <p class="text-sm text-gray-400 mb-4">${b?.customer_name || ''} · Ref: ${b?.reference_number || bookingId}</p>
-    <div class="space-y-0">${rows}</div>
+    <p class="text-sm text-gray-400 mb-4">${escH(b?.customer_name || '')} · Ref: ${escH(b?.reference_number || bookingId)}</p>
+    <div class="space-y-0">${rows}</div>${extraHtml}
     <button onclick="closeModalDirect()" class="w-full mt-5 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl">Close</button>`;
 }
 
@@ -1297,7 +1382,8 @@ function payInfo(b, isCOD, advance) {
   let txt, color = '#16a34a';
   if (stage === 'fully_paid') {
     const cash = Number(b.cash_collected || 0);
-    txt = cash > 0 ? `Fully paid ✅ (₹${cash} cash collected)` : 'Fully paid ✅';
+    const via = b.collected_via === 'upi' ? 'UPI' : b.collected_via === 'cash' ? 'cash' : '';
+    txt = cash > 0 ? `Fully paid ✅ (₹${cash} collected${via ? ' via ' + via : ''})` : (via ? `Fully paid ✅ (${via})` : 'Fully paid ✅');
   } else if (stage === 'advance_paid') {
     const adv = Number(b.amount_paid_online) || advance;
     const due = Math.max(0, total - adv - Number(b.cash_collected || 0));
@@ -1402,7 +1488,9 @@ async function deleteSetting(city) {
 }
 
 // ── DATE / PRICE HELPERS (shared by Add booking + Edit order) ──
-const canAssign = b => b.payment_status === 'paid' || b.source === 'admin';
+const isCancelled = b => b.fulfillment_status === 'cancelled' || b.operator_status === 'cancelled';
+const canAssign = b => !isCancelled(b) && (b.payment_status === 'paid' || b.source === 'admin');
+const isTestOrder = b => /test/i.test(b.reference_number || '') || /^\s*test/i.test(b.customer_name || '');
 function istYMD(iso) { return new Date(iso).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); }      // YYYY-MM-DD in IST
 function mkIST(ymd, hm) { return new Date(`${ymd}T${hm}:00+05:30`); }
 function addDaysYMD(ymd, n) { const d = new Date(ymd + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
@@ -1587,6 +1675,7 @@ async function saveAddBooking(forceOverride) {
       payment_stage: full ? 'fully_paid' : (rec > 0 ? 'advance_paid' : 'unpaid'),
       amount_paid_online: (full && method === 'cash') ? 0 : rec,
       cash_collected: (full && method === 'cash') ? rec : 0,
+      collected_via: (rec > 0 && (method === 'cash' || method === 'upi')) ? method : null,
       reference_number: ref,
       operator_status: 'new',
       fulfillment_status: 'pending_assignment',
@@ -1628,56 +1717,8 @@ async function saveAddBooking(forceOverride) {
   btn.disabled = false; btn.textContent = 'Save Booking';
 }
 
-// ── MONEY SPLIT ON COMPLETION ─────────────────────────────────
-// Rates are read from `partners` at the moment the order is first seen as completed.
-// Runs whenever the admin page loads/refreshes. Only orders whose pickup is within the last 14 days are handled,
-// so old history is never re-priced with today's rates.
-const _ledgerDone = new Set();
+// ── MONEY SPLIT: done by the database (trigger bk_30_split_money) when an order becomes completed ──
 const r2 = n => Math.round(Number(n) * 100) / 100;
-async function reconcileLedger() {
-  try {
-    const since = Date.now() - 14 * 864e5;
-    const done = allBookings.filter(b => ['completed', 'rated'].includes(b.fulfillment_status) && !_ledgerDone.has(b.id));
-    if (!done.length) return;
-    const todo = [];
-    done.forEach(b => {
-      const ref = new Date(b.pickup_at || b.created_at).getTime();
-      if (ref >= since) todo.push(b); else _ledgerDone.add(b.id);
-    });
-    if (!todo.length) return;
-    const { data: existing } = await db.from('payment_ledger').select('booking_id, partner_id, direction')
-      .in('booking_id', todo.map(b => b.id)).in('direction', ['leazo_owes_owner', 'leazo_owes_fulfiller']);
-    const have = new Set((existing || []).map(r => `${r.booking_id}|${r.direction}|${r.partner_id}`));
-    const pids = Array.from(new Set(todo.flatMap(b => [b.asset_owner_id, b.assigned_partner_id]).filter(Boolean)));
-    let pm = {};
-    if (pids.length) {
-      const { data: ps } = await db.from('partners').select('id, owner_share_percent, delivery_fee, delivery_fee_percent').in('id', pids);
-      (ps || []).forEach(p => pm[p.id] = p);
-    }
-    const rows = [];
-    todo.forEach(b => {
-      const total = Number(b.total_amount || 0);
-      const o = pm[b.asset_owner_id];
-      if (o) {
-        const amt = r2(total * Number(o.owner_share_percent || 0) / 100);
-        if (amt > 0 && !have.has(`${b.id}|leazo_owes_owner|${o.id}`))
-          rows.push({ booking_id: b.id, partner_id: o.id, direction: 'leazo_owes_owner', amount: amt, commission_amount: 0, status: 'pending' });
-      }
-      const d = pm[b.assigned_partner_id];
-      if (d) {
-        const amt = r2(Number(d.delivery_fee || 0) + total * Number(d.delivery_fee_percent || 0) / 100);
-        if (amt > 0 && !have.has(`${b.id}|leazo_owes_fulfiller|${d.id}`))
-          rows.push({ booking_id: b.id, partner_id: d.id, direction: 'leazo_owes_fulfiller', amount: amt, commission_amount: 0, status: 'pending' });
-      }
-    });
-    let failed = false;
-    for (const r of rows) {
-      const { error } = await db.from('payment_ledger').insert(r);
-      if (error && error.code !== '23505') { failed = true; console.warn('ledger insert failed:', error.message); toast('Money split could not be saved: ' + error.message, 5000); break; }
-    }
-    if (!failed) todo.forEach(b => _ledgerDone.add(b.id));
-  } catch (e) { console.warn('reconcileLedger error:', e); }
-}
 
 async function loadPartnerBalance(partnerId) {
   const box = document.getElementById('pBalance');
@@ -2310,16 +2351,76 @@ async function saveEditOrder() {
 }
 
 
-// ── DELETE ORDER ──────────────────────────────────────────────
-async function deleteOrder(bookingId) {
-  const b = allBookings.find(x => x.id === bookingId);
-  if (!confirm(`Delete order for ${b?.customer_name || 'this customer'}? This cannot be undone.`)) return;
-  const { error } = await db.from('bookings').delete().eq('id', bookingId);
-  if (error) { toast('Delete failed: ' + error.message, 4000); return; }
-  allBookings = allBookings.filter(x => x.id !== bookingId);
-  updateStats();
-  renderBookings();
-  toast('Order deleted');
+// ── CANCEL ORDER / DELETE TEST ORDER ──────────────────────────
+// Cancel keeps the order (history, money) and frees the console automatically: the availability
+// functions already ignore fulfillment_status 'cancelled' and operator_status 'cancelled'.
+let _actionRun = null;
+function openAction(o) {
+  document.getElementById('actTitle').textContent = o.title;
+  document.getElementById('actBody').innerHTML = o.body;
+  const wrap = document.getElementById('actInputWrap'), inp = document.getElementById('actInput');
+  wrap.classList.toggle('hidden', !o.inputLabel);
+  document.getElementById('actInputLabel').textContent = o.inputLabel || '';
+  inp.value = ''; inp.placeholder = o.placeholder || '';
+  document.getElementById('actErr').textContent = '';
+  const btn = document.getElementById('actConfirm');
+  btn.textContent = o.confirmLabel; btn.disabled = false;
+  btn.className = 'w-full font-bold py-3 rounded-xl mb-2 ' + (o.danger ? 'bg-red-600 text-white' : 'bg-yellow-400 text-black');
+  _actionRun = async () => {
+    const v = inp.value.trim();
+    if (o.requireText && v !== o.requireText) { document.getElementById('actErr').textContent = `Type exactly: ${o.requireText}`; return; }
+    btn.disabled = true; btn.textContent = 'Please wait...';
+    try { await o.run(v); closeAction(); }
+    catch (e) { document.getElementById('actErr').textContent = e.message || String(e); btn.disabled = false; btn.textContent = o.confirmLabel; }
+  };
+  document.getElementById('actionModal').classList.remove('hidden');
+}
+function closeAction() { document.getElementById('actionModal').classList.add('hidden'); _actionRun = null; }
+
+function openCancelOrder(id) {
+  const b = allBookings.find(x => x.id === id); if (!b) return;
+  const paidNote = (Number(b.amount_paid_online) > 0 || b.payment_status === 'paid')
+    ? '<p class="text-red-600 font-semibold mt-2">This customer has already paid. Refunds are NOT automatic: refund in Cashfree / by UPI yourself.</p>' : '';
+  openAction({
+    title: 'Cancel this order?',
+    body: `<p><b>${escH(b.customer_name || 'Customer')}</b> · ${escH(b.reference_number || b.id)}</p>
+           <p class="mt-1">The order stays in the Cancelled tab. The console becomes free for other bookings straight away.${b.assigned_partner_id ? ' Tell the partner it is cancelled.' : ''}</p>${paidNote}`,
+    inputLabel: 'Reason (optional)', placeholder: 'e.g. customer asked to cancel',
+    confirmLabel: 'Yes, cancel order', danger: true,
+    run: async (reason) => {
+      const upd = { fulfillment_status: 'cancelled', operator_status: 'cancelled' };
+      const { error } = await db.from('bookings').update(upd).eq('id', id);
+      if (error) throw error;
+      db.from('booking_events').insert({ booking_id: id, event_type: 'order_cancelled', actor_type: 'admin', actor_id: 'admin', notes: reason || null })
+        .then(x => { if (x.error) console.warn('event failed:', x.error.message); });
+      db.from('sla_breach_log').update({ resolved: true }).eq('booking_id', id).eq('resolved', false).then(() => {});
+      Object.assign(b, upd);
+      toast('Order cancelled');
+      updateStats(); renderBookings();
+    }
+  });
+}
+
+function openDeleteTest(id) {
+  const b = allBookings.find(x => x.id === id); if (!b) return;
+  if (!isTestOrder(b)) { toast('Only test orders can be deleted. Cancel this order instead.', 3500); return; }
+  const code = String(b.reference_number || 'DELETE');
+  openAction({
+    title: 'Delete test order forever?',
+    body: `<p><b>${escH(b.customer_name || '')}</b> · ${escH(code)}</p><p class="mt-1 text-red-600 font-semibold">This removes the order and its timeline, scans, photos list and ledger rows. It cannot be undone.</p>`,
+    inputLabel: `Type ${code} to confirm`, requireText: code, confirmLabel: 'Delete permanently', danger: true,
+    run: async () => {
+      for (const t of ['booking_events', 'asset_scans', 'condition_acknowledgements', 'customer_verifications', 'disputes', 'payment_ledger', 'sla_breach_log', 'gift_voucher_redemptions']) {
+        const r = await db.from(t).delete().eq('booking_id', id);
+        if (r.error) console.warn('cleanup ' + t + ':', r.error.message);
+      }
+      const { error } = await db.from('bookings').delete().eq('id', id);
+      if (error) throw error;
+      allBookings = allBookings.filter(x => x.id !== id);
+      updateStats(); renderBookings();
+      toast('Test order deleted');
+    }
+  });
 }
 
 // ── EDIT ASSET ────────────────────────────────────────────────
