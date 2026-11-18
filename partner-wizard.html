@@ -166,14 +166,30 @@ async function loadBooking() {
     // Build order-specific item list:
     // 1. PS5 + correct number of controllers from partner_assets (high value = scan required)
     // 2. Default cables always included as tick-only checklist items
+    // The items come from the OWNER of the console (bookings.asset_owner_id), not the deliverer.
+    // Old bookings without an owner fall back to the deliverer's own inventory (previous behaviour).
+    const ownerId = booking.asset_owner_id || partner.id;
     const { data: allAssets } = await db
       .from('partner_assets')
       .select('*')
-      .eq('partner_id', partner.id)
+      .eq('partner_id', ownerId)
       .eq('status', 'available')
       .order('asset_type');
 
-    const partnerAssets = allAssets || [];
+    let partnerAssets = allAssets || [];
+
+    // The exact PS5 reserved for this booking (even if its status is no longer 'available')
+    if (booking.ps5_asset_id) {
+      let reserved = partnerAssets.find(a => String(a.id) === String(booking.ps5_asset_id));
+      if (!reserved) {
+        const { data: r } = await db.from('partner_assets').select('*').eq('id', booking.ps5_asset_id).maybeSingle();
+        reserved = r || null;
+      }
+      if (reserved) {
+        booking._reservedPs5 = reserved;
+        partnerAssets = [reserved, ...partnerAssets.filter(a => String(a.id) !== String(reserved.id))];
+      }
+    }
     assets = buildOrderItemList(partnerAssets, booking);
 
     populateInfoBar();
@@ -348,7 +364,7 @@ function stepAccept() {
 
 async function doAccept() {
   setBusy(true, 'Accepting...');
-  await advance('accepted');
+  await advance('accepted', { accepted_at: new Date().toISOString() });
   setBusy(false);
 }
 
@@ -469,7 +485,7 @@ function buildOrderItemList(partnerAssets, booking) {
   const items = [];
 
   // 1. PS5 Console — always required, high value, scan if barcode set
-  const ps5 = partnerAssets.find(a => a.asset_type === 'ps5');
+  const ps5 = booking._reservedPs5 || partnerAssets.find(a => a.asset_type === 'ps5');
   if (ps5) {
     items.push({ ...ps5, _source: 'db' });
   } else {
@@ -1008,9 +1024,9 @@ async function doOtpFallback(stage) {
 
 // PAYMENT (COD)
 function stepPayment() {
-  // Customer already paid 10% advance online — collect only the remaining 90%
+  // Customer already paid the advance online — collect only the remaining amount
   const total       = booking.total_amount || 0;
-  const advancePaid = Math.round(total * 0.10);
+  const advancePaid = Number(booking.amount_paid_online) > 0 ? Number(booking.amount_paid_online) : Math.round(total * 0.10);
   const remaining   = total - advancePaid;
   el('stepBody').innerHTML = `
     <div class="info-box">
@@ -1036,8 +1052,8 @@ async function doPayment() {
   el('payBtn').disabled = true; el('payBtn').textContent = 'Saving...';
   try {
     const total      = booking.total_amount || 0;
-    const advancePaid = Math.round(total * 0.10);
-    const collected  = total - advancePaid;  // what partner actually collected in cash
+    const advancePaid = Number(booking.amount_paid_online) > 0 ? Number(booking.amount_paid_online) : Math.round(total * 0.10);
+    const collected  = Math.max(0, total - advancePaid);  // what partner actually collected
     await db.from('payment_ledger').insert({
       booking_id: booking.id, partner_id: partner.id,
       direction: 'partner_owes_leazo',
@@ -1045,7 +1061,7 @@ async function doPayment() {
       commission_amount: (collected * (partner.commission_percent || 20)) / 100,
       status: 'pending'
     });
-    await advance('payment_collected', { payment_status: 'paid' });
+    await advance('payment_collected', { payment_status: 'paid', cash_collected: collected, payment_stage: 'fully_paid' });
   } catch(e) { toast('Failed: ' + e.message, 4000); el('payBtn').disabled = false; el('payBtn').textContent = 'Confirm Payment Collected'; }
 }
 
