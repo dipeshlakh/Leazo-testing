@@ -157,6 +157,13 @@ async function loadBooking() {
     if (bErr || !b) { showError('Order not found. It may have been reassigned.'); return; }
     if (String(b.assigned_partner_id) !== String(partner.id)) { showError('This order is not assigned to you.'); return; }
     booking = b;
+    if (b.fulfillment_status === 'cancelled' || b.operator_status === 'cancelled') { showError('This order was cancelled by Leazo. Nothing more to do.'); return; }
+    if (b.fulfillment_status === 'dispute_flagged') { showDone('⚠️', 'Damage Flagged', 'Admin is reviewing this return. You will be told if anything else is needed.'); return; }
+    // OTP was verified but the final "delivered" save did not go through (network drop): finish it now
+    if (b.fulfillment_status === 'otp_verified_delivery') {
+      const { error: fe } = await db.from('bookings').update({ fulfillment_status: 'delivered' }).eq('id', b.id);
+      if (!fe) booking.fulfillment_status = 'delivered';
+    }
 
     const { data: c } = await db.from('booking_effective_config').select('*').eq('booking_id', bookingId).maybeSingle();
     cfg = c || { scan_required: false, installation_included: true, id_verification_required: false, bundle_photo_count: 1, is_delivery_only: false, bundle_photo_required: true, condition_video_required: true };
@@ -263,7 +270,7 @@ function buildSteps() {
     const s = [];
     s.push({ id:'out_pickup',   label:'Start Pickup',         produces_status:'reached_pickup',          render: () => stepDepart('out_for_pickup','🛵  Start Pickup','pickup') });
     s.push({ id:'scan_ret',     label:'Verify Items',         produces_status:'items_verified_return',  render: () => stepScan('return_customer','items_verified_return') });
-    s.push({ id:'cond_ret',     label:'Condition Check',     produces_status:'condition_photo_return', render: stepReturnCondition });
+    s.push({ id:'cond_ret',     label:'Condition Video',     produces_status:'condition_photo_return', render: stepReturnCondition });
     s.push({ id:'otp_ret',      label:'Return OTP',          produces_status:'otp_verified_return',    render: () => stepOtp('return') });
     s.push({ id:'stock',        label:'Back to Stock',       produces_status:'completed',              render: () => stepScan('return_partner','completed') });
     steps = s;
@@ -597,8 +604,17 @@ function stepScan(scanPoint, nextStatus) {
     return buildAssetRow(a, a.is_high_value && a.barcode && cfg.scan_required);
   }).join('');
 
+  var bannerText = {
+    pack:            '📦 Packing: scan or tick every item going into the bag.',
+    delivery:        '✅ Show each item to the customer and tick it off.',
+    return_customer: '↩ Return check: scan or tick every item the customer hands back. If something is missing or damaged, finish this check, then flag it in the next step.',
+    return_partner:  '🏠 Back to stock: put every item back in its place, then scan or tick it.'
+  }[scanPoint] || '';
+  var banner = bannerText ? '<div class="info-box" style="margin-bottom:10px">' + bannerText + '</div>' : '';
+
   el('stepBody').innerHTML =
-    scannerHtml
+    banner
+    + scannerHtml
     + '<p class="text-xs text-gray-400 mb-2">' + hint + 'Tap cables to confirm</p>'
     + '<div id="assetList" class="space-y-2 mb-4">' + rows + '</div>'
     + '<button id="confirmAllBtn" class="btn-green" disabled onclick="doConfirmAll(\'' + scanPoint + '\',\'' + nextStatus + '\')">'
@@ -961,7 +977,7 @@ async function doSendOtp(stage) {
   try {
     await db.from('condition_acknowledgements').insert({
       booking_id: booking.id, stage, acknowledged_by: 'customer', agreed: true,
-      photo_url: window._deliveryConditionUrl || null
+      photo_url: stage === 'delivery' ? (window._deliveryConditionUrl || null) : null
     });
   } catch(e) { console.warn('ack insert:', e); }
 
@@ -1062,6 +1078,11 @@ async function doPayment() {
       status: 'pending'
     });
     await advance('payment_collected', { payment_status: 'paid', cash_collected: collected, payment_stage: 'fully_paid' });
+    if (booking.fulfillment_status === 'payment_collected' && window._payMode) {
+      db.from('bookings').update({ collected_via: window._payMode }).eq('id', booking.id)
+        .then(r => { if (r.error) console.warn('collected_via not saved (run prompt3.sql):', r.error.message); });
+      logEvent('payment_collected_via', { notes: window._payMode, metadata: { collected_via: window._payMode, amount: collected } }).catch(() => {});
+    }
   } catch(e) { toast('Failed: ' + e.message, 4000); el('payBtn').disabled = false; el('payBtn').textContent = 'Confirm Payment Collected'; }
 }
 
