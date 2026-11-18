@@ -127,6 +127,10 @@
   <!-- ORDERS PAGE -->
   <div id="pageOrders">
 
+  <div class="px-3 pt-3">
+    <button onclick="openAddBooking()" class="w-full bg-yellow-400 border-b-4 border-yellow-600 text-black font-bold py-2.5 rounded-xl text-sm">+ Add booking (manual / custom plan)</button>
+  </div>
+
   <!-- Filters -->
   <div class="flex gap-2 px-3 pb-2 overflow-x-auto pt-3">
     <button class="tab-btn active" data-filter="all"         onclick="setFilter(this)">All</button>
@@ -437,6 +441,9 @@
 
     <button class="btn-yellow mb-3" id="partnerSaveBtn" onclick="savePartner()">Save Partner</button>
 
+    <!-- Balance (only when editing) -->
+    <div id="pBalance" class="hidden bg-gray-50 rounded-xl p-3 mb-3 text-sm"></div>
+
     <!-- Assets section (only shown when editing) -->
     <div id="assetSection" class="hidden">
       <div class="flex justify-between items-center mb-2 mt-2">
@@ -505,6 +512,59 @@
   </div>
 </div>
 
+<!-- ADD BOOKING MODAL -->
+<div id="addBookingModal" class="modal-bg hidden" onclick="if(event.target.id==='addBookingModal')closeAddBooking()">
+  <div class="modal">
+    <div class="flex justify-between items-center mb-3">
+      <h2 class="text-lg font-black">Add Booking</h2>
+      <button onclick="closeAddBooking()" class="text-gray-400 text-2xl leading-none">&times;</button>
+    </div>
+    <div class="field-row">
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">CUSTOMER NAME *</label><input type="text" id="abName"/></div>
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">PHONE *</label><input type="tel" id="abPhone" inputmode="numeric" placeholder="10 digits"/></div>
+    </div>
+    <label class="block text-xs font-bold text-gray-400 mb-1">ADDRESS *</label>
+    <input type="text" id="abAddress" class="mb-3" placeholder="House / colony / street"/>
+    <label class="block text-xs font-bold text-gray-400 mb-1">CITY *</label>
+    <select id="abCity" class="mb-3" onchange="abRecalc()"></select>
+
+    <div class="field-row">
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">DELIVERY DATE *</label><input type="date" id="abDelDate" oninput="abRecalc()" style="width:100%;border:2px solid #e5e7eb;border-radius:10px;padding:9px 10px;font-size:14px"/></div>
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">DELIVERY TIME *</label><input type="time" id="abDelTime" oninput="abRecalc()" style="width:100%;border:2px solid #e5e7eb;border-radius:10px;padding:9px 10px;font-size:14px"/></div>
+    </div>
+    <div class="field-row">
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">PICKUP DATE *</label><input type="date" id="abPickDate" oninput="abRecalc()" style="width:100%;border:2px solid #e5e7eb;border-radius:10px;padding:9px 10px;font-size:14px"/></div>
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">PICKUP TIME *</label><input type="time" id="abPickTime" oninput="abRecalc()" style="width:100%;border:2px solid #e5e7eb;border-radius:10px;padding:9px 10px;font-size:14px"/></div>
+    </div>
+    <p id="abPlanInfo" class="text-xs text-gray-500 mb-2"></p>
+    <div id="abAvail" class="hidden rounded-xl p-3 mb-3 text-sm font-semibold"></div>
+    <label id="abOverrideWrap" class="hidden flex items-center gap-2 text-sm mb-3"><input type="checkbox" id="abOverride" class="w-5 h-5"/> <span>Book anyway (ignore availability)</span></label>
+
+    <div class="field-row">
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">GAMES</label><input type="text" id="abGames" oninput="abRecalc()" placeholder="FIFA (FC25), GTA 5"/></div>
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">CONTROLLERS (total)</label><input type="number" id="abControllers" value="1" min="1" max="6" oninput="abRecalc()"/></div>
+    </div>
+    <label class="flex items-center gap-2 text-sm mb-3"><input type="checkbox" id="abCoupon" class="w-5 h-5" checked onchange="abRecalc()"/> Apply LEAZO coupon in the suggested price</label>
+
+    <div id="abSuggest" class="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-3 text-xs text-gray-600"></div>
+
+    <div class="field-row">
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">TOTAL AMOUNT ₹ *</label><input type="number" id="abTotal" min="0" inputmode="decimal" oninput="abRecalc()"/></div>
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">PAYMENT METHOD</label>
+        <select id="abMethod" onchange="abMethodChanged()">
+          <option value="cash">Cash</option><option value="upi">UPI</option><option value="prepaid">Prepaid (online)</option><option value="cod">COD (pay on delivery)</option>
+        </select></div>
+    </div>
+    <label class="block text-xs font-bold text-gray-400 mb-1">AMOUNT ALREADY RECEIVED ₹</label>
+    <input type="number" id="abReceived" min="0" value="0" inputmode="decimal" oninput="abRecalc()" class="mb-1"/>
+    <p id="abPayInfo" class="text-xs text-gray-500 mb-3"></p>
+
+    <label class="flex items-center gap-2 text-sm mb-4"><input type="checkbox" id="abNotify" class="w-5 h-5"/> Send WhatsApp confirmation to customer</label>
+    <button id="abSaveBtn" class="btn-yellow mb-2" onclick="saveAddBooking()">Save Booking</button>
+    <button class="w-full text-sm text-gray-400 py-2" onclick="closeAddBooking()">Cancel</button>
+  </div>
+</div>
+
 <!-- EDIT ORDER MODAL -->
 <div id="editModal" class="modal-bg hidden" onclick="closeEditModal(event)">
   <div class="modal">
@@ -512,24 +572,34 @@
       <h2 class="text-lg font-black">Edit Order</h2>
       <button onclick="closeEditModalDirect()" class="text-gray-400 text-2xl leading-none">&times;</button>
     </div>
-    <p class="text-xs text-gray-400 mb-4">Only games and time slot can be edited.</p>
+    <p class="text-xs text-gray-400 mb-4">Games, controllers, time slot and amount can be edited.</p>
 
     <label class="block text-xs font-bold text-gray-400 mb-1">GAMES</label>
-    <input type="text" id="editGames" placeholder="e.g. FIFA (FC25), GTA 5"
+    <input type="text" id="editGames" placeholder="e.g. FIFA (FC25), GTA 5" oninput="editRecalc()"
       class="w-full border-2 rounded-xl px-3 py-2 text-sm mb-4 focus:outline-none focus:border-yellow-400"/>
 
     <div class="grid grid-cols-2 gap-3 mb-4">
       <div>
         <label class="block text-xs font-bold text-gray-400 mb-1">START TIME</label>
-        <input type="text" id="editStartTime" placeholder="e.g. 11:00 AM"
+        <input type="text" id="editStartTime" placeholder="e.g. 11:00 AM" oninput="editRecalc()"
           class="w-full border-2 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-yellow-400"/>
       </div>
       <div>
         <label class="block text-xs font-bold text-gray-400 mb-1">END TIME</label>
-        <input type="text" id="editEndTime" placeholder="e.g. 8:00 PM"
+        <input type="text" id="editEndTime" placeholder="e.g. 8:00 PM" oninput="editRecalc()"
           class="w-full border-2 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-yellow-400"/>
       </div>
     </div>
+    <div id="editAvail" class="hidden rounded-xl p-3 mb-3 text-sm font-semibold"></div>
+
+    <label class="block text-xs font-bold text-gray-400 mb-1">CONTROLLERS (total)</label>
+    <input type="number" id="editControllers" min="1" max="6" oninput="editRecalc()"
+      class="w-full border-2 rounded-xl px-3 py-2 text-sm mb-4 focus:outline-none focus:border-yellow-400"/>
+
+    <label class="block text-xs font-bold text-gray-400 mb-1">AMOUNT ₹ (final price)</label>
+    <input type="number" id="editAmount" min="0" inputmode="decimal"
+      class="w-full border-2 rounded-xl px-3 py-2 text-sm mb-2 focus:outline-none focus:border-yellow-400"/>
+    <div id="editSuggest" class="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-4 text-xs text-gray-600"></div>
 
     <button class="btn-yellow mb-3" onclick="saveEditOrder()">Save Changes</button>
     <button class="w-full text-sm text-gray-400 py-2" onclick="closeEditModalDirect()">Cancel</button>
@@ -628,6 +698,7 @@ async function loadAll() {
   try {
     await Promise.all([loadBookings(), loadPartners(), loadUrgentBreaches()]);
     renderBookings(); // Render once after ALL data is ready — partners + bookings both loaded
+    reconcileLedger();   // money split for newly completed orders (never blocks the page)
   } catch(e) {
     console.error('loadAll error:', e);
   }
@@ -694,7 +765,7 @@ async function loadPartners() {
 
 // ── STATS ─────────────────────────────────────────────────────
 function updateStats() {
-  const unassigned = allBookings.filter(b => !b.assigned_partner_id && b.payment_status === 'paid').length;
+  const unassigned = allBookings.filter(b => !b.assigned_partner_id && canAssign(b)).length;
   const active     = allBookings.filter(b => b.assigned_partner_id && !['completed','rated','rejected'].includes(b.fulfillment_status)).length;
   const delivered  = allBookings.filter(b => ['delivered','active_rental'].includes(b.fulfillment_status)).length;
   const disputes   = allBookings.filter(b => b.fulfillment_status === 'dispute_flagged').length;
@@ -725,7 +796,7 @@ function renderBookings() {
       !['completed','rated','rejected'].includes(b.fulfillment_status)
     );
   else if (currentFilter === 'unassigned')
-    filtered = filtered.filter(b => !b.assigned_partner_id && b.payment_status === 'paid');
+    filtered = filtered.filter(b => !b.assigned_partner_id && canAssign(b));
   else if (currentFilter === 'in_progress')
     filtered = filtered.filter(b => b.assigned_partner_id && !['delivered','active_rental','completed','rated','rejected','dispute_flagged'].includes(b.fulfillment_status));
   else if (currentFilter === 'delivered')
@@ -782,7 +853,7 @@ function bookingCard(b) {
   const date     = new Date(b.created_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
   const partner  = allPartners.find(p => p.id === b.assigned_partner_id);
   const fs       = b.fulfillment_status || 'pending_assignment';
-  const needsAssign = !b.assigned_partner_id && b.payment_status === 'paid';
+  const needsAssign = !b.assigned_partner_id && canAssign(b);
   const isDispute   = fs === 'dispute_flagged';
   const isCOD       = b.payment_method !== 'prepaid';
   const advance     = isCOD ? Math.round((b.total_amount || 0) * 0.10) : 0;
@@ -842,7 +913,7 @@ function bookingCard(b) {
         <div class="text-xs flex-1">
           ${partner
             ? `<span class="text-gray-400">Assigned to</span> <span class="font-bold text-gray-800">${partner.name}</span> <span class="text-gray-400">(${partner.city})</span>`
-            : b.payment_status === 'paid'
+            : canAssign(b)
               ? `<span class="text-yellow-600 font-bold">⚠ Needs assignment</span>`
               : `<span class="text-gray-400">Payment pending</span>`}
         </div>
@@ -867,7 +938,7 @@ function bookingCard(b) {
             <a href="https://wa.me/91${b.phone}" target="_blank" class="dropdown-item">💬 WhatsApp</a>
           </div>
         </div>
-        ${b.payment_status === 'paid' ? `
+        ${canAssign(b) ? `
         <!-- Reassign button -->
         <button onclick="openAssignModal(${b.id})"
           class="flex-1 text-xs font-bold ${needsAssign ? 'bg-yellow-400 text-black' : 'bg-gray-800 text-white'} py-2 rounded-xl">
@@ -1330,6 +1401,303 @@ async function deleteSetting(city) {
   loadSettings();
 }
 
+// ── DATE / PRICE HELPERS (shared by Add booking + Edit order) ──
+const canAssign = b => b.payment_status === 'paid' || b.source === 'admin';
+function istYMD(iso) { return new Date(iso).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); }      // YYYY-MM-DD in IST
+function mkIST(ymd, hm) { return new Date(`${ymd}T${hm}:00+05:30`); }
+function addDaysYMD(ymd, n) { const d = new Date(ymd + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+function to24(t) {
+  const m = String(t || '').trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i); if (!m) return null;
+  const hr = Number(m[1]); if (hr < 1 || hr > 12 || Number(m[2]) > 59) return null;
+  let h = hr % 12; if (m[3].toUpperCase() === 'PM') h += 12;
+  return String(h).padStart(2, '0') + ':' + m[2];
+}
+function to12(hm) { const [h, m] = hm.split(':').map(Number); return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`; }
+function ddmmyyyy(ymd) { const [y, m, d] = ymd.split('-'); return `${d}/${m}/${y}`; }
+
+// Same price list as the website (index-main.html). Returns { total, lines }.
+const CITY_DELIVERY = { Neemuch: 99, Pratapgarh: 99, Mandsaur: 49 };
+function suggestPrice({ city, plan, hours, games, controllers, coupon, voucher, prepaid }) {
+  const restricted = ['Pratapgarh', 'Neemuch'].includes(city);
+  let planPrice = 0, disc = 0;
+  if (plan === 'hourly') { planPrice = (hours || 0) * 199; disc = restricted ? 0 : (hours || 0) * Math.ceil(199 * 0.4); }
+  else if (plan === 'day')   { planPrice = 999;  disc = restricted ? 400 : 500; }
+  else if (plan === 'night') { planPrice = 1499; disc = restricted ? 700 : 800; }
+  const n = String(games || '').split(',').map(x => x.trim()).filter(Boolean).length;
+  const gameTotal = Math.max(0, n - 2) * 49;                                  // first 2 games free
+  const extra = Math.max(0, (Number(controllers) || 1) - 1);                   // 1 controller included
+  const ctrl = plan === 'hourly' ? extra * 29 * (hours || 0) : extra * 99;
+  const delivery = CITY_DELIVERY[city] ?? 99;
+  const subtotal = planPrice + ctrl + gameTotal + delivery;
+  const couponDisc = coupon ? disc : 0;
+  const after = Math.max(0, subtotal - couponDisc - (Number(voucher) || 0));
+  const total = prepaid ? Math.round(after * 0.95) : after;
+  const lines = [`Plan ${inr(planPrice)}`];
+  if (gameTotal) lines.push(`extra games ${inr(gameTotal)}`);
+  if (ctrl) lines.push(`extra controllers ${inr(ctrl)}`);
+  lines.push(`delivery ${inr(delivery)}`);
+  if (couponDisc) lines.push(`LEAZO -${inr(couponDisc)}`);
+  if (voucher) lines.push(`voucher -${inr(voucher)}`);
+  if (prepaid) lines.push('prepaid 5% off');
+  return { total, lines };
+}
+
+// ── ADD BOOKING ───────────────────────────────────────────────
+let _abTimer = null;
+function openAddBooking() {
+  const cities = Array.from(new Set(['Mandsaur', 'Neemuch', 'Pratapgarh', ...(allPartners || []).map(p => p.city).filter(Boolean)]));
+  document.getElementById('abCity').innerHTML = cities.map(c => `<option value="${escH(c)}">${escH(c)}</option>`).join('');
+  ['abName', 'abPhone', 'abAddress', 'abGames', 'abDelTime', 'abPickTime', 'abTotal'].forEach(id => document.getElementById(id).value = '');
+  const today = istYMD(new Date().toISOString());
+  document.getElementById('abDelDate').value = today;
+  document.getElementById('abPickDate').value = today;
+  document.getElementById('abControllers').value = 1;
+  document.getElementById('abCoupon').checked = true;
+  document.getElementById('abMethod').value = 'cash';
+  document.getElementById('abReceived').value = 0;
+  document.getElementById('abNotify').checked = false;
+  document.getElementById('abOverride').checked = false;
+  document.getElementById('abOverrideWrap').classList.add('hidden');
+  document.getElementById('abAvail').classList.add('hidden');
+  document.getElementById('addBookingModal').classList.remove('hidden');
+  abRecalc();
+}
+function closeAddBooking() { document.getElementById('addBookingModal').classList.add('hidden'); }
+
+function abRead() {
+  const dD = document.getElementById('abDelDate').value, dT = document.getElementById('abDelTime').value;
+  const pD = document.getElementById('abPickDate').value, pT = document.getElementById('abPickTime').value;
+  const out = { city: document.getElementById('abCity').value, dD, dT, pD, pT, s: null, e: null };
+  if (dD && dT) out.s = mkIST(dD, dT);
+  if (pD && pT) out.e = mkIST(pD, pT);
+  if (out.s && out.e && out.e > out.s) {
+    const mins = Math.round((out.e - out.s) / 60000);
+    const sameDay = dD === pD;
+    if (sameDay && dT === '11:00' && pT === '20:00') out.plan = 'day';
+    else if (dT === '21:00' && pT === '10:00' && pD === addDaysYMD(dD, 1)) out.plan = 'night';
+    else if (sameDay && mins % 60 === 0 && mins >= 120 && dT.endsWith(':00') && +dT.slice(0, 2) >= 10 && +dT.slice(0, 2) <= 19 && +pT.slice(0, 2) <= 21) out.plan = 'hourly';
+    else out.plan = 'custom';
+    out.hours = Math.round(mins / 60);
+    out.days = out.plan === 'custom' ? Math.max(1, Math.ceil(mins / 1440)) : 1;
+  }
+  return out;
+}
+
+function abRecalc() {
+  const r = abRead();
+  const info = document.getElementById('abPlanInfo'), sug = document.getElementById('abSuggest');
+  if (!r.s || !r.e) { info.textContent = 'Pick delivery and pickup date + time.'; sug.innerHTML = 'Fill the times to see a suggested price.'; clearTimeout(_abTimer); return; }
+  if (r.e <= r.s) { info.innerHTML = '<span class="text-red-500">Pickup must be after delivery.</span>'; sug.innerHTML = ''; return; }
+  info.textContent = `Plan: ${r.plan}${r.plan === 'custom' ? ` · ${r.days} day(s)` : ''} · ${r.hours} hour(s) · ${ddmmyyyy(r.dD)} ${to12(r.dT)} → ${ddmmyyyy(r.pD)} ${to12(r.pT)}`;
+  if (r.plan === 'custom') {
+    sug.innerHTML = 'Custom / long rental: there is no website price. Type the total amount.';
+  } else {
+    const s = suggestPrice({
+      city: r.city, plan: r.plan, hours: r.hours, games: document.getElementById('abGames').value,
+      controllers: document.getElementById('abControllers').value, coupon: document.getElementById('abCoupon').checked,
+      voucher: 0, prepaid: document.getElementById('abMethod').value === 'prepaid'
+    });
+    sug.innerHTML = `<div class="flex items-center justify-between gap-2"><div>Suggested price <b>${inr(s.total)}</b></div>
+      <button type="button" class="text-xs font-bold bg-black text-white px-3 py-1.5 rounded-lg" onclick="document.getElementById('abTotal').value=${s.total};abMethodChanged(true)">Use suggested price</button></div>
+      <p class="mt-1 text-gray-400">${escH(s.lines.join(' · '))}</p>`;
+  }
+  // payment info line
+  const total = Number(document.getElementById('abTotal').value) || 0, rec = Number(document.getElementById('abReceived').value) || 0;
+  const pi = document.getElementById('abPayInfo');
+  if (total > 0) pi.textContent = rec >= total ? 'Will be saved as fully paid.' : rec > 0 ? `Will be saved as COD: ${inr(rec)} received, ${inr(total - rec)} to collect on delivery.` : `Will be saved as COD: ${inr(total)} to collect on delivery. Payment stays "pending".`;
+  else pi.textContent = '';
+  // availability (debounced)
+  clearTimeout(_abTimer);
+  _abTimer = setTimeout(abCheckAvail, 400);
+}
+
+function abMethodChanged(keepReceived) {
+  const m = document.getElementById('abMethod').value, total = Number(document.getElementById('abTotal').value) || 0;
+  if (!keepReceived) document.getElementById('abReceived').value = (m === 'cod') ? 0 : total;
+  else if (m !== 'cod') document.getElementById('abReceived').value = total;
+  abRecalc();
+}
+
+async function abCheckAvail() {
+  const r = abRead(), av = document.getElementById('abAvail'), wrap = document.getElementById('abOverrideWrap');
+  if (!r.s || !r.e || r.e <= r.s || !r.city) { av.classList.add('hidden'); wrap.classList.add('hidden'); return; }
+  const { data, error } = await db.rpc('check_window', { p_city: r.city, p_start: r.s.toISOString(), p_end: r.e.toISOString() });
+  av.classList.remove('hidden');
+  if (error) { av.className = 'rounded-xl p-3 mb-3 text-sm font-semibold bg-gray-100 text-gray-600'; av.textContent = 'Could not check availability: ' + error.message; wrap.classList.add('hidden'); return; }
+  if (!data || !data.configured) {
+    av.className = 'rounded-xl p-3 mb-3 text-sm font-semibold bg-gray-100 text-gray-600';
+    av.textContent = 'No consoles set up for ' + r.city + ' yet — this booking will not be blocked.'; wrap.classList.add('hidden');
+  } else if (data.left > 0) {
+    av.className = 'rounded-xl p-3 mb-3 text-sm font-semibold bg-green-50 text-green-700';
+    av.textContent = `✅ ${data.left} console${data.left === 1 ? '' : 's'} free`; wrap.classList.add('hidden');
+  } else {
+    av.className = 'rounded-xl p-3 mb-3 text-sm font-semibold bg-red-50 text-red-700';
+    av.textContent = '❌ Fully booked for this time'; wrap.classList.remove('hidden');
+  }
+}
+
+async function newReferenceNumber() {
+  for (let i = 0; i < 10; i++) {
+    const ref = 'LZ-' + String(Math.floor(100000 + Math.random() * 900000));
+    const { data } = await db.from('bookings').select('id').eq('reference_number', ref).maybeSingle();
+    if (!data) return ref;
+  }
+  throw new Error('Could not create a unique reference number, try again');
+}
+
+async function saveAddBooking(forceOverride) {
+  const r = abRead();
+  const name = document.getElementById('abName').value.trim();
+  let phone = document.getElementById('abPhone').value.replace(/\D/g, '');
+  if (phone.length === 12 && phone.startsWith('91')) phone = phone.slice(2);
+  if (phone.length === 11 && phone.startsWith('0')) phone = phone.slice(1);
+  document.getElementById('abPhone').value = phone;
+  const address = document.getElementById('abAddress').value.trim();
+  const total = Number(document.getElementById('abTotal').value);
+  const rec = Number(document.getElementById('abReceived').value) || 0;
+  const method = document.getElementById('abMethod').value;
+
+  if (!name) return toast('Customer name is required.', 3000);
+  if (!/^[6-9]\d{9}$/.test(phone)) return toast('Phone must be a valid 10-digit mobile number.', 3500);
+  if (!address) return toast('Address is required.', 3000);
+  if (!r.s || !r.e) return toast('Fill delivery and pickup date + time.', 3000);
+  if (r.e <= r.s) return toast('Pickup must be after delivery.', 3000);
+  if (!Number.isFinite(total) || document.getElementById('abTotal').value === '' || total < 0) return toast('Enter the total amount.', 3000);
+  if (rec < 0 || rec > total) return toast('Amount received must be between 0 and the total.', 3500);
+
+  const full = total > 0 && rec >= total;
+  const override = forceOverride === true || document.getElementById('abOverride').checked;
+  const btn = document.getElementById('abSaveBtn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    const ref = await newReferenceNumber();
+    const row = {
+      customer_name: name, phone, address, city: r.city,
+      games: document.getElementById('abGames').value.trim() || null,
+      controllers_count: Math.max(1, Math.round(Number(document.getElementById('abControllers').value) || 1)),
+      source: 'admin',
+      delivery_at: r.s.toISOString(), pickup_at: r.e.toISOString(),
+      booking_date: ddmmyyyy(r.dD), start_time: to12(r.dT), end_time: to12(r.pT),
+      plan: r.plan, plan_days: r.days,
+      total_amount: Math.round(total),
+      coupon_code: document.getElementById('abCoupon').checked ? 'LEAZO' : 'none',
+      // fully received => prepaid (nothing to collect); otherwise COD with the received part as advance
+      payment_method: full ? 'prepaid' : 'cod',
+      payment_status: rec > 0 ? 'paid' : 'pending',
+      payment_stage: full ? 'fully_paid' : (rec > 0 ? 'advance_paid' : 'unpaid'),
+      amount_paid_online: (full && method === 'cash') ? 0 : rec,
+      cash_collected: (full && method === 'cash') ? rec : 0,
+      reference_number: ref,
+      operator_status: 'new',
+      fulfillment_status: 'pending_assignment',
+      capacity_override: override
+    };
+    const { data: saved, error } = await db.from('bookings').insert(row).select().single();
+    if (error) {
+      if (String(error.message || '').includes('SLOT_FULL')) {
+        btn.disabled = false; btn.textContent = 'Save Booking';
+        toast('No console free for this time', 3500);
+        document.getElementById('abOverrideWrap').classList.remove('hidden');
+        if (confirm('No console free for this time.\n\nBook anyway?')) { document.getElementById('abOverride').checked = true; return saveAddBooking(true); }
+        return;
+      }
+      throw error;
+    }
+    // audit trail (never blocks)
+    db.from('booking_events').insert({
+      booking_id: saved.id, event_type: 'booking_created_admin', actor_type: 'admin', actor_id: 'admin',
+      notes: `Manual booking · ${method}${rec ? ' · received ₹' + rec : ''}`, metadata: { payment_mode: method, received: rec, plan: r.plan }
+    }).then(x => { if (x.error) console.warn('event failed:', x.error.message); });
+
+    if (document.getElementById('abNotify').checked) {
+      try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/send-notification`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON}` },
+          body: JSON.stringify({ type: 'payment_confirmed', booking: saved })
+        });
+        const j = await res.json();
+        if (!res.ok || j.error) throw new Error(j.error || 'failed');
+        toast('✅ Booking ' + ref + ' saved · WhatsApp sent');
+      } catch (e) { toast('Booking ' + ref + ' saved, but the WhatsApp message failed. Message the customer manually.', 5000); }
+    } else toast('✅ Booking ' + ref + ' saved');
+    closeAddBooking();
+    await loadAll();
+  } catch (e) {
+    toast('Save failed: ' + (e.message || e), 4500);
+  }
+  btn.disabled = false; btn.textContent = 'Save Booking';
+}
+
+// ── MONEY SPLIT ON COMPLETION ─────────────────────────────────
+// Rates are read from `partners` at the moment the order is first seen as completed.
+// Runs whenever the admin page loads/refreshes. Only orders whose pickup is within the last 14 days are handled,
+// so old history is never re-priced with today's rates.
+const _ledgerDone = new Set();
+const r2 = n => Math.round(Number(n) * 100) / 100;
+async function reconcileLedger() {
+  try {
+    const since = Date.now() - 14 * 864e5;
+    const done = allBookings.filter(b => ['completed', 'rated'].includes(b.fulfillment_status) && !_ledgerDone.has(b.id));
+    if (!done.length) return;
+    const todo = [];
+    done.forEach(b => {
+      const ref = new Date(b.pickup_at || b.created_at).getTime();
+      if (ref >= since) todo.push(b); else _ledgerDone.add(b.id);
+    });
+    if (!todo.length) return;
+    const { data: existing } = await db.from('payment_ledger').select('booking_id, partner_id, direction')
+      .in('booking_id', todo.map(b => b.id)).in('direction', ['leazo_owes_owner', 'leazo_owes_fulfiller']);
+    const have = new Set((existing || []).map(r => `${r.booking_id}|${r.direction}|${r.partner_id}`));
+    const pids = Array.from(new Set(todo.flatMap(b => [b.asset_owner_id, b.assigned_partner_id]).filter(Boolean)));
+    let pm = {};
+    if (pids.length) {
+      const { data: ps } = await db.from('partners').select('id, owner_share_percent, delivery_fee, delivery_fee_percent').in('id', pids);
+      (ps || []).forEach(p => pm[p.id] = p);
+    }
+    const rows = [];
+    todo.forEach(b => {
+      const total = Number(b.total_amount || 0);
+      const o = pm[b.asset_owner_id];
+      if (o) {
+        const amt = r2(total * Number(o.owner_share_percent || 0) / 100);
+        if (amt > 0 && !have.has(`${b.id}|leazo_owes_owner|${o.id}`))
+          rows.push({ booking_id: b.id, partner_id: o.id, direction: 'leazo_owes_owner', amount: amt, commission_amount: 0, status: 'pending' });
+      }
+      const d = pm[b.assigned_partner_id];
+      if (d) {
+        const amt = r2(Number(d.delivery_fee || 0) + total * Number(d.delivery_fee_percent || 0) / 100);
+        if (amt > 0 && !have.has(`${b.id}|leazo_owes_fulfiller|${d.id}`))
+          rows.push({ booking_id: b.id, partner_id: d.id, direction: 'leazo_owes_fulfiller', amount: amt, commission_amount: 0, status: 'pending' });
+      }
+    });
+    let failed = false;
+    for (const r of rows) {
+      const { error } = await db.from('payment_ledger').insert(r);
+      if (error && error.code !== '23505') { failed = true; console.warn('ledger insert failed:', error.message); toast('Money split could not be saved: ' + error.message, 5000); break; }
+    }
+    if (!failed) todo.forEach(b => _ledgerDone.add(b.id));
+  } catch (e) { console.warn('reconcileLedger error:', e); }
+}
+
+async function loadPartnerBalance(partnerId) {
+  const box = document.getElementById('pBalance');
+  const { data, error } = await db.from('payment_ledger').select('direction, amount, status, booking_id, created_at').eq('partner_id', partnerId).order('created_at', { ascending: false });
+  if (error) { box.classList.add('hidden'); return; }
+  const rows = data || [];
+  const sum = (dirs, st) => r2(rows.filter(r => dirs.includes(r.direction) && (!st || r.status === st)).reduce((t, r) => t + Number(r.amount || 0), 0));
+  const owner = sum(['leazo_owes_owner'], 'pending'), deliv = sum(['leazo_owes_fulfiller'], 'pending'), old = sum(['leazo_owes_partner'], 'pending');
+  const cash = sum(['partner_owes_leazo'], 'pending');
+  const owed = r2(owner + deliv + old), net = r2(owed - cash);
+  const paidOut = sum(['leazo_owes_owner', 'leazo_owes_fulfiller', 'leazo_owes_partner'], 'paid');
+  box.classList.remove('hidden');
+  box.innerHTML = `<p class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Balance</p>
+    <div class="flex justify-between"><span>Leazo owes them</span><b>${inr(owed)}</b></div>
+    <p class="text-xs text-gray-400 mb-1">owner share ${inr(owner)} · delivery fees ${inr(deliv)}${old ? ' · other ' + inr(old) : ''}</p>
+    <div class="flex justify-between"><span>They owe Leazo (cash held)</span><b>${inr(cash)}</b></div>
+    <div class="flex justify-between border-t border-gray-200 mt-2 pt-2"><span class="font-bold">${net >= 0 ? 'Net: Leazo pays them' : 'Net: they pay Leazo'}</span><b style="color:${net >= 0 ? '#16a34a' : '#dc2626'}">${inr(Math.abs(net))}</b></div>
+    <p class="text-xs text-gray-400 mt-1">Already paid out: ${inr(paidOut)} · based on pending entries in the ledger.</p>`;
+}
+
 // ── VOUCHERS ──────────────────────────────────────────────────
 let allVouchers = [];
 let _redeemVoucherId = null;
@@ -1585,6 +1953,7 @@ async function openPartnerModal(partnerId) {
 
   document.getElementById('partnerModalTitle').textContent = isNew ? 'Add Partner' : 'Edit Partner';
   document.getElementById('assetSection').classList.toggle('hidden', isNew);
+  document.getElementById('pBalance').classList.add('hidden');
 
   if (!isNew) {
     const p = allPartners.find(x => x.id === partnerId);
@@ -1612,6 +1981,7 @@ async function openPartnerModal(partnerId) {
     document.getElementById('pShowGames').checked   = ds.show_games     !== false;
     document.getElementById('pShowAmount').checked  = ds.show_amount    !== false;
     await loadAndRenderAssets(partnerId);
+    loadPartnerBalance(partnerId);
   } else {
     ['pEditId','pName','pCity','pPhone','pPin','pUpi'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('pCommission').value    = '20';
@@ -1825,10 +2195,15 @@ function openEditModal(bookingId) {
   editingBookingId = bookingId;
   const b = allBookings.find(x => x.id === bookingId);
   if (!b) return;
-  document.getElementById('editGames').value     = b.games || '';
-  document.getElementById('editStartTime').value = b.start_time || '';
-  document.getElementById('editEndTime').value   = b.end_time || '';
+  document.getElementById('editGames').value       = b.games || '';
+  document.getElementById('editStartTime').value   = b.start_time || '';
+  document.getElementById('editEndTime').value     = b.end_time || '';
+  document.getElementById('editControllers').value = b.controllers_count || 1;
+  document.getElementById('editAmount').value      = b.total_amount || 0;
+  document.getElementById('editAvail').classList.add('hidden');
+  window._editOverride = false;
   document.getElementById('editModal').classList.remove('hidden');
+  editRecalc();
 }
 
 function closeEditModal(e) { if (e.target.id === 'editModal') closeEditModalDirect(); }
@@ -1837,29 +2212,103 @@ function closeEditModalDirect() {
   editingBookingId = null;
 }
 
+// New delivery/pickup timestamps for an edited booking (keeps the original dates, changes only the times)
+function editWindow(b) {
+  const st = to24(document.getElementById('editStartTime').value), en = to24(document.getElementById('editEndTime').value);
+  if (!st || !en) return null;
+  let dY = b.delivery_at ? istYMD(b.delivery_at) : null;
+  if (!dY && /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(b.booking_date || '')) { const [d, m, y] = b.booking_date.split('/'); dY = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`; }
+  if (!dY) return null;
+  const pY = b.pickup_at ? istYMD(b.pickup_at) : dY;
+  const s = mkIST(dY, st); let e = mkIST(pY, en);
+  if (e <= s) e = mkIST(addDaysYMD(pY, 1), en);
+  return { s, e };
+}
+
+let _editTimer = null;
+function editRecalc() {
+  const b = allBookings.find(x => x.id === editingBookingId); if (!b) return;
+  const box = document.getElementById('editSuggest');
+  const w = editWindow(b);
+  const games = document.getElementById('editGames').value;
+  const ctrl = Number(document.getElementById('editControllers').value) || 1;
+  const cur = Number(b.total_amount || 0);
+  const plan = String(b.plan || '').toLowerCase();
+  if (!['hourly', 'day', 'night'].includes(plan)) {
+    box.innerHTML = 'Custom plan: there is no website price to suggest. Type the final amount above.';
+  } else {
+    const hours = w ? Math.round((w.e - w.s) / 3600000) : 0;
+    const sug = suggestPrice({
+      city: b.city, plan, hours, games, controllers: ctrl,
+      coupon: String(b.coupon_code || '').toLowerCase() === 'leazo',
+      voucher: Number(b.voucher_discount || 0),
+      prepaid: b.payment_method === 'prepaid' && b.source !== 'admin'
+    });
+    const same = sug.total === cur;
+    box.innerHTML = `<div class="flex items-center justify-between gap-2"><div>Current <b>${inr(cur)}</b> · Suggested <b style="color:${same ? '#16a34a' : '#b45309'}">${inr(sug.total)}</b>${same ? ' (same)' : ''}</div>
+      ${same ? '' : `<button type="button" class="text-xs font-bold bg-black text-white px-3 py-1.5 rounded-lg" onclick="document.getElementById('editAmount').value=${sug.total}">Use suggested price</button>`}</div>
+      <p class="mt-1 text-gray-400">${escH(sug.lines.join(' · '))}</p>`;
+  }
+  // availability for the new time window
+  clearTimeout(_editTimer);
+  _editTimer = setTimeout(async () => {
+    const av = document.getElementById('editAvail');
+    const changed = b.start_time !== document.getElementById('editStartTime').value.trim() || b.end_time !== document.getElementById('editEndTime').value.trim();
+    if (!w || !changed) { av.classList.add('hidden'); return; }
+    const { data, error } = await db.rpc('check_window', { p_city: b.city, p_start: w.s.toISOString(), p_end: w.e.toISOString(), p_exclude_booking: b.id });
+    av.classList.remove('hidden');
+    if (error) { av.className = 'rounded-xl p-3 mb-3 text-sm font-semibold bg-gray-100 text-gray-600'; av.textContent = 'Could not check availability: ' + error.message; window._editFull = false; return; }
+    if (!data || !data.configured) { av.className = 'rounded-xl p-3 mb-3 text-sm font-semibold bg-gray-100 text-gray-600'; av.textContent = 'No consoles set up for ' + b.city + ' — time is not checked.'; window._editFull = false; }
+    else if (data.left > 0) { av.className = 'rounded-xl p-3 mb-3 text-sm font-semibold bg-green-50 text-green-700'; av.textContent = '✅ ' + data.left + ' console(s) free at the new time'; window._editFull = false; }
+    else { av.className = 'rounded-xl p-3 mb-3 text-sm font-semibold bg-red-50 text-red-700'; av.textContent = '❌ Fully booked at the new time'; window._editFull = true; }
+  }, 400);
+}
+
 async function saveEditOrder() {
+  const b = allBookings.find(x => x.id === editingBookingId); if (!b) return;
   const games     = document.getElementById('editGames').value.trim();
   const startTime = document.getElementById('editStartTime').value.trim();
   const endTime   = document.getElementById('editEndTime').value.trim();
+  const ctrl      = Math.max(1, Math.round(Number(document.getElementById('editControllers').value) || 1));
+  const amountRaw = document.getElementById('editAmount').value;
+  const amount    = amountRaw === '' ? null : Number(amountRaw);
+  if (amount !== null && (!Number.isFinite(amount) || amount < 0)) { toast('Amount must be 0 or more.', 3000); return; }
+  if (startTime && !to24(startTime)) { toast('Start time must look like 11:00 AM', 3500); return; }
+  if (endTime && !to24(endTime))     { toast('End time must look like 8:00 PM', 3500); return; }
 
-  const { error } = await db.from('bookings').update({
+  const timesChanged = (startTime && startTime !== b.start_time) || (endTime && endTime !== b.end_time);
+  const upd = {
     ...(games     && { games }),
     ...(startTime && { start_time: startTime }),
     ...(endTime   && { end_time: endTime }),
-  }).eq('id', editingBookingId);
+    controllers_count: ctrl,
+  };
+  if (amount !== null) upd.total_amount = amount;
 
+  if (timesChanged) {
+    const w = editWindow(b);
+    if (w) {
+      // re-check availability right before saving
+      const { data } = await db.rpc('check_window', { p_city: b.city, p_start: w.s.toISOString(), p_end: w.e.toISOString(), p_exclude_booking: b.id });
+      if (data && data.configured && data.left < 1) {
+        if (!confirm('No console is free at the new time. Save the new time anyway?')) return;
+        upd.capacity_override = true;
+      }
+      upd.delivery_at = w.s.toISOString();
+      upd.pickup_at   = w.e.toISOString();
+    }
+  }
+
+  const { error } = await db.from('bookings').update(upd).eq('id', editingBookingId);
   if (error) { toast('Save failed: ' + error.message, 4000); return; }
 
   const idx = allBookings.findIndex(x => x.id === editingBookingId);
-  if (idx >= 0) {
-    if (games)     allBookings[idx].games      = games;
-    if (startTime) allBookings[idx].start_time = startTime;
-    if (endTime)   allBookings[idx].end_time   = endTime;
-  }
+  if (idx >= 0) Object.assign(allBookings[idx], upd);
   toast('✅ Order updated');
   closeEditModalDirect();
   renderBookings();
 }
+
 
 // ── DELETE ORDER ──────────────────────────────────────────────
 async function deleteOrder(bookingId) {
