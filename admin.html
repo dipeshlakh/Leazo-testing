@@ -120,6 +120,7 @@
   <div id="adminNav" class="flex border-b border-gray-200 px-3">
     <button class="main-nav active" data-page="orders" onclick="switchPage(this)">Orders</button>
     <button class="main-nav" data-page="partners" onclick="switchPage(this)">Partners</button>
+    <button class="main-nav" data-page="vouchers" onclick="switchPage(this)">Vouchers</button>
   </div>
 
   <!-- ORDERS PAGE -->
@@ -166,6 +167,17 @@
 
     <div id="partnerList" class="space-y-3">
       <p class="text-center text-gray-400 py-10">Loading partners...</p>
+    </div>
+  </div>
+
+  <!-- VOUCHERS PAGE -->
+  <div id="pageVouchers" class="hidden px-3 pt-3">
+    <button onclick="openVoucherModal(null)"
+      class="w-full bg-yellow-400 border-b-4 border-yellow-600 text-black font-bold py-3 rounded-xl mb-4">
+      + Add New Voucher
+    </button>
+    <div id="voucherList" class="space-y-3">
+      <p class="text-center text-gray-400 py-10">Loading vouchers...</p>
     </div>
   </div>
 
@@ -224,6 +236,88 @@
 </div>
 
 <!-- PARTNER MODAL (add/edit) -->
+<!-- VOUCHER MODAL -->
+<div id="voucherModal" class="modal-bg hidden" onclick="if(event.target.id==='voucherModal')closeVoucherModal()">
+  <div class="modal">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-lg font-black" id="vModalTitle">Add Voucher</h2>
+      <button onclick="closeVoucherModal()" class="text-gray-400 text-2xl leading-none">&times;</button>
+    </div>
+    <input type="hidden" id="vEditId"/>
+    <label class="block text-xs font-bold text-gray-400 mb-1">VOUCHER CODE *</label>
+    <div class="flex gap-2 mb-3">
+      <input type="text" id="vCode" placeholder="e.g. WELCOME200" style="text-transform:uppercase" autocapitalize="characters" autocomplete="off"/>
+      <button type="button" onclick="generateVoucherCode()" class="btn-yellow" style="width:auto;white-space:nowrap">Generate</button>
+    </div>
+    <div class="field-row">
+      <div>
+        <label class="block text-xs font-bold text-gray-400 mb-1">TYPE *</label>
+        <select id="vType" onchange="voucherTypeChanged()">
+          <option value="flat">Flat (₹ off)</option>
+          <option value="percent">Percent (% off)</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-gray-400 mb-1" id="vValueLabel">AMOUNT (₹) *</label>
+        <input type="number" id="vValue" min="1" inputmode="decimal"/>
+      </div>
+    </div>
+    <div class="field-row">
+      <div id="vMaxWrap">
+        <label class="block text-xs font-bold text-gray-400 mb-1">UP TO (₹, optional)</label>
+        <input type="number" id="vMax" min="1" placeholder="No cap" inputmode="decimal"/>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-gray-400 mb-1">MIN ORDER (₹)</label>
+        <input type="number" id="vMin" min="0" placeholder="0" inputmode="decimal"/>
+      </div>
+    </div>
+    <label class="block text-xs font-bold text-gray-400 mb-1">APPLIES TO PLANS (none ticked = all)</label>
+    <div class="flex gap-4 mb-3 text-sm">
+      <label><input type="checkbox" class="vPlan" value="hourly"/> Hourly</label>
+      <label><input type="checkbox" class="vPlan" value="day"/> Day</label>
+      <label><input type="checkbox" class="vPlan" value="night"/> Night</label>
+    </div>
+    <div class="field-row">
+      <div>
+        <label class="block text-xs font-bold text-gray-400 mb-1">TOTAL USAGE LIMIT</label>
+        <input type="number" id="vUsage" min="1" placeholder="Unlimited" inputmode="numeric"/>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-gray-400 mb-1">PER CUSTOMER LIMIT</label>
+        <input type="number" id="vPerCust" min="1" placeholder="Unlimited" inputmode="numeric"/>
+      </div>
+    </div>
+    <div class="field-row">
+      <div>
+        <label class="block text-xs font-bold text-gray-400 mb-1">VALID FROM</label>
+        <input type="date" id="vFrom" style="width:100%;border:2px solid #e5e7eb;border-radius:10px;padding:9px 10px;font-size:14px"/>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-gray-400 mb-1">VALID UNTIL</label>
+        <input type="date" id="vUntil" style="width:100%;border:2px solid #e5e7eb;border-radius:10px;padding:9px 10px;font-size:14px"/>
+      </div>
+    </div>
+    <label class="block text-xs font-bold text-gray-400 mb-1">NOTES (internal)</label>
+    <input type="text" id="vNotes" class="mb-3" placeholder="Optional"/>
+    <div class="toggle-row"><span>Active</span><input type="checkbox" id="vActive" checked style="width:20px;height:20px"/></div>
+    <p class="text-xs text-gray-400 my-2" id="vUsedInfo"></p>
+    <button id="vSaveBtn" onclick="saveVoucher()" class="btn-yellow mt-2">Save Voucher</button>
+  </div>
+</div>
+
+<!-- VOUCHER REDEMPTIONS MODAL -->
+<div id="redeemModal" class="modal-bg hidden" onclick="if(event.target.id==='redeemModal')closeRedeemModal()">
+  <div class="modal">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-lg font-black" id="redeemTitle">Redemptions</h2>
+      <button onclick="closeRedeemModal()" class="text-gray-400 text-2xl leading-none">&times;</button>
+    </div>
+    <div id="redeemBody"></div>
+    <button onclick="closeRedeemModal();openVoucherModal(_redeemVoucherId)" class="btn-yellow mt-3">Edit Voucher</button>
+  </div>
+</div>
+
 <div id="partnerModal" class="modal-bg hidden" onclick="closePartnerModal(event)">
   <div class="modal" id="partnerModalInner">
     <div class="flex justify-between items-center mb-4">
@@ -873,13 +967,12 @@ async function notifyPartner(booking, partner) {
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON}` },
       body: JSON.stringify({
         type: 'partner_assigned',
-        booking,
-        partner: { name: partner.name, phone: partner.phone, city: partner.city, commission_percent: partner.commission_percent }
+        booking: { id: booking.id }
       })
     });
     const json = await res.json();
-    if (!json.success) throw new Error('WA send returned failure');
-    toast(`📲 Partner notified on WhatsApp`);
+    if (!json.success) throw new Error(json.error || 'WA send returned failure');
+    toast(`📲 ${partner.name} notified on WhatsApp`);
   } catch(e) {
     console.warn('Partner WA notify failed:', e);
     toast('⚠ Assignment saved but WhatsApp notify failed. Message partner manually.', 5000);
@@ -947,6 +1040,183 @@ document.addEventListener('click', e => {
   }
 });
 
+// ── VOUCHERS ──────────────────────────────────────────────────
+let allVouchers = [];
+let _redeemVoucherId = null;
+const escH = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const inr = n => '₹' + Number(n).toLocaleString('en-IN');
+
+async function loadVouchers() {
+  const { data, error } = await db.from('gift_vouchers').select('*').order('created_at', { ascending: false });
+  const list = document.getElementById('voucherList');
+  if (error) { list.innerHTML = '<p class="text-center text-red-500 py-10">Could not load vouchers: ' + escH(error.message) + '</p>'; return; }
+  allVouchers = data || [];
+  renderVoucherList();
+}
+
+function voucherValueText(v) {
+  if (v.discount_type === 'percent') {
+    return Number(v.discount_value) + '% off' + (v.max_discount ? ' up to ' + inr(v.max_discount) : '');
+  }
+  return inr(v.discount_value) + ' off';
+}
+function fmtDate(d) {
+  if (!d) return null;
+  return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function renderVoucherList() {
+  const list = document.getElementById('voucherList');
+  if (!allVouchers.length) { list.innerHTML = '<p class="text-center text-gray-400 py-10">No vouchers yet. Add your first one above.</p>'; return; }
+  list.innerHTML = allVouchers.map(v => {
+    const plans = (v.applicable_plans && v.applicable_plans.length) ? v.applicable_plans.join(', ') : 'All plans';
+    const used = (v.used_count || 0) + ' / ' + (v.usage_limit || '∞');
+    const from = fmtDate(v.valid_from), until = fmtDate(v.valid_until);
+    const dates = (from || until) ? ((from || 'Any time') + ' → ' + (until || 'No expiry')) : 'No date limit';
+    const expired = v.valid_until && new Date(v.valid_until) < new Date(new Date().toDateString());
+    return `<div class="card" style="cursor:pointer;${v.active ? '' : 'opacity:.6;'}" onclick="viewRedemptions('${v.id}')">
+      <div class="flex justify-between items-start">
+        <div>
+          <p class="font-black text-lg tracking-wide">${escH(v.code)}</p>
+          <p class="text-sm font-bold text-green-700">${escH(voucherValueText(v))}</p>
+        </div>
+        <label class="flex items-center gap-2 text-xs font-bold" onclick="event.stopPropagation()">
+          ${expired ? '<span class="badge" style="background:#fee2e2;color:#991b1b">Expired</span>' : ''}
+          <input type="checkbox" ${v.active ? 'checked' : ''} onchange="toggleVoucher('${v.id}', this.checked, this)" style="width:20px;height:20px"/>
+          <span>${v.active ? 'Active' : 'Off'}</span>
+        </label>
+      </div>
+      <div class="text-xs text-gray-500 mt-2 space-y-1">
+        <p>Min order: <b>${Number(v.min_order_amount) ? inr(v.min_order_amount) : 'None'}</b> · Plans: <b>${escH(plans)}</b></p>
+        <p>Used: <b>${used}</b> · Per customer: <b>${v.per_customer_limit || '∞'}</b></p>
+        <p>${escH(dates)}</p>
+        ${v.notes ? '<p class="italic">' + escH(v.notes) + '</p>' : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function toggleVoucher(id, on, el) {
+  const { error } = await db.from('gift_vouchers').update({ active: on }).eq('id', id);
+  if (error) { toast('Failed: ' + error.message, 3500); el.checked = !on; return; }
+  const v = allVouchers.find(x => x.id === id); if (v) v.active = on;
+  toast(on ? '✅ Voucher activated' : 'Voucher deactivated');
+  renderVoucherList();
+}
+
+function generateVoucherCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const arr = new Uint32Array(8); crypto.getRandomValues(arr);
+  document.getElementById('vCode').value = Array.from(arr, n => chars[n % chars.length]).join('');
+}
+
+function voucherTypeChanged() {
+  const pct = document.getElementById('vType').value === 'percent';
+  document.getElementById('vValueLabel').textContent = pct ? 'PERCENT (1-100) *' : 'AMOUNT (₹) *';
+  document.getElementById('vMaxWrap').style.display = pct ? '' : 'none';
+  if (!pct) document.getElementById('vMax').value = '';
+}
+
+function openVoucherModal(id) {
+  const v = id ? allVouchers.find(x => x.id === id) : null;
+  document.getElementById('vEditId').value = v ? v.id : '';
+  document.getElementById('vModalTitle').textContent = v ? 'Edit Voucher' : 'Add Voucher';
+  document.getElementById('vCode').value = v ? v.code : '';
+  document.getElementById('vType').value = v ? v.discount_type : 'flat';
+  document.getElementById('vValue').value = v ? v.discount_value : '';
+  document.getElementById('vMax').value = v && v.max_discount ? v.max_discount : '';
+  document.getElementById('vMin').value = v && v.min_order_amount ? v.min_order_amount : '';
+  document.querySelectorAll('.vPlan').forEach(c => c.checked = !!(v && v.applicable_plans && v.applicable_plans.includes(c.value)));
+  document.getElementById('vUsage').value = v && v.usage_limit ? v.usage_limit : '';
+  document.getElementById('vPerCust').value = v && v.per_customer_limit ? v.per_customer_limit : '';
+  document.getElementById('vFrom').value = v && v.valid_from ? String(v.valid_from).slice(0, 10) : '';
+  document.getElementById('vUntil').value = v && v.valid_until ? String(v.valid_until).slice(0, 10) : '';
+  document.getElementById('vNotes').value = v ? (v.notes || '') : '';
+  document.getElementById('vActive').checked = v ? !!v.active : true;
+  document.getElementById('vUsedInfo').textContent = v ? 'Times used so far: ' + (v.used_count || 0) + ' (updated automatically, cannot be edited)' : '';
+  voucherTypeChanged();
+  document.getElementById('voucherModal').classList.remove('hidden');
+}
+function closeVoucherModal() { document.getElementById('voucherModal').classList.add('hidden'); }
+
+async function saveVoucher() {
+  const id = document.getElementById('vEditId').value;
+  const code = document.getElementById('vCode').value.trim().toUpperCase();
+  const type = document.getElementById('vType').value;
+  const value = Number(document.getElementById('vValue').value);
+  const numOrNull = el => { const x = document.getElementById(el).value.trim(); return x === '' ? null : Number(x); };
+  const max = type === 'percent' ? numOrNull('vMax') : null;
+  const min = numOrNull('vMin') || 0;
+  const usage = numOrNull('vUsage'), perCust = numOrNull('vPerCust');
+  const from = document.getElementById('vFrom').value || null;
+  const until = document.getElementById('vUntil').value || null;
+  const plans = Array.from(document.querySelectorAll('.vPlan:checked')).map(c => c.value);
+
+  if (!code) return toast('Voucher code is required.', 3000);
+  if (/\s/.test(code)) return toast('Code cannot contain spaces.', 3000);
+  if (!/^[A-Z0-9_-]+$/.test(code)) return toast('Code can only have letters, numbers, - and _.', 3500);
+  if (!(value > 0)) return toast('Value must be more than 0.', 3000);
+  if (type === 'percent' && value > 100) return toast('Percent cannot be more than 100.', 3000);
+  if (max !== null && !(max > 0)) return toast('"Up to" amount must be more than 0.', 3000);
+  if (min < 0) return toast('Min order cannot be negative.', 3000);
+  if (usage !== null && !(usage >= 1)) return toast('Usage limit must be at least 1.', 3000);
+  if (perCust !== null && !(perCust >= 1)) return toast('Per customer limit must be at least 1.', 3000);
+  if (from && until && until < from) return toast('"Valid until" is before "valid from".', 3500);
+
+  const payload = {
+    code, discount_type: type, discount_value: value, max_discount: max,
+    min_order_amount: min, applicable_plans: plans.length ? plans : null,
+    usage_limit: usage, per_customer_limit: perCust,
+    valid_from: from, valid_until: until,
+    notes: document.getElementById('vNotes').value.trim() || null,
+    active: document.getElementById('vActive').checked
+  };
+
+  const btn = document.getElementById('vSaveBtn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    const q = id ? db.from('gift_vouchers').update(payload).eq('id', id) : db.from('gift_vouchers').insert(payload);
+    const { error } = await q;
+    if (error) {
+      if (error.code === '23505' || /duplicate|unique/i.test(error.message)) {
+        toast('That code already exists. Try another or tap Generate.', 4000);
+      } else { toast('Save failed: ' + error.message, 4000); }
+    } else {
+      toast(id ? '✅ Voucher updated' : '✅ Voucher added');
+      closeVoucherModal();
+      await loadVouchers();
+    }
+  } catch (e) { toast('Save failed: ' + e.message, 4000); }
+  btn.disabled = false; btn.textContent = 'Save Voucher';
+}
+
+async function viewRedemptions(id) {
+  const v = allVouchers.find(x => x.id === id); if (!v) return;
+  _redeemVoucherId = id;
+  document.getElementById('redeemTitle').textContent = v.code + ' — redemptions';
+  const body = document.getElementById('redeemBody');
+  body.innerHTML = '<p class="text-gray-400 text-sm">Loading...</p>';
+  document.getElementById('redeemModal').classList.remove('hidden');
+  const { data: reds, error } = await db.from('gift_voucher_redemptions').select('*').eq('voucher_id', id).order('created_at', { ascending: false });
+  if (error) { body.innerHTML = '<p class="text-red-500 text-sm">' + escH(error.message) + '</p>'; return; }
+  if (!reds.length) { body.innerHTML = '<p class="text-gray-400 text-sm py-4">No one has used this voucher yet.</p>'; return; }
+  const ids = reds.map(r => r.booking_id).filter(Boolean);
+  const refs = {};
+  if (ids.length) {
+    const { data: bk } = await db.from('bookings').select('id, reference_number').in('id', ids);
+    (bk || []).forEach(b => refs[b.id] = b.reference_number);
+  }
+  const total = reds.reduce((s, r) => s + Number(r.discount_amount || 0), 0);
+  body.innerHTML = '<p class="text-xs text-gray-500 mb-2">' + reds.length + ' used · total discount given <b>' + inr(total) + '</b></p>' +
+    reds.map(r => `<div class="asset-row" style="justify-content:space-between">
+      <div><p class="font-bold">${escH(refs[r.booking_id] || ('Booking #' + r.booking_id))}</p>
+      <p class="text-xs text-gray-500">${escH(r.phone || '')}</p></div>
+      <div class="text-right"><p class="font-bold text-green-700">- ${inr(r.discount_amount)}</p>
+      <p class="text-xs text-gray-400">${new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p></div>
+    </div>`).join('');
+}
+function closeRedeemModal() { document.getElementById('redeemModal').classList.add('hidden'); }
+
 // ── PAGE SWITCHING ────────────────────────────────────────────
 let currentPage = 'orders';
 function switchPage(btn) {
@@ -954,11 +1224,14 @@ function switchPage(btn) {
   document.querySelectorAll('.main-nav').forEach(b => b.classList.toggle('active', b === btn));
   document.getElementById('pageOrders').classList.toggle('hidden', currentPage !== 'orders');
   document.getElementById('pagePartners').classList.toggle('hidden', currentPage !== 'partners');
+  document.getElementById('pageVouchers').classList.toggle('hidden', currentPage !== 'vouchers');
   if (currentPage === 'partners') renderPartnerList();
+  if (currentPage === 'vouchers') loadVouchers();
 }
 
 function pageRefresh() {
   if (currentPage === 'orders') loadAll();
+  else if (currentPage === 'vouchers') loadVouchers();
   else { loadPartners().then(renderPartnerList); }
 }
 
@@ -1066,10 +1339,13 @@ function closePartnerModalDirect() {
 async function savePartner() {
   const name  = document.getElementById('pName').value.trim();
   const city  = document.getElementById('pCity').value.trim();
-  const phone = document.getElementById('pPhone').value.trim();
+  let phone = document.getElementById('pPhone').value.replace(/\D/g, '');
+  if (phone.length === 12 && phone.startsWith('91')) phone = phone.slice(2);
+  if (phone.length === 11 && phone.startsWith('0')) phone = phone.slice(1);
+  document.getElementById('pPhone').value = phone;
   const pin   = document.getElementById('pPin').value.trim();
   if (!name || !city || !phone || !pin) { toast('Name, city, phone and PIN are required.', 3000); return; }
-  if (phone.length !== 10) { toast('Phone must be 10 digits.', 3000); return; }
+  if (!/^[6-9]\d{9}$/.test(phone)) { toast('Phone must be a valid 10-digit mobile number.', 3000); return; }
   if (pin.length !== 4)    { toast('PIN must be 4 digits.', 3000); return; }
 
   const btn = document.getElementById('partnerSaveBtn');
