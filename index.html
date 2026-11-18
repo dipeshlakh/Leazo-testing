@@ -770,7 +770,7 @@
             </div>
 
             <div class="relative mt-4">
-              <input type="text" id="referralCodeInput" placeholder="Enter Gift Card Code"
+              <input type="text" id="referralCodeInput" placeholder="Enter Gift Voucher Code"
                 class="peer w-full border-[1.5px] rounded-lg pr-20 px-4 py-2 text-gray-800 placeholder-transparent focus:outline-none focus:border-green-700"
                 oninput="updateSummary()" />
               <label for="referralCodeInput"
@@ -778,7 +778,7 @@
     peer-placeholder-shown:top-2 peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-400 peer-placeholder-shown:bg-transparent
     peer-placeholder-shown:font-normal
     peer-focus:-top-2.5 peer-focus:text-xs peer-focus:text-green-600 peer-focus:bg-white peer-focus:font-medium cursor-text">
-                Gift Card 
+                Gift Voucher 
               </label>
               <div class="absolute inset-y-0 right-2 flex items-center translate-y-[-11.5px]">
                 <button type="button" onclick="applyReferral()"
@@ -787,7 +787,7 @@
                 </button>
               </div>
               <p class="text-sm ml-1 mt-1 mb-2 text-gray-500">
-                Enter a valid gift code (Optional)
+                Have a gift voucher? Enter it here (Optional)
               </p>
             </div>
 
@@ -1461,60 +1461,44 @@
     }
 
 
-    let appliedReferral = null;
-    let referralCodesCache = {};
+    // ── Gift vouchers (table gift_vouchers, checked by SQL function check_gift_voucher) ──
+    let appliedVoucher = null; // { code, discount_type, discount_value, max_discount, min_order_amount }
 
-    async function loadReferralCodes() {
-      try {
-        const { data, error } = await db.from("gift_cards").select("code, discount");
-        if (error) throw error;
-        if (data) {
-          data.forEach(row => {
-            referralCodesCache[row.code.toLowerCase()] = row.discount;
-          });
-        }
-      } catch (err) {
-        console.log("Gift cards not loaded:", err.message);
-      }
+    function computeVoucherDiscount(amount) {
+      if (!appliedVoucher) return 0;
+      if (amount < Number(appliedVoucher.min_order_amount || 0)) return -1;
+      let d = appliedVoucher.discount_type === "percent"
+        ? Math.round(amount * Number(appliedVoucher.discount_value) / 100)
+        : Number(appliedVoucher.discount_value);
+      if (appliedVoucher.max_discount != null) d = Math.min(d, Number(appliedVoucher.max_discount));
+      return Math.max(0, Math.min(Math.round(d), amount));
     }
 
-    // Load codes when page is ready
-    document.addEventListener("DOMContentLoaded", loadReferralCodes);
+    async function checkVoucherOnServer(code) {
+      const plan = localStorage.getItem("selectedRentalPlan") || "hourly";
+      const phone = document.getElementById("phone")?.value || null;
+      const { data, error } = await db.rpc("check_gift_voucher", {
+        p_code: code, p_order_amount: window._preVoucherAmount || 0, p_plan: plan, p_phone: phone
+      });
+      if (error) { console.log("Voucher check error:", error.message); return { valid: false, message: "Could not check voucher, try again" }; }
+      return data;
+    }
 
-    function applyReferral() {
-      const input = document.getElementById("referralCodeInput").value.trim().toLowerCase();
-      const selectedPlan = localStorage.getItem("selectedRentalPlan") || "hourly";
-
-      if (!input) {
-        showToast("Enter a gift card code");
-        return;
-      }
-
-      if (selectedPlan === "hourly") {
-        appliedReferral = null;
-        referralDiscount = 0;
-        showToast("Gift card discount apply only on day and night plan");
+    async function applyReferral() {
+      const input = document.getElementById("referralCodeInput").value.trim().toUpperCase();
+      if (!input) { showToast("Enter a gift voucher code"); return; }
+      updateSummary(); // make sure _preVoucherAmount is fresh
+      const res = await checkVoucherOnServer(input);
+      if (res && res.valid) {
+        appliedVoucher = res;
         updateSummary();
-        return;
-      }
-
-      if (referralCodesCache[input]) {
-        appliedReferral = input;
-        referralDiscount = referralCodesCache[input];
-        showDiscountPopup(referralDiscount); // <-- new popup with confetti
+        showDiscountPopup(window.referralDiscount || res.discount || 0);
       } else {
-        appliedReferral = null;
-        referralDiscount = 0;
-        showToast("Invalid gift card code");
+        appliedVoucher = null;
+        updateSummary();
+        showToast(res?.message || "Invalid gift voucher code");
       }
-
-
-      updateSummary();
     }
-
-
-
-
 
     const cityDeliveryPrices = {
       "Neemuch": 99,
@@ -1658,7 +1642,7 @@
         }
       }
 
-      let referralDiscount = window.referralDiscount || 0;
+      let referralDiscount = 0; // gift voucher discount, computed below
 
 
 
@@ -1671,6 +1655,23 @@
         deliveryCharge = cityDeliveryPrices[selectedCity];
       }
       const subtotal = planPrice + controllerCharge + gameTotal + deliveryCharge;
+      // Gift voucher
+      window._preVoucherAmount = subtotal - couponDiscount;
+      if (appliedVoucher) {
+        const typed = (document.getElementById("referralCodeInput")?.value || "").trim().toUpperCase();
+        if (typed !== appliedVoucher.code) {
+          appliedVoucher = null; // code was edited after applying
+        } else {
+          const d = computeVoucherDiscount(window._preVoucherAmount);
+          if (d < 0) {
+            showToast(`Gift voucher removed\nMinimum order ₹${Math.round(appliedVoucher.min_order_amount)}`);
+            appliedVoucher = null;
+          } else {
+            referralDiscount = d;
+          }
+        }
+      }
+      window.referralDiscount = referralDiscount;
       const afterCoupon = subtotal - couponDiscount - referralDiscount;
 
       // UPI discount
@@ -1718,7 +1719,7 @@
     ${controllerCharge > 0 ? `<div>Extra Controller (${getControllerQty()}×): ₹${controllerCharge}</div>` : ''}
     <div>Delivery, Installation & Pick Up: ₹${deliveryCharge}</div>
     ${couponDiscount > 0 ? `<div class='text-green-600'>Coupon Discount: -₹${couponDiscount}</div>` : ''}
-    ${referralDiscount > 0 ? `<div class='text-green-600'>Gift Card Discount: -₹${referralDiscount}</div>` : ''}
+    ${referralDiscount > 0 ? `<div class='text-green-600'>Gift Voucher (${appliedVoucher ? appliedVoucher.code : ''}): -₹${referralDiscount}</div>` : ''}
     ${upiDiscount > 0 ? `<div class='text-green-600'>UPI Discount (10%): -₹${upiDiscount}</div>` : ''}
     <div class='font-medium text-lg mt-2'>${totalLine}</div>
   `;
@@ -1796,6 +1797,9 @@
       // Reset coupon
       document.getElementById("couponCode").value = "";
       appliedCoupon = null;
+      appliedVoucher = null;
+      window.referralDiscount = 0;
+      if (document.getElementById("referralCodeInput")) document.getElementById("referralCodeInput").value = "";
 
       // Reset payment
       document.getElementById("paymentMethod").value = "no choose";
@@ -1974,6 +1978,22 @@
       const couponCode = document.getElementById("couponCode")?.value || "";
       const referralCode = document.getElementById("referralCodeInput")?.value || "";
 
+      // Re-check gift voucher on the server before saving (limits may have changed)
+      let voucherCode = null, voucherDiscount = 0;
+      if (appliedVoucher) {
+        const res = await checkVoucherOnServer(appliedVoucher.code);
+        if (!res || !res.valid) {
+          appliedVoucher = null;
+          updateSummary();
+          showToast((res?.message || "Gift voucher is no longer valid") + "\nTotal updated, please check and book again");
+          btn.disabled = false;
+          btn.textContent = "Book Now";
+          return;
+        }
+        voucherCode = appliedVoucher.code;
+        voucherDiscount = window.referralDiscount || 0;
+      }
+
       const refNumber = generateReferenceNumber();
 
       const customerName = document.getElementById("name")?.value || "";
@@ -2007,7 +2027,9 @@
         start_time: startTime,
         end_time: endTime,
         total_amount: finalAmount,
-        coupon_code: couponCode || referralCode || "none",
+        coupon_code: couponCode || "none",
+        voucher_code: voucherCode,
+        voucher_discount: voucherDiscount,
         payment_method: paymentMethod,
         payment_status: "pending",
         operator_status: "new",
