@@ -329,13 +329,23 @@
       event.stopPropagation();
       const btn = event.target;
       btn.disabled = true; btn.textContent = 'Accepting...';
-      const { error } = await db.from('bookings')
-        .update({ fulfillment_status: 'accepted' })
-        .eq('id', bookingId);
+      const acceptedAt = new Date().toISOString();
+      const { data: upd, error } = await db.from('bookings')
+        .update({ fulfillment_status: 'accepted', accepted_at: acceptedAt })
+        .eq('id', bookingId)
+        .eq('fulfillment_status', 'assigned')   // only accept once, only if still waiting
+        .select('id')
+        .maybeSingle();
       if (error) { toast('Failed: ' + error.message); btn.disabled = false; btn.textContent = 'Accept'; return; }
+      if (!upd) { toast('This order is no longer waiting for acceptance.'); btn.disabled = false; btn.textContent = 'Accept'; loadOrders(); return; }
+      // Audit trail (never blocks the accept)
+      db.from('booking_events').insert({
+        booking_id: bookingId, event_type: 'accepted', actor_type: 'partner',
+        actor_id: String(currentPartner.id), notes: null, metadata: null
+      }).then(r => { if (r.error) console.warn('accept event failed:', r.error.message); });
       // Update local state
       const b = allOrders.find(x => x.id === bookingId);
-      if (b) b.fulfillment_status = 'accepted';
+      if (b) { b.fulfillment_status = 'accepted'; b.accepted_at = acceptedAt; }
       renderOrders();
     }
 
@@ -461,6 +471,11 @@
     }
 
     function openOrder(bookingId) {
+      const o = allOrders.find(x => x.id === bookingId);
+      if (o && o.fulfillment_status === 'assigned') {
+        toast('Tap Accept first to start this order.');
+        return;
+      }
       location.href = `partner-wizard.html?booking_id=${bookingId}`;
     }
 
