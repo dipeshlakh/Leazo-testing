@@ -40,6 +40,10 @@
   .toggle-row:last-child{border:none;}
   .asset-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:13px;}
   .asset-row:last-child{border:none;}
+  .sub-btn{padding:7px 16px;border-radius:999px;font-size:13px;font-weight:600;border:2px solid #e5e7eb;background:#fff;color:#374151;white-space:nowrap;cursor:pointer;}
+  .sub-btn.active{background:#000;color:#fff;border-color:#000;}
+  textarea{width:100%;border:2px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:14px;background:#fff;}
+  textarea:focus{outline:none;border-color:#facc15;}
   /* Fixed header */
   html,body{overscroll-behavior:none;}
   #adminHeader{position:fixed;top:0;left:0;right:0;z-index:50;}
@@ -122,6 +126,10 @@
     <button class="main-nav active" data-page="orders" onclick="switchPage(this)">Orders</button>
     <button class="main-nav" data-page="partners" onclick="switchPage(this)">Partners</button>
     <button class="main-nav" data-page="vouchers" onclick="switchPage(this)">Vouchers</button>
+    <button class="main-nav" data-page="cities" onclick="switchPage(this)">Cities &amp; Plans</button>
+    <button class="main-nav" data-page="games" onclick="switchPage(this)">Games</button>
+    <button class="main-nav" data-page="requests" onclick="switchPage(this)">Requests</button>
+    <button class="main-nav" data-page="home" onclick="switchPage(this)">Home page</button>
     <button class="main-nav" data-page="settings" onclick="switchPage(this)">Settings</button>
   </div>
 
@@ -209,6 +217,96 @@
     </button>
     <div id="voucherList" class="space-y-3">
       <p class="text-center text-gray-400 py-10">Loading vouchers...</p>
+    </div>
+  </div>
+
+  <!-- CITIES & PLANS PAGE -->
+  <div id="pageCities" class="hidden px-3 pt-3">
+    <p class="text-xs text-gray-500 mb-3">Everything the new website shows about cities, delivery, plans and prices comes from here. Changes go live on the website straight away.</p>
+    <button onclick="openCityModal(null)" class="w-full bg-yellow-400 border-b-4 border-yellow-600 text-black font-bold py-3 rounded-xl mb-4">+ Add City</button>
+    <div id="cityList"><p class="text-center text-gray-400 py-10">Loading cities...</p></div>
+  </div>
+
+  <!-- GAMES PAGE -->
+  <div id="pageGames" class="hidden px-3 pt-3">
+    <div class="flex gap-2 mb-3 overflow-x-auto">
+      <button class="sub-btn active" data-gm="games" onclick="gamesTab(this)">Games</button>
+      <button class="sub-btn" data-gm="bundles" onclick="gamesTab(this)">Bundles</button>
+    </div>
+    <div id="gmGames">
+      <button onclick="openGameModal(null)" class="w-full bg-yellow-400 border-b-4 border-yellow-600 text-black font-bold py-3 rounded-xl mb-4">+ Add Game</button>
+      <div id="gameList"><p class="text-center text-gray-400 py-10">Loading games...</p></div>
+    </div>
+    <div id="gmBundles" class="hidden">
+      <p class="text-xs text-gray-500 mb-3">A bundle is a set of games installed on a console. The <b>default</b> bundle is the one the website shows. You choose which bundle is on each console in Partners → edit partner → consoles.</p>
+      <button onclick="openBundleModal(null)" class="w-full bg-yellow-400 border-b-4 border-yellow-600 text-black font-bold py-3 rounded-xl mb-4">+ Add Bundle</button>
+      <div id="bundleList"></div>
+    </div>
+  </div>
+
+  <!-- REQUESTS PAGE -->
+  <div id="pageRequests" class="hidden px-3 pt-3">
+    <div class="flex gap-2 mb-3 overflow-x-auto">
+      <button class="sub-btn active" data-rq="game" onclick="requestsTab(this)">Game requests</button>
+      <button class="sub-btn" data-rq="area" onclick="requestsTab(this)">Area requests</button>
+    </div>
+    <div class="flex gap-2 mb-3">
+      <select id="rqStatus" onchange="renderRequests()" style="flex:1"></select>
+      <select id="rqSort" onchange="renderRequests()" style="flex:1">
+        <option value="new">Newest first</option>
+        <option value="top">Most asked first</option>
+      </select>
+    </div>
+    <div id="requestList"><p class="text-center text-gray-400 py-10">Loading...</p></div>
+  </div>
+
+  <!-- HOME PAGE -->
+  <div id="pageHome" class="hidden px-3 pt-3">
+    <div class="flex gap-2 mb-3 overflow-x-auto">
+      <button class="sub-btn active" data-hm="banner" onclick="homeTab(this)">Banner &amp; announcement</button>
+      <button class="sub-btn" data-hm="hero" onclick="homeTab(this)">Hero slides</button>
+    </div>
+
+    <div id="homeBanner">
+      <div class="card">
+        <p class="font-black mb-1">Campaign banner (first slide)</p>
+        <p class="text-xs text-gray-500 mb-3">The title's first two words show in white, the rest in yellow. Turn it off and the site shows a plain "Rent a PS5, at your door." headline.</p>
+        <div class="toggle-row"><span>Campaign is on</span><input type="checkbox" id="hcActive" style="width:20px;height:20px" onchange="homePreview()"/></div>
+        <div class="field-row" style="margin-top:12px">
+          <div><label class="block text-xs font-bold text-gray-400 mb-1">SMALL LABEL</label><input type="text" id="hcEyebrow" maxlength="30" oninput="homePreview()" placeholder="Out now"/></div>
+          <div><label class="block text-xs font-bold text-gray-400 mb-1">LOOK</label><select id="hcTheme" onchange="homePreview()"><option value="vice">Vice (pink / purple)</option><option value="plain">Plain (blue)</option></select></div>
+        </div>
+        <label class="block text-xs font-bold text-gray-400 mb-1">TITLE</label>
+        <input type="text" id="hcTitle" maxlength="40" class="mb-3" oninput="homePreview()" placeholder="GTA VI is here."/>
+        <label class="block text-xs font-bold text-gray-400 mb-1">SUBTITLE</label>
+        <textarea id="hcSub" rows="2" maxlength="180" class="mb-3" oninput="homePreview()"></textarea>
+        <label class="block text-xs font-bold text-gray-400 mb-1">BUTTON TEXT</label>
+        <input type="text" id="hcCta" maxlength="30" class="mb-3" oninput="homePreview()" placeholder="Rent a PS5 now"/>
+        <div id="hcPreview" class="mb-3"></div>
+        <button class="btn-yellow" onclick="saveCampaign()">Save campaign</button>
+      </div>
+
+      <div class="card">
+        <p class="font-black mb-1">Announcement bar</p>
+        <p class="text-xs text-gray-500 mb-3">The black strip at the very top of the website. It slides away after 5 seconds.</p>
+        <div class="toggle-row"><span>Announcement is on</span><input type="checkbox" id="haActive" style="width:20px;height:20px" onchange="homePreview()"/></div>
+        <label class="block text-xs font-bold text-gray-400 mb-1" style="margin-top:12px">TEXT</label>
+        <input type="text" id="haText" maxlength="140" class="mb-3" oninput="homePreview()" placeholder="GTA VI is pre-installed on every console this week."/>
+        <div id="haPreview" class="mb-3"></div>
+        <button class="btn-yellow" onclick="saveAnnouncement()">Save announcement</button>
+      </div>
+    </div>
+
+    <div id="homeHero" class="hidden">
+      <div class="card">
+        <p class="font-black mb-1">Built-in slides</p>
+        <div class="toggle-row"><span>Campaign slide (text from the Banner tab)</span><input type="checkbox" id="hsCampaign" style="width:20px;height:20px" onchange="heroToggle()"/></div>
+        <div class="toggle-row"><span>Night-plan slide</span><input type="checkbox" id="hsNight" style="width:20px;height:20px" onchange="heroToggle()"/></div>
+        <p class="text-xs text-gray-400 mt-2">Note: the website hides the campaign slide only if at least one of your own slides is showing, so the page is never left empty.</p>
+      </div>
+      <button onclick="openSlideModal(null)" class="w-full bg-yellow-400 border-b-4 border-yellow-600 text-black font-bold py-3 rounded-xl mb-3">+ Add Slide</button>
+      <p class="text-xs text-gray-500 mb-3">Order here = order on the website. "First" slides come before the built-in ones, "Last" slides after them.</p>
+      <div id="heroList"></div>
     </div>
   </div>
 
@@ -311,6 +409,25 @@
         <input type="number" id="vMin" min="0" placeholder="0" inputmode="decimal"/>
       </div>
     </div>
+    <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-3">
+      <p class="text-xs font-bold text-gray-500 mb-2">WEBSITE COUPON SETTINGS</p>
+      <label class="block text-xs font-bold text-gray-400 mb-1">TITLE (shown to customers, e.g. Launch offer)</label>
+      <input type="text" id="vTitle" class="mb-2" maxlength="60"/>
+      <div class="toggle-row"><span>Show on website</span><input type="checkbox" id="vPublic" style="width:20px;height:20px"/></div>
+      <div class="toggle-row"><span>Apply automatically</span><input type="checkbox" id="vAuto" style="width:20px;height:20px"/></div>
+      <label class="block text-xs font-bold text-gray-400 mb-1" style="margin-top:10px">DISCOUNT APPLIES TO</label>
+      <select id="vAppliesTo" class="mb-2"><option value="plan">Plan price only</option><option value="order">Whole order (plan + delivery + extras)</option></select>
+      <label class="block text-xs font-bold text-gray-400 mb-1">CITIES (none ticked = all cities)</label>
+      <div id="vCities" class="mb-3"></div>
+      <p class="text-xs font-bold text-gray-500 mb-1">PER-CITY / PER-PLAN AMOUNTS</p>
+      <div id="vRulesBox" class="mb-2"></div>
+      <div id="vRuleForm" class="border-t border-gray-200 pt-2">
+        <div class="field-row" style="margin-bottom:6px"><select id="vRuleCity"></select><select id="vRulePlan"><option value="">Any plan</option><option value="hourly">Hourly</option><option value="day">Day</option><option value="night">Night</option><option value="custom">Custom</option></select></div>
+        <div class="field-row" style="margin-bottom:6px"><select id="vRuleType"><option value="percent">Percent %</option><option value="flat">Flat ₹</option></select><input type="number" id="vRuleVal" min="1" placeholder="Amount" inputmode="decimal"/></div>
+        <div class="field-row" style="margin-bottom:6px"><input type="number" id="vRuleMax" min="1" placeholder="Max ₹ (percent only)" inputmode="decimal"/><button type="button" id="vRuleBtn" class="btn-yellow" onclick="saveRule()">Add rule</button></div>
+        <button type="button" class="text-xs text-gray-400 underline" onclick="ruleFormReset()">Clear form</button>
+      </div>
+    </div>
     <label class="block text-xs font-bold text-gray-400 mb-1">APPLIES TO PLANS (none ticked = all)</label>
     <div class="flex gap-4 mb-3 text-sm">
       <label><input type="checkbox" class="vPlan" value="hourly"/> Hourly</label>
@@ -342,6 +459,249 @@
     <div class="toggle-row"><span>Active</span><input type="checkbox" id="vActive" checked style="width:20px;height:20px"/></div>
     <p class="text-xs text-gray-400 my-2" id="vUsedInfo"></p>
     <button id="vSaveBtn" onclick="saveVoucher()" class="btn-yellow mt-2">Save Voucher</button>
+  </div>
+</div>
+
+<!-- CITY MODAL -->
+<div id="cityModal" class="modal-bg hidden" onclick="if(event.target.id==='cityModal')closeCityModal()">
+  <div class="modal">
+    <div class="flex justify-between items-center mb-3">
+      <h2 class="text-lg font-black" id="cmTitle">City</h2>
+      <button onclick="closeCityModal()" class="text-gray-400 text-2xl leading-none">&times;</button>
+    </div>
+    <input type="hidden" id="cmId"/>
+    <div class="field-row">
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">CITY NAME *</label><input type="text" id="cmName"/><p class="text-xs text-gray-400 mt-1" id="cmNameNote"></p></div>
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">STATE</label><input type="text" id="cmState" placeholder="Madhya Pradesh"/></div>
+    </div>
+    <label class="block text-xs font-bold text-gray-400 mb-1">STATUS</label>
+    <select id="cmStatus" class="mb-3"><option value="live">Live (customers can book)</option><option value="coming_soon">Coming soon (shows "request" form)</option><option value="hidden">Hidden (not on the website)</option></select>
+
+    <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-3">
+      <p class="text-xs font-bold text-gray-500 mb-2">STORE LOCATION</p>
+      <label class="block text-xs font-bold text-gray-400 mb-1">PASTE A GOOGLE MAPS LINK OR "LAT, LNG"</label>
+      <div class="flex gap-2 mb-2">
+        <input type="text" id="cmMapInput" placeholder="https://www.google.com/maps/@24.07,75.06,17z  or  24.0734, 75.0679" autocomplete="off"/>
+        <button type="button" onclick="setStoreLocation()" class="btn-yellow" style="width:auto;white-space:nowrap">Set store location</button>
+      </div>
+      <div class="field-row" style="margin-bottom:6px">
+        <div><label class="block text-xs font-bold text-gray-400 mb-1">LATITUDE</label><input type="number" id="cmLat" step="any" inputmode="decimal"/></div>
+        <div><label class="block text-xs font-bold text-gray-400 mb-1">LONGITUDE</label><input type="number" id="cmLng" step="any" inputmode="decimal"/></div>
+      </div>
+      <p class="text-xs" id="cmLocNote"></p>
+    </div>
+
+    <div class="field-row">
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">DELIVERY RADIUS (km)</label><input type="number" id="cmRadius" min="0.5" step="0.5" inputmode="decimal"/></div>
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">DELIVERY CHARGE ₹</label><input type="number" id="cmDelivery" min="0" inputmode="decimal"/></div>
+    </div>
+    <div class="toggle-row"><span>Same-day booking allowed</span><input type="checkbox" id="cmSameDay" style="width:20px;height:20px"/></div>
+    <div class="field-row" style="margin-top:12px">
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">EARLIEST DELIVERY (min from now)</label><input type="number" id="cmLead" min="0" step="15" inputmode="numeric"/></div>
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">BOOK UP TO (days ahead)</label><input type="number" id="cmMaxDays" min="1" inputmode="numeric"/></div>
+    </div>
+    <div class="field-row">
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">EXTRA CONTROLLER ₹ / HOUR</label><input type="number" id="cmCtrlHr" min="0" inputmode="decimal"/></div>
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">EXTRA CONTROLLER ₹ FLAT (day/night)</label><input type="number" id="cmCtrlFlat" min="0" inputmode="decimal"/></div>
+    </div>
+    <div class="field-row">
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">MAX EXTRA CONTROLLERS</label><input type="number" id="cmCtrlMax" min="0" max="6" inputmode="numeric"/></div>
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">SORT (small = first)</label><input type="number" id="cmSort" inputmode="numeric"/></div>
+    </div>
+    <div class="field-row">
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">PREPAID DISCOUNT %</label><input type="number" id="cmPrepaid" min="0" max="100" inputmode="decimal"/></div>
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">COD ADVANCE %</label><input type="number" id="cmCod" min="1" max="100" inputmode="decimal"/></div>
+    </div>
+    <button id="cmSaveBtn" class="btn-yellow mt-2 mb-2" onclick="saveCity()">Save City</button>
+    <button class="w-full text-sm text-gray-400 py-2" onclick="closeCityModal()">Cancel</button>
+  </div>
+</div>
+
+<!-- PLAN MODAL -->
+<div id="planModal" class="modal-bg hidden" onclick="if(event.target.id==='planModal')closePlanModal()">
+  <div class="modal">
+    <div class="flex justify-between items-center mb-1">
+      <h2 class="text-lg font-black" id="plTitle">Plan</h2>
+      <button onclick="closePlanModal()" class="text-gray-400 text-2xl leading-none">&times;</button>
+    </div>
+    <p class="text-xs text-gray-400 mb-3" id="plSub"></p>
+    <input type="hidden" id="plId"/><input type="hidden" id="plCityId"/><input type="hidden" id="plCode"/>
+    <div id="plPreview" class="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-3 text-sm font-semibold"></div>
+    <div class="toggle-row"><span>Active (customers can book it)</span><input type="checkbox" id="plActive" style="width:20px;height:20px" onchange="plRefresh()"/></div>
+    <div class="field-row" style="margin-top:12px">
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">NAME *</label><input type="text" id="plName" oninput="plRefresh()"/></div>
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">PRICING</label>
+        <select id="plType" onchange="plTypeChanged()"><option value="hourly">Per hour</option><option value="fixed">Fixed slot (one price)</option><option value="daily">Per day</option></select></div>
+    </div>
+    <label class="block text-xs font-bold text-gray-400 mb-1">TAGLINE</label>
+    <input type="text" id="plTagline" class="mb-3" placeholder="Quick sessions, pay by the hour"/>
+    <div class="field-row">
+      <div><label class="block text-xs font-bold text-gray-400 mb-1" id="plPriceLbl">PRICE ₹ *</label><input type="number" id="plPrice" min="1" inputmode="decimal" oninput="plRefresh()"/></div>
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">CROSSED-OUT PRICE ₹ (optional)</label><input type="number" id="plCompare" min="1" inputmode="decimal" oninput="plRefresh()"/></div>
+    </div>
+
+    <div id="plGrpHourly">
+      <div class="field-row">
+        <div><label class="block text-xs font-bold text-gray-400 mb-1">MIN HOURS</label><input type="number" id="plMinH" min="1" inputmode="numeric" oninput="plRefresh()"/></div>
+        <div><label class="block text-xs font-bold text-gray-400 mb-1">MAX HOURS</label><input type="number" id="plMaxH" min="1" inputmode="numeric" oninput="plRefresh()"/></div>
+      </div>
+      <div class="field-row">
+        <div><label class="block text-xs font-bold text-gray-400 mb-1">FIRST DELIVERY (e.g. 10:00 AM)</label><input type="text" id="plOpen" oninput="plRefresh()"/></div>
+        <div><label class="block text-xs font-bold text-gray-400 mb-1">LAST DELIVERY (e.g. 7:00 PM)</label><input type="text" id="plLastStart" oninput="plRefresh()"/></div>
+      </div>
+      <label class="block text-xs font-bold text-gray-400 mb-1">LATEST RETURN (e.g. 9:00 PM)</label>
+      <input type="text" id="plClose" class="mb-3" oninput="plRefresh()"/>
+    </div>
+    <div id="plGrpFixed">
+      <div class="field-row">
+        <div><label class="block text-xs font-bold text-gray-400 mb-1">DELIVERY TIME (e.g. 11:00 AM)</label><input type="text" id="plStart" oninput="plRefresh()"/></div>
+        <div><label class="block text-xs font-bold text-gray-400 mb-1">RETURN TIME (e.g. 8:00 PM)</label><input type="text" id="plEnd" oninput="plRefresh()"/></div>
+      </div>
+      <p class="text-xs text-gray-400 mb-3">A return time earlier than the delivery time means the next day (night plan).</p>
+    </div>
+    <div id="plGrpDaily">
+      <div class="field-row">
+        <div><label class="block text-xs font-bold text-gray-400 mb-1">MIN DAYS</label><input type="number" id="plMinD" min="1" inputmode="numeric" oninput="plRefresh()"/></div>
+        <div><label class="block text-xs font-bold text-gray-400 mb-1">MAX DAYS</label><input type="number" id="plMaxD" min="1" inputmode="numeric" oninput="plRefresh()"/></div>
+      </div>
+    </div>
+
+    <label class="block text-xs font-bold text-gray-400 mb-1">NO SAME-DAY BOOKING AFTER (e.g. 6:00 PM, optional)</label>
+    <input type="text" id="plCutoff" class="mb-3" oninput="plRefresh()"/>
+    <div class="field-row">
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">BADGE (optional)</label><input type="text" id="plBadge" placeholder="Popular"/></div>
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">SORT (small = first)</label><input type="number" id="plSort" inputmode="numeric"/></div>
+    </div>
+    <label class="block text-xs font-bold text-gray-400 mb-1">FEATURES (one per line)</label>
+    <textarea id="plFeatures" rows="4" class="mb-3"></textarea>
+    <p class="text-xs text-red-500 mb-2" id="plErr"></p>
+    <button id="plSaveBtn" class="btn-yellow mb-2" onclick="savePlan()">Save Plan</button>
+    <button id="plDelBtn" class="w-full text-xs text-red-500 py-1 mb-1" onclick="deletePlan()">Delete this plan</button>
+    <button class="w-full text-sm text-gray-400 py-2" onclick="closePlanModal()">Cancel</button>
+  </div>
+</div>
+
+<!-- GAME MODAL -->
+<div id="gameModal" class="modal-bg hidden" onclick="if(event.target.id==='gameModal')closeGameModal()">
+  <div class="modal">
+    <div class="flex justify-between items-center mb-3">
+      <h2 class="text-lg font-black" id="gmTitle">Game</h2>
+      <button onclick="closeGameModal()" class="text-gray-400 text-2xl leading-none">&times;</button>
+    </div>
+    <input type="hidden" id="gEditId"/>
+    <label class="block text-xs font-bold text-gray-400 mb-1">TITLE *</label>
+    <input type="text" id="gTitle" class="mb-3" maxlength="80"/>
+    <div class="field-row">
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">GENRE</label><input type="text" id="gGenre" placeholder="Action"/></div>
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">PLAYERS</label><input type="text" id="gPlayers" placeholder="1 or 1-2"/></div>
+    </div>
+    <div class="toggle-row"><span>Multiplayer (shows a players badge)</span><input type="checkbox" id="gMulti" style="width:20px;height:20px"/></div>
+    <div class="toggle-row"><span>Active (shown on the website)</span><input type="checkbox" id="gActive" style="width:20px;height:20px"/></div>
+    <label class="block text-xs font-bold text-gray-400 mb-1" style="margin-top:12px">SORT (small = first)</label>
+    <input type="number" id="gSort" class="mb-3" inputmode="numeric"/>
+
+    <p class="text-xs font-bold text-gray-500 mb-1">COVER IMAGE (3:4, ideal 600 × 800)</p>
+    <div class="flex gap-3 mb-2">
+      <div id="gCoverPrev" style="width:96px;flex:none"></div>
+      <div style="flex:1;min-width:0">
+        <label class="block text-xs font-bold text-gray-400 mb-1">UPLOAD</label>
+        <input type="file" id="gFile" accept="image/*" onchange="pickGameCover(this)" class="text-xs mb-2"/>
+        <label class="block text-xs font-bold text-gray-400 mb-1">OR IMAGE PATH / URL</label>
+        <input type="text" id="gCover" placeholder="spiderman2.webp" oninput="gameCoverText()"/>
+      </div>
+    </div>
+    <p class="text-xs mb-2" id="gCoverNote"></p>
+    <button type="button" class="text-xs text-red-500 underline mb-3" onclick="clearGameCover()">Remove cover</button>
+    <button id="gSaveBtn" class="btn-yellow mb-2" onclick="saveGame()">Save Game</button>
+    <button class="w-full text-sm text-gray-400 py-2" onclick="closeGameModal()">Cancel</button>
+  </div>
+</div>
+
+<!-- BUNDLE MODAL -->
+<div id="bundleModal" class="modal-bg hidden" onclick="if(event.target.id==='bundleModal')closeBundleModal()">
+  <div class="modal">
+    <div class="flex justify-between items-center mb-3">
+      <h2 class="text-lg font-black" id="bmTitle">Bundle</h2>
+      <button onclick="closeBundleModal()" class="text-gray-400 text-2xl leading-none">&times;</button>
+    </div>
+    <input type="hidden" id="bEditId"/>
+    <label class="block text-xs font-bold text-gray-400 mb-1">NAME *</label>
+    <input type="text" id="bName" class="mb-3" maxlength="60"/>
+    <label class="block text-xs font-bold text-gray-400 mb-1">DESCRIPTION</label>
+    <input type="text" id="bDesc" class="mb-3" maxlength="120" placeholder="Pre-installed and ready to play"/>
+    <div class="toggle-row"><span>Default bundle (the one the website shows)</span><input type="checkbox" id="bDefault" style="width:20px;height:20px"/></div>
+    <div class="toggle-row"><span>Active</span><input type="checkbox" id="bActive" style="width:20px;height:20px"/></div>
+    <label class="block text-xs font-bold text-gray-400 mb-1" style="margin-top:12px">SORT (small = first)</label>
+    <input type="number" id="bSort" class="mb-3" inputmode="numeric"/>
+    <p class="text-xs font-bold text-gray-500 mb-1">GAMES IN THIS BUNDLE (order = order on the website)</p>
+    <div id="bIn" class="mb-3"></div>
+    <p class="text-xs font-bold text-gray-500 mb-1">ADD GAMES</p>
+    <div id="bPool" class="mb-3"></div>
+    <button id="bSaveBtn" class="btn-yellow mb-2" onclick="saveBundle()">Save Bundle</button>
+    <button class="w-full text-sm text-gray-400 py-2" onclick="closeBundleModal()">Cancel</button>
+  </div>
+</div>
+
+<!-- HERO SLIDE MODAL -->
+<div id="slideModal" class="modal-bg hidden" onclick="if(event.target.id==='slideModal')closeSlideModal()">
+  <div class="modal">
+    <div class="flex justify-between items-center mb-3">
+      <h2 class="text-lg font-black" id="slTitle">Slide</h2>
+      <button onclick="closeSlideModal()" class="text-gray-400 text-2xl leading-none">&times;</button>
+    </div>
+    <input type="hidden" id="slIdx"/>
+    <div class="toggle-row"><span>Slide is on</span><input type="checkbox" id="slActive" style="width:20px;height:20px"/></div>
+    <div class="field-row" style="margin-top:12px">
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">TYPE</label>
+        <select id="slType" onchange="slideTypeChanged()"><option value="text">Text slide (art + text on top)</option><option value="image">Image slide (text inside the picture)</option></select></div>
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">POSITION</label>
+        <select id="slPos"><option value="last">Last (after built-in)</option><option value="first">First (before built-in)</option></select></div>
+    </div>
+
+    <p class="text-xs font-bold text-gray-500 mb-1">PICTURES</p>
+    <label class="flex items-center gap-2 text-xs mb-2"><input type="checkbox" id="slZones" checked onchange="renderSlidePreviews()"/> Show safe zones on the preview</label>
+    <div class="grid gap-2 mb-2" style="grid-template-columns:16fr 9fr">
+      <div><p class="text-xs text-gray-400 mb-1">Desktop 16:9 (2400 × 1350)</p><div id="slPrevD"></div></div>
+      <div><p class="text-xs text-gray-400 mb-1">Mobile 2:3 (1080 × 1620)</p><div id="slPrevM"></div></div>
+    </div>
+    <p class="text-xs mb-2" id="slZoneNote"></p>
+    <div class="field-row">
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">UPLOAD DESKTOP</label><input type="file" id="slFileD" accept="image/*" class="text-xs" onchange="pickSlideImage('d',this)"/>
+        <input type="text" id="slUrlD" class="mt-2" placeholder="or paste image URL" oninput="slideUrlTyped('d')"/><p class="text-xs mt-1" id="slWarnD"></p></div>
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">UPLOAD MOBILE</label><input type="file" id="slFileM" accept="image/*" class="text-xs" onchange="pickSlideImage('m',this)"/>
+        <input type="text" id="slUrlM" class="mt-2" placeholder="or paste image URL" oninput="slideUrlTyped('m')"/><p class="text-xs mt-1" id="slWarnM"></p></div>
+    </div>
+    <p class="text-xs text-gray-400 mb-3">Pictures are shrunk to WebP in your browser (max 2400 px wide) and uploaded when you tap Save slide.</p>
+
+    <label class="block text-xs font-bold text-gray-400 mb-1">ALT TEXT (what the picture shows)</label>
+    <input type="text" id="slAlt" class="mb-3" maxlength="140"/>
+
+    <div id="slTextFields">
+      <div class="field-row">
+        <div><label class="block text-xs font-bold text-gray-400 mb-1">SMALL LABEL</label><input type="text" id="slEyebrow" maxlength="30"/></div>
+        <div><label class="block text-xs font-bold text-gray-400 mb-1">TITLE *</label><input type="text" id="slTitleTxt" maxlength="40"/></div>
+      </div>
+      <label class="block text-xs font-bold text-gray-400 mb-1">HIGHLIGHT (second line, shown in yellow)</label>
+      <input type="text" id="slHighlight" class="mb-3" maxlength="40"/>
+      <label class="block text-xs font-bold text-gray-400 mb-1">SUBTITLE</label>
+      <textarea id="slSub" rows="2" maxlength="180" class="mb-3"></textarea>
+    </div>
+
+    <div class="field-row">
+      <div><label class="block text-xs font-bold text-gray-400 mb-1" id="slCtaLabelLbl">BUTTON TEXT</label><input type="text" id="slCtaLabel" maxlength="30" placeholder="Rent now"/></div>
+      <div><label class="block text-xs font-bold text-gray-400 mb-1">BUTTON DOES</label>
+        <select id="slCtaAction" onchange="slideTypeChanged()">
+          <option value="book">Open booking</option><option value="plan:hourly">Book hourly plan</option><option value="plan:day">Book day plan</option>
+          <option value="plan:night">Book night plan</option><option value="plan:custom">Book custom plan</option><option value="link">Open a link</option>
+        </select></div>
+    </div>
+    <div id="slLinkWrap" class="mb-3"><label class="block text-xs font-bold text-gray-400 mb-1">LINK (https://… or #plans)</label><input type="text" id="slCtaLink"/></div>
+    <p class="text-xs text-gray-400 mb-3" id="slCtaNote"></p>
+    <label class="block text-xs font-bold text-gray-400 mb-1">SHOW UNTIL (slide hides itself after this date, optional)</label>
+    <input type="date" id="slValid" class="mb-3" style="width:100%;border:2px solid #e5e7eb;border-radius:10px;padding:9px 10px;font-size:14px"/>
+    <p class="text-xs text-red-500 mb-2" id="slErr"></p>
+    <button id="slSaveBtn" class="btn-yellow mb-2" onclick="saveSlide()">Save slide</button>
+    <button class="w-full text-sm text-gray-400 py-2" onclick="closeSlideModal()">Cancel</button>
   </div>
 </div>
 
@@ -509,6 +869,7 @@
       <span class="text-sm font-medium">High Value (always scanned)</span>
       <input type="checkbox" id="aHighValue" class="w-5 h-5" checked/>
     </div>
+    <div class="mb-4"><label class="block text-xs font-bold text-gray-400 mb-1">BUNDLE INSTALLED (games on this console)</label><select id="aBundle"><option value="">— None / not set —</option></select></div>
     <button class="btn-yellow mb-3" onclick="saveAsset()">Add Asset</button>
     <button class="w-full text-sm text-gray-400 py-2" onclick="closeAssetModalDirect()">Cancel</button>
   </div>
@@ -1745,7 +2106,7 @@ let _redeemVoucherId = null;
 const escH = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const inr = n => '₹' + Number(n).toLocaleString('en-IN');
 
-async function loadVouchers() {
+async function loadVouchersBase() {
   const { data, error } = await db.from('gift_vouchers').select('*').order('created_at', { ascending: false });
   const list = document.getElementById('voucherList');
   if (error) { list.innerHTML = '<p class="text-center text-red-500 py-10">Could not load vouchers: ' + escH(error.message) + '</p>'; return; }
@@ -1789,6 +2150,7 @@ function renderVoucherList() {
         <p>Min order: <b>${Number(v.min_order_amount) ? inr(v.min_order_amount) : 'None'}</b> · Plans: <b>${escH(plans)}</b></p>
         <p>Used: <b>${used}</b> · Per customer: <b>${v.per_customer_limit || '∞'}</b></p>
         <p>${escH(dates)}</p>
+        ${voucherTags(v)}
         ${v.notes ? '<p class="italic">' + escH(v.notes) + '</p>' : ''}
       </div>
     </div>`;
@@ -1834,6 +2196,7 @@ function openVoucherModal(id) {
   document.getElementById('vActive').checked = v ? !!v.active : true;
   document.getElementById('vUsedInfo').textContent = v ? 'Times used so far: ' + (v.used_count || 0) + ' (updated automatically, cannot be edited)' : '';
   voucherTypeChanged();
+  vExtraOpen(v);
   document.getElementById('voucherModal').classList.remove('hidden');
 }
 function closeVoucherModal() { document.getElementById('voucherModal').classList.add('hidden'); }
@@ -1868,14 +2231,16 @@ async function saveVoucher() {
     usage_limit: usage, per_customer_limit: perCust,
     valid_from: from, valid_until: until,
     notes: document.getElementById('vNotes').value.trim() || null,
-    active: document.getElementById('vActive').checked
+    active: document.getElementById('vActive').checked,
+    ...voucherExtraPayload()
   };
+  if (!confirmOverlap(payload, id)) return;
 
   const btn = document.getElementById('vSaveBtn');
   btn.disabled = true; btn.textContent = 'Saving...';
   try {
-    const q = id ? db.from('gift_vouchers').update(payload).eq('id', id) : db.from('gift_vouchers').insert(payload);
-    const { error } = await q;
+    const q = id ? db.from('gift_vouchers').update(payload).eq('id', id) : db.from('gift_vouchers').insert(payload).select('id');
+    const { data: saved, error } = await q;
     if (error) {
       if (error.code === '23505' || /duplicate|unique/i.test(error.message)) {
         toast('That code already exists. Try another or tap Generate.', 4000);
@@ -1884,6 +2249,7 @@ async function saveVoucher() {
       toast(id ? '✅ Voucher updated' : '✅ Voucher added');
       closeVoucherModal();
       await loadVouchers();
+      if (!id && saved && saved[0]) { openVoucherModal(saved[0].id); toast('✅ Voucher added — add per-city amounts below if you need them', 4500); }
     }
   } catch (e) { toast('Save failed: ' + e.message, 4000); }
   btn.disabled = false; btn.textContent = 'Save Voucher';
@@ -1916,24 +2282,780 @@ async function viewRedemptions(id) {
 }
 function closeRedeemModal() { document.getElementById('redeemModal').classList.add('hidden'); }
 
+// ══════════════════════════════════════════════════════════════
+// SITE SETTINGS (cities, plans, coupons, games, requests, home)
+// ══════════════════════════════════════════════════════════════
+const PLAN_CODES = ['hourly','day','night','custom'];
+const PLAN_LABEL = { hourly:'Hourly', day:'Day', night:'Night', custom:'Custom' };
+const nz = v => { const s = String(v ?? '').trim(); return s === '' ? null : Number(s); };
+const setV = (id, v) => { document.getElementById(id).value = (v === null || v === undefined) ? '' : v; };
+const gv = id => document.getElementById(id).value.trim();
+const openM = id => document.getElementById(id).classList.remove('hidden');
+const closeM = id => document.getElementById(id).classList.add('hidden');
+
+// ── pure helpers (also unit-tested) ───────────────────────────
+function parseLatLng(text) {
+  const t = decodeURIComponent(String(text || '').trim().replace(/\+/g, ' '));
+  if (!t) return null;
+  const ok = (a, b) => { a = Number(a); b = Number(b); return isFinite(a) && isFinite(b) && Math.abs(a) <= 90 && Math.abs(b) <= 180 ? { lat: a, lng: b } : null; };
+  const num = '(-?\\d{1,3}(?:\\.\\d+)?)';
+  let m;
+  if ((m = t.match(new RegExp('!3d' + num + '!4d' + num)))) return ok(m[1], m[2]);
+  if ((m = t.match(new RegExp('[?&](?:q|ll|query|destination|center)=' + num + '\\s*,\\s*' + num)))) return ok(m[1], m[2]);
+  if ((m = t.match(new RegExp('@' + num + ',' + num)))) return ok(m[1], m[2]);
+  if ((m = t.match(new RegExp('^' + num + '\\s*[,\\s]\\s*' + num + '$')))) return ok(m[1], m[2]);
+  return null;
+}
+function parseTime12(s) {
+  const m = String(s || '').trim().match(/^(1[0-2]|0?[1-9]):([0-5]\d)\s*(AM|PM)$/i);
+  if (!m) return null;
+  let h = Number(m[1]) % 12; if (m[3].toUpperCase() === 'PM') h += 12;
+  return { mins: h * 60 + Number(m[2]), text: Number(m[1]) + ':' + m[2] + ' ' + m[3].toUpperCase() };
+}
+const shortTime = s => { const t = parseTime12(s); return t ? t.text.replace(':00', '') : (s || '?'); };
+function planPreviewText(p) {
+  if (!p) return '';
+  const price = Number(p.price) > 0 ? inr(p.price) : '₹?';
+  let s;
+  if (p.pricing_type === 'hourly') {
+    s = price + '/hour' + (p.min_hours ? ', min ' + p.min_hours + ' hour' + (p.min_hours > 1 ? 's' : '') : '')  +
+        (p.open_time && p.last_start_time ? ', deliveries ' + shortTime(p.open_time) + ' to ' + shortTime(p.last_start_time) : '');
+  } else if (p.pricing_type === 'fixed') {
+    const a = parseTime12(p.start_time), b = parseTime12(p.end_time);
+    s = price + ' per slot' + (p.start_time ? ', delivery ' + shortTime(p.start_time) : '') + (p.end_time ? ', return ' + shortTime(p.end_time) : '') + (a && b && b.mins <= a.mins ? ' (next day)' : '');
+  } else {
+    s = price + '/day' + (p.min_days ? ', ' + p.min_days + (p.max_days ? ' to ' + p.max_days : '+') + ' days' : '');
+  }
+  if (p.today_cutoff_time) s += ', same-day booking until ' + shortTime(p.today_cutoff_time);
+  if (Number(p.compare_at_price) > 0) s += ' (was ' + inr(p.compare_at_price) + ')';
+  return s;
+}
+function waLink(phone, text) {
+  let d = String(phone || '').replace(/\D/g, '');
+  if (d.length === 11 && d[0] === '0') d = d.slice(1);
+  if (d.length === 10) d = '91' + d;
+  return 'https://wa.me/' + d + (text ? '?text=' + encodeURIComponent(text) : '');
+}
+const mapsLink = (lat, lng) => 'https://www.google.com/maps?q=' + lat + ',' + lng;
+const fmtShort = d => d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '';
+const todayStr = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+
+// ── image helpers ─────────────────────────────────────────────
+function loadImageFromFile(file) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file); const im = new Image();
+    im.onload = () => res({ im, url }); im.onerror = () => { URL.revokeObjectURL(url); rej(new Error('That file is not a picture the browser can open.')); };
+    im.src = url;
+  });
+}
+async function compressToWebp(file, maxW, quality) {
+  const { im, url } = await loadImageFromFile(file);
+  const sw = im.naturalWidth, sh = im.naturalHeight;
+  const scale = Math.min(1, maxW / sw);
+  const w = Math.round(sw * scale), h = Math.round(sh * scale);
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  c.getContext('2d').drawImage(im, 0, 0, w, h);
+  let blob = await new Promise(r => c.toBlob(r, 'image/webp', quality || 0.82));
+  let ext = 'webp';
+  if (!blob || blob.type !== 'image/webp') { blob = await new Promise(r => c.toBlob(r, 'image/jpeg', quality || 0.82)); ext = 'jpg'; }
+  return { blob, ext, w, h, srcW: sw, srcH: sh, url };
+}
+async function uploadSiteMedia(blob, ext, folder, nameHint) {
+  const slug = String(nameHint || 'img').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30) || 'img';
+  const path = folder + '/' + Date.now() + '-' + slug + '.' + ext;
+  const { error } = await db.storage.from('site-media').upload(path, blob, { contentType: blob.type, cacheControl: '31536000', upsert: false });
+  if (error) throw new Error('Upload failed: ' + error.message + ' (is the site-media bucket created? run site-config.sql)');
+  return db.storage.from('site-media').getPublicUrl(path).data.publicUrl;
+}
+function ratioWarning(w, h, tw, th, label, minW) {
+  const r = w / h, t = tw / th;
+  let msg = '';
+  if (Math.abs(r - t) / t > 0.08) msg = `⚠ This picture is ${w}×${h} (${r.toFixed(2)}:1). It should be ${label}, so it will be cropped on the website.`;
+  else if (minW && w < minW) msg = `⚠ Picture is only ${w}px wide — it may look blurry. Aim for ${minW}px or more.`;
+  return msg;
+}
+function probeUrl(url) {
+  return new Promise(res => { const im = new Image(); im.onload = () => res({ w: im.naturalWidth, h: im.naturalHeight }); im.onerror = () => res(null); im.src = url; });
+}
+
+// ── CITIES & PLANS ────────────────────────────────────────────
+let cityRows = [], planRows = [];
+async function loadCities() {
+  const box = document.getElementById('cityList');
+  const [c, p] = await Promise.all([
+    db.from('cities').select('*').order('sort').order('name'),
+    db.from('city_plans').select('*').order('sort')
+  ]);
+  if (c.error || p.error) { box.innerHTML = '<p class="text-center text-red-500 py-10">Could not load: ' + escH((c.error || p.error).message) + '</p>'; return; }
+  cityRows = c.data || []; planRows = p.data || [];
+  renderCities();
+}
+function cityStatusBadge(s) {
+  const m = { live: ['#dcfce7', '#166534', 'Live'], coming_soon: ['#fef3c7', '#92400e', 'Coming soon'], hidden: ['#e5e7eb', '#374151', 'Hidden'] }[s] || ['#e5e7eb', '#374151', s];
+  return `<span class="badge" style="background:${m[0]};color:${m[1]}">${m[2]}</span>`;
+}
+function renderCities() {
+  const box = document.getElementById('cityList');
+  if (!cityRows.length) { box.innerHTML = '<p class="text-center text-gray-400 py-10">No cities yet.</p>'; return; }
+  box.innerHTML = cityRows.map(c => {
+    const plans = planRows.filter(p => p.city_id === c.id).sort((a, b) => a.sort - b.sort);
+    const have = plans.map(p => p.code);
+    const missing = PLAN_CODES.filter(x => !have.includes(x));
+    const loc = (c.store_lat != null && c.store_lng != null)
+      ? `<a class="underline" target="_blank" href="${mapsLink(c.store_lat, c.store_lng)}">${Number(c.store_lat).toFixed(4)}, ${Number(c.store_lng).toFixed(4)}</a>`
+      : '<span class="text-red-500 font-bold">Not set</span>';
+    return `<div class="card">
+      <div class="flex justify-between items-start mb-2">
+        <div><p class="font-black text-lg">${escH(c.name)} ${cityStatusBadge(c.status)}</p><p class="text-xs text-gray-400">${escH(c.state || '')}</p></div>
+        <button class="text-sm font-bold underline" onclick="openCityModal('${c.id}')">Edit city</button>
+      </div>
+      <div class="text-xs text-gray-500 space-y-1 mb-3">
+        <p>Store location: ${loc} · Radius <b>${Number(c.service_radius_km)} km</b> · Delivery <b>${inr(c.delivery_charge)}</b></p>
+        <p>Same-day: <b>${c.same_day_allowed ? 'Yes' : 'No'}</b> · Earliest <b>${c.min_lead_minutes} min</b> ahead · Up to <b>${c.max_days_ahead} days</b></p>
+        <p>Extra controller: <b>${inr(c.extra_controller_hourly)}</b>/hr or <b>${inr(c.extra_controller_flat)}</b> flat (max ${c.max_extra_controllers}) · Prepaid <b>${Number(c.prepaid_discount_percent)}%</b> off · COD advance <b>${Number(c.cod_advance_percent)}%</b></p>
+      </div>
+      <p class="text-xs font-bold text-gray-400 mb-1">PLANS</p>
+      ${plans.map(p => `<div class="asset-row" style="align-items:flex-start;${p.active ? '' : 'opacity:.55;'}">
+          <input type="checkbox" ${p.active ? 'checked' : ''} onchange="togglePlan('${p.id}', this.checked, this)" style="width:20px;height:20px;margin-top:2px"/>
+          <div style="flex:1;min-width:0"><p class="font-bold">${escH(p.name)} <span class="text-xs text-gray-400 font-normal">(${p.code})</span>${p.badge ? ' <span class="badge" style="background:#fef9c3;color:#854d0e">' + escH(p.badge) + '</span>' : ''}</p>
+          <p class="text-xs text-gray-500">${escH(planPreviewText(p))}</p></div>
+          <button class="text-xs font-bold underline" onclick="openPlanModal('${c.id}','${p.code}')">Edit</button></div>`).join('') || '<p class="text-xs text-gray-400 py-2">No plans yet.</p>'}
+      ${missing.length ? `<div class="flex gap-2 flex-wrap mt-2">${missing.map(x => `<button class="text-xs font-bold border-2 border-dashed border-gray-300 rounded-lg px-3 py-1" onclick="openPlanModal('${c.id}','${x}')">+ ${PLAN_LABEL[x]} plan</button>`).join('')}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+async function togglePlan(id, on, el) {
+  const { error } = await db.from('city_plans').update({ active: on, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) { toast('Failed: ' + error.message, 3500); el.checked = !on; return; }
+  const p = planRows.find(x => x.id === id); if (p) p.active = on;
+  toast(on ? '✅ Plan is ON' : 'Plan is OFF'); renderCities();
+}
+
+function openCityModal(id) {
+  const c = id ? cityRows.find(x => x.id === id) : null;
+  setV('cmId', c ? c.id : '');
+  document.getElementById('cmTitle').textContent = c ? 'Edit ' + c.name : 'Add City';
+  setV('cmName', c ? c.name : ''); setV('cmState', c ? c.state : '');
+  setV('cmStatus', c ? c.status : 'coming_soon');
+  setV('cmMapInput', ''); setV('cmLat', c ? c.store_lat : ''); setV('cmLng', c ? c.store_lng : '');
+  setV('cmRadius', c ? c.service_radius_km : 5); setV('cmDelivery', c ? c.delivery_charge : 0);
+  document.getElementById('cmSameDay').checked = c ? !!c.same_day_allowed : true;
+  setV('cmLead', c ? c.min_lead_minutes : 60); setV('cmMaxDays', c ? c.max_days_ahead : 30);
+  setV('cmCtrlHr', c ? c.extra_controller_hourly : 29); setV('cmCtrlFlat', c ? c.extra_controller_flat : 99);
+  setV('cmCtrlMax', c ? c.max_extra_controllers : 2); setV('cmSort', c ? c.sort : (cityRows.length + 1));
+  setV('cmPrepaid', c ? c.prepaid_discount_percent : 5); setV('cmCod', c ? c.cod_advance_percent : 10);
+  document.getElementById('cmNameNote').textContent = c ? 'Must match the city on bookings. Renaming does not change old bookings.' : 'Must match the city written on bookings, e.g. Mandsaur.';
+  document.getElementById('cmLocNote').textContent = '';
+  openM('cityModal');
+}
+function closeCityModal() { closeM('cityModal'); }
+function setStoreLocation() {
+  const r = parseLatLng(document.getElementById('cmMapInput').value);
+  const note = document.getElementById('cmLocNote');
+  if (!r) {
+    const raw = document.getElementById('cmMapInput').value;
+    note.className = 'text-xs text-red-500';
+    note.textContent = /maps\.app\.goo\.gl|goo\.gl/.test(raw)
+      ? 'Short links cannot be read here. Open the link in your browser, then copy the long address from the address bar (it contains @24.07,75.06) — or just paste "lat, lng".'
+      : 'Could not find coordinates. Paste the full Google Maps link, or type like: 24.0734, 75.0679';
+    return;
+  }
+  setV('cmLat', r.lat); setV('cmLng', r.lng);
+  note.className = 'text-xs text-green-700';
+  note.innerHTML = '✅ Set to ' + r.lat + ', ' + r.lng + ' — <a class="underline" target="_blank" href="' + mapsLink(r.lat, r.lng) + '">check on map</a>';
+}
+async function saveCity() {
+  const id = gv('cmId'), name = gv('cmName');
+  if (!name) return toast('City name is required.', 3000);
+  const lat = nz(gv('cmLat')), lng = nz(gv('cmLng'));
+  if ((lat === null) !== (lng === null)) return toast('Fill both latitude and longitude (or neither).', 3500);
+  if (lat !== null && (Math.abs(lat) > 90 || Math.abs(lng) > 180)) return toast('Latitude/longitude out of range.', 3500);
+  const radius = nz(gv('cmRadius')), delivery = nz(gv('cmDelivery')), lead = nz(gv('cmLead')), maxDays = nz(gv('cmMaxDays'));
+  const ch = nz(gv('cmCtrlHr')), cf = nz(gv('cmCtrlFlat')), cmax = nz(gv('cmCtrlMax')), pp = nz(gv('cmPrepaid')), cod = nz(gv('cmCod')), sort = nz(gv('cmSort')) ?? 0;
+  if (!(radius > 0)) return toast('Delivery radius must be more than 0.', 3000);
+  if (delivery === null || delivery < 0) return toast('Delivery charge cannot be negative.', 3000);
+  if (lead === null || lead < 0) return toast('Earliest delivery minutes cannot be negative.', 3000);
+  if (!(maxDays >= 1)) return toast('"Book up to" days must be at least 1.', 3000);
+  if (ch === null || ch < 0 || cf === null || cf < 0) return toast('Extra controller prices cannot be negative.', 3000);
+  if (cmax === null || cmax < 0 || cmax > 6) return toast('Max extra controllers: 0 to 6.', 3000);
+  if (pp === null || pp < 0 || pp > 100) return toast('Prepaid discount must be 0–100%.', 3000);
+  if (!(cod >= 1 && cod <= 100)) return toast('COD advance must be 1–100%.', 3000);
+  const status = gv('cmStatus');
+  const dup = cityRows.find(c => c.id !== id && c.name.toLowerCase() === name.toLowerCase());
+  if (dup) return toast('A city named ' + dup.name + ' already exists.', 3500);
+  const old = id ? cityRows.find(c => c.id === id) : null;
+  if (old && old.name !== name && !confirm('You are renaming "' + old.name + '" to "' + name + '".\nOld bookings, partners and consoles keep the old name, so they will stop matching this city. Continue?')) return;
+  if (status === 'live' && lat === null && !confirm('This city is LIVE but has no store location, so the website cannot check delivery distance. Save anyway?')) return;
+  const payload = { name, state: gv('cmState') || null, status, store_lat: lat, store_lng: lng, service_radius_km: radius, delivery_charge: delivery,
+    same_day_allowed: document.getElementById('cmSameDay').checked, min_lead_minutes: Math.round(lead), max_days_ahead: Math.round(maxDays),
+    extra_controller_hourly: ch, extra_controller_flat: cf, max_extra_controllers: Math.round(cmax), prepaid_discount_percent: pp, cod_advance_percent: cod,
+    sort: Math.round(sort), updated_at: new Date().toISOString() };
+  const btn = document.getElementById('cmSaveBtn'); btn.disabled = true; btn.textContent = 'Saving...';
+  const { error } = id ? await db.from('cities').update(payload).eq('id', id) : await db.from('cities').insert(payload);
+  btn.disabled = false; btn.textContent = 'Save City';
+  if (error) return toast('Save failed: ' + error.message, 4000);
+  toast('✅ City saved'); closeCityModal(); loadCities();
+}
+
+// plan modal
+const PLAN_DEFAULT_TYPE = { hourly: 'hourly', day: 'fixed', night: 'fixed', custom: 'daily' };
+function openPlanModal(cityId, code) {
+  const c = cityRows.find(x => x.id === cityId); if (!c) return;
+  const p = planRows.find(x => x.city_id === cityId && x.code === code) || null;
+  setV('plId', p ? p.id : ''); setV('plCityId', cityId); setV('plCode', code);
+  document.getElementById('plTitle').textContent = (p ? 'Edit ' : 'Add ') + PLAN_LABEL[code] + ' plan';
+  document.getElementById('plSub').textContent = c.name;
+  document.getElementById('plActive').checked = p ? !!p.active : true;
+  setV('plName', p ? p.name : PLAN_LABEL[code]); setV('plTagline', p ? p.tagline : '');
+  setV('plType', p ? p.pricing_type : PLAN_DEFAULT_TYPE[code]);
+  setV('plPrice', p ? p.price : ''); setV('plCompare', p ? p.compare_at_price : '');
+  setV('plMinH', p ? p.min_hours : (code === 'hourly' ? 2 : '')); setV('plMaxH', p ? p.max_hours : (code === 'hourly' ? 11 : ''));
+  setV('plOpen', p ? p.open_time : ''); setV('plLastStart', p ? p.last_start_time : ''); setV('plClose', p ? p.close_time : '');
+  setV('plStart', p ? p.start_time : ''); setV('plEnd', p ? p.end_time : '');
+  setV('plMinD', p ? p.min_days : (code === 'custom' ? 1 : '')); setV('plMaxD', p ? p.max_days : (code === 'custom' ? 30 : ''));
+  setV('plCutoff', p ? p.today_cutoff_time : ''); setV('plBadge', p ? p.badge : '');
+  setV('plSort', p ? p.sort : (PLAN_CODES.indexOf(code) + 1));
+  setV('plFeatures', p && p.features ? p.features.join('\n') : '');
+  document.getElementById('plErr').textContent = '';
+  document.getElementById('plDelBtn').style.display = p ? '' : 'none';
+  plTypeChanged(); openM('planModal');
+}
+function closePlanModal() { closeM('planModal'); }
+function plTypeChanged() {
+  const t = gv('plType');
+  document.getElementById('plGrpHourly').style.display = t === 'hourly' ? '' : 'none';
+  document.getElementById('plGrpFixed').style.display = t === 'fixed' ? '' : 'none';
+  document.getElementById('plGrpDaily').style.display = t === 'daily' ? '' : 'none';
+  document.getElementById('plPriceLbl').textContent = t === 'hourly' ? 'PRICE ₹ PER HOUR *' : t === 'daily' ? 'PRICE ₹ PER DAY *' : 'PRICE ₹ PER SLOT *';
+  plRefresh();
+}
+function planFromForm() {
+  const t = gv('plType');
+  return { pricing_type: t, name: gv('plName'), price: nz(gv('plPrice')), compare_at_price: nz(gv('plCompare')),
+    min_hours: t === 'hourly' ? nz(gv('plMinH')) : null, max_hours: t === 'hourly' ? nz(gv('plMaxH')) : null,
+    open_time: t === 'hourly' ? gv('plOpen') || null : null, last_start_time: t === 'hourly' ? gv('plLastStart') || null : null, close_time: t === 'hourly' ? gv('plClose') || null : null,
+    start_time: t === 'fixed' ? gv('plStart') || null : null, end_time: t === 'fixed' ? gv('plEnd') || null : null,
+    min_days: t === 'daily' ? nz(gv('plMinD')) : null, max_days: t === 'daily' ? nz(gv('plMaxD')) : null,
+    today_cutoff_time: gv('plCutoff') || null };
+}
+function plRefresh() {
+  const p = planFromForm();
+  const off = !document.getElementById('plActive').checked;
+  document.getElementById('plPreview').textContent = (off ? '(OFF) ' : '') + (planPreviewText(p) || 'Fill in the price to see a preview');
+}
+function validatePlan(p) {
+  if (!p.name) return 'Plan name is required.';
+  if (!(p.price > 0)) return 'Price must be more than 0.';
+  if (p.compare_at_price !== null && !(p.compare_at_price > p.price)) return 'Crossed-out price must be higher than the price (or leave it empty).';
+  const tm = (label, s, req) => { if (!s) return req ? label + ' is required (like 10:00 AM).' : null; return parseTime12(s) ? null : label + ' "' + s + '" is not a time. Use h:mm AM/PM, like 7:00 PM.'; };
+  let e;
+  if (p.pricing_type === 'hourly') {
+    if (!(p.min_hours >= 1) || !(p.max_hours >= p.min_hours)) return 'Hours: min must be at least 1 and max cannot be less than min.';
+    if ((e = tm('First delivery', p.open_time, true) || tm('Last delivery', p.last_start_time, true) || tm('Latest return', p.close_time, true))) return e;
+    const o = parseTime12(p.open_time).mins, l = parseTime12(p.last_start_time).mins, c = parseTime12(p.close_time).mins;
+    if (!(o < l)) return 'First delivery must be earlier than last delivery.';
+    if (!(l < c)) return 'Latest return must be after last delivery.';
+  } else if (p.pricing_type === 'fixed') {
+    if ((e = tm('Delivery time', p.start_time, true) || tm('Return time', p.end_time, true))) return e;
+    if (parseTime12(p.start_time).mins === parseTime12(p.end_time).mins) return 'Delivery and return time cannot be the same.';
+  } else {
+    if (!(p.min_days >= 1) || !(p.max_days >= p.min_days)) return 'Days: min must be at least 1 and max cannot be less than min.';
+  }
+  return tm('Same-day cutoff', p.today_cutoff_time, false);
+}
+async function savePlan() {
+  const err = document.getElementById('plErr'); err.textContent = '';
+  const p = planFromForm(); const bad = validatePlan(p);
+  if (bad) { err.textContent = bad; return; }
+  ['open_time', 'last_start_time', 'close_time', 'start_time', 'end_time', 'today_cutoff_time'].forEach(k => { if (p[k]) p[k] = parseTime12(p[k]).text; });
+  const feats = document.getElementById('plFeatures').value.split('\n').map(s => s.trim()).filter(Boolean);
+  const id = gv('plId');
+  const payload = Object.assign(p, { tagline: gv('plTagline') || null, active: document.getElementById('plActive').checked, features: feats.length ? feats : null,
+    badge: gv('plBadge') || null, sort: Math.round(nz(gv('plSort')) ?? 0), updated_at: new Date().toISOString() });
+  if (!id) { payload.city_id = gv('plCityId'); payload.code = gv('plCode'); }
+  const btn = document.getElementById('plSaveBtn'); btn.disabled = true; btn.textContent = 'Saving...';
+  const { error } = id ? await db.from('city_plans').update(payload).eq('id', id) : await db.from('city_plans').insert(payload);
+  btn.disabled = false; btn.textContent = 'Save Plan';
+  if (error) { err.textContent = 'Save failed: ' + error.message; return; }
+  toast('✅ Plan saved'); closePlanModal(); loadCities();
+}
+async function deletePlan() {
+  const id = gv('plId'); if (!id) return;
+  if (!confirm('Delete this plan for this city? The website will stop offering it. (You can also just switch it OFF.)')) return;
+  const { error } = await db.from('city_plans').delete().eq('id', id);
+  if (error) return toast('Delete failed: ' + error.message, 4000);
+  toast('Plan deleted'); closePlanModal(); loadCities();
+}
+
+// ── COUPONS (extends Vouchers) ────────────────────────────────
+let allRules = [], _rulesCityNames = [], _editRuleId = null;
+async function loadCouponExtras() {
+  const [r, c] = await Promise.all([db.from('coupon_rules').select('*'), db.from('cities').select('name').order('sort').order('name')]);
+  allRules = r.data || []; _rulesCityNames = (c.data || []).map(x => x.name);
+}
+async function loadVouchers() { await loadCouponExtras(); await loadVouchersBase(); }
+
+// which (city|plan) pairs does an auto-apply coupon cover?
+function couponPairs(v, rules) {
+  const cities = (v.cities && v.cities.length) ? v.cities : _rulesCityNames;
+  const plans = PLAN_CODES;
+  const out = new Set();
+  const vr = rules.filter(r => r.voucher_id === v.id);
+  cities.forEach(c => plans.forEach(p => {
+    if (vr.length) { if (vr.some(r => (!r.city || r.city.toLowerCase() === c.toLowerCase()) && (!r.plan || r.plan === p))) out.add(c + '|' + p); }
+    else if (!v.applicable_plans || !v.applicable_plans.length || v.applicable_plans.includes(p)) out.add(c + '|' + p);
+  }));
+  return out;
+}
+function findAutoOverlaps(cand, vouchers, rules) {
+  if (!cand.active || !cand.auto_apply) return [];
+  const mine = couponPairs(cand, rules), res = [];
+  vouchers.filter(o => o.id !== cand.id && o.active && o.auto_apply).forEach(o => {
+    const hit = [...couponPairs(o, rules)].filter(k => mine.has(k));
+    if (hit.length) res.push({ code: o.code, pairs: hit.map(k => k.replace('|', ' ')) });
+  });
+  return res;
+}
+function overlapText(list) { return list.map(o => o.code + ' (' + o.pairs.slice(0, 4).join(', ') + (o.pairs.length > 4 ? '…' : '') + ')').join('; '); }
+function voucherTags(v) {
+  const tags = [];
+  if (v.is_public) tags.push('<span class="badge" style="background:#dbeafe;color:#1e40af">On website</span>');
+  if (v.auto_apply) tags.push('<span class="badge" style="background:#dcfce7;color:#166534">Auto-apply</span>');
+  const rc = allRules.filter(r => r.voucher_id === v.id).length;
+  if (rc) tags.push('<span class="badge" style="background:#f3e8ff;color:#6b21a8">' + rc + ' rule' + (rc > 1 ? 's' : '') + '</span>');
+  const ov = findAutoOverlaps(v, allVouchers, allRules);
+  return (v.title ? '<p class="font-semibold text-gray-700">' + escH(v.title) + '</p>' : '') +
+    (tags.length ? '<p class="flex gap-1 flex-wrap">' + tags.join('') + '</p>' : '') +
+    (v.cities && v.cities.length ? '<p>Cities: <b>' + escH(v.cities.join(', ')) + '</b> · Applies to: <b>' + (v.applies_to === 'plan' ? 'Plan price' : 'Whole order') + '</b></p>' : '<p>Applies to: <b>' + (v.applies_to === 'plan' ? 'Plan price' : 'Whole order') + '</b></p>') +
+    (ov.length ? '<p class="text-red-600 font-bold">⚠ Overlaps with other auto-apply coupon: ' + escH(overlapText(ov)) + '</p>' : '');
+}
+
+function vExtraOpen(v) {
+  document.getElementById('vTitle').value = v ? (v.title || '') : '';
+  document.getElementById('vPublic').checked = v ? !!v.is_public : false;
+  document.getElementById('vAuto').checked = v ? !!v.auto_apply : false;
+  document.getElementById('vAppliesTo').value = v ? (v.applies_to || 'order') : 'order';
+  const sel = (v && v.cities) || [];
+  document.getElementById('vCities').innerHTML = _rulesCityNames.map(c => `<label class="mr-3 text-sm"><input type="checkbox" class="vCity" value="${escH(c)}" ${sel.includes(c) ? 'checked' : ''}/> ${escH(c)}</label>`).join('') || '<span class="text-xs text-gray-400">No cities yet</span>';
+  _editRuleId = null; ruleFormReset();
+  document.getElementById('vRuleCity').innerHTML = '<option value="">Any city</option>' + _rulesCityNames.map(c => `<option>${escH(c)}</option>`).join('');
+  renderRules();
+}
+function ruleVoucherId() { return document.getElementById('vEditId').value; }
+function renderRules() {
+  const id = ruleVoucherId(), box = document.getElementById('vRulesBox');
+  document.getElementById('vRuleForm').style.display = id ? '' : 'none';
+  if (!id) { box.innerHTML = '<p class="text-xs text-gray-400">Save the voucher first, then you can add per-city / per-plan amounts here.</p>'; return; }
+  const rs = allRules.filter(r => r.voucher_id === id).sort((a, b) => (a.city || '').localeCompare(b.city || '') || (a.plan || '').localeCompare(b.plan || ''));
+  box.innerHTML = (rs.length ? '<p class="text-xs text-gray-400 mb-1">When rules exist the website uses ONLY these amounts (most specific match wins). The main amount above is ignored.</p>' : '<p class="text-xs text-gray-400 mb-1">No rules: the main amount above is used everywhere.</p>') +
+    rs.map(r => `<div class="asset-row"><div style="flex:1"><b>${escH(r.city || 'Any city')}</b> · ${escH(r.plan ? PLAN_LABEL[r.plan] : 'Any plan')}
+      <span class="text-green-700 font-bold">${r.discount_type === 'percent' ? Number(r.discount_value) + '%' + (r.max_discount ? ' (max ' + inr(r.max_discount) + ')' : '') : inr(r.discount_value)}</span></div>
+      <button class="text-xs underline" onclick="editRule('${r.id}')">Edit</button><button class="text-red-400 text-xs px-2" onclick="deleteRule('${r.id}')">✕</button></div>`).join('');
+}
+function ruleFormReset() {
+  _editRuleId = null;
+  ['vRuleVal', 'vRuleMax'].forEach(i => document.getElementById(i).value = '');
+  document.getElementById('vRuleCity').value = ''; document.getElementById('vRulePlan').value = ''; document.getElementById('vRuleType').value = 'percent';
+  document.getElementById('vRuleBtn').textContent = 'Add rule';
+}
+function editRule(rid) {
+  const r = allRules.find(x => x.id === rid); if (!r) return; _editRuleId = rid;
+  document.getElementById('vRuleCity').value = r.city || ''; document.getElementById('vRulePlan').value = r.plan || '';
+  document.getElementById('vRuleType').value = r.discount_type; document.getElementById('vRuleVal').value = r.discount_value;
+  document.getElementById('vRuleMax').value = r.max_discount || ''; document.getElementById('vRuleBtn').textContent = 'Update rule';
+}
+async function saveRule() {
+  const vid = ruleVoucherId(); if (!vid) return;
+  const city = gv('vRuleCity') || null, plan = gv('vRulePlan') || null, type = gv('vRuleType');
+  const val = nz(gv('vRuleVal')), max = nz(gv('vRuleMax'));
+  if (!(val > 0)) return toast('Rule amount must be more than 0.', 3000);
+  if (type === 'percent' && val > 100) return toast('Percent cannot be more than 100.', 3000);
+  if (max !== null && !(max > 0)) return toast('"Max" must be more than 0.', 3000);
+  const dup = allRules.find(r => r.voucher_id === vid && r.id !== _editRuleId && (r.city || '') === (city || '') && (r.plan || '') === (plan || ''));
+  if (dup) return toast('There is already a rule for that city + plan. Edit it instead.', 3500);
+  const payload = { voucher_id: vid, city, plan, discount_type: type, discount_value: val, max_discount: type === 'percent' ? max : null };
+  const { error } = _editRuleId ? await db.from('coupon_rules').update(payload).eq('id', _editRuleId) : await db.from('coupon_rules').insert(payload);
+  if (error) return toast('Rule save failed: ' + error.message, 4000);
+  toast('✅ Rule saved'); await loadCouponExtras(); ruleFormReset(); renderRules(); renderVoucherList();
+  const v = allVouchers.find(x => x.id === vid); const ov = v ? findAutoOverlaps(v, allVouchers, allRules) : [];
+  if (ov.length) alert('Warning: this auto-apply coupon now overlaps with ' + overlapText(ov) + '.\nOnly one auto-apply coupon should be active for each city + plan.');
+}
+async function deleteRule(rid) {
+  if (!confirm('Delete this rule?')) return;
+  const { error } = await db.from('coupon_rules').delete().eq('id', rid);
+  if (error) return toast('Delete failed: ' + error.message, 4000);
+  await loadCouponExtras(); ruleFormReset(); renderRules(); renderVoucherList(); toast('Rule deleted');
+}
+function voucherExtraPayload() {
+  const cities = Array.from(document.querySelectorAll('.vCity:checked')).map(c => c.value);
+  return { title: gv('vTitle') || null, is_public: document.getElementById('vPublic').checked, auto_apply: document.getElementById('vAuto').checked,
+    cities: cities.length ? cities : null, applies_to: gv('vAppliesTo') };
+}
+function confirmOverlap(payload, id) {
+  const cand = Object.assign({ id: id || '__new' }, payload);
+  const ov = findAutoOverlaps(cand, allVouchers, allRules);
+  return !ov.length || confirm('Warning: this auto-apply coupon overlaps with ' + overlapText(ov) + '.\nOnly one auto-apply coupon should be active for each city + plan, otherwise the website may pick the wrong one.\n\nSave anyway?');
+}
+
+// ── GAMES & BUNDLES ───────────────────────────────────────────
+let allGames = [], allBundles = [], allBG = [], _gamePend = null, _bIn = [];
+async function loadGames() {
+  const [g, b, bg] = await Promise.all([db.from('games').select('*').order('sort').order('title'), db.from('bundles').select('*').order('sort').order('name'), db.from('bundle_games').select('*').order('sort')]);
+  if (g.error) { document.getElementById('gameList').innerHTML = '<p class="text-center text-red-500 py-10">' + escH(g.error.message) + '</p>'; return; }
+  allGames = g.data || []; allBundles = b.data || []; allBG = bg.data || [];
+  renderGames(); renderBundles();
+}
+function gamesTab(btn) {
+  document.querySelectorAll('[data-gm]').forEach(b => b.classList.toggle('active', b === btn));
+  document.getElementById('gmGames').classList.toggle('hidden', btn.dataset.gm !== 'games');
+  document.getElementById('gmBundles').classList.toggle('hidden', btn.dataset.gm !== 'bundles');
+}
+const coverBox = (u, w) => u ? `<img src="${escH(u)}" alt="" style="width:${w}px;aspect-ratio:3/4;object-fit:cover;border-radius:8px;background:#e5e7eb" onerror="this.style.opacity=.2"/>` : `<div style="width:${w}px;aspect-ratio:3/4;border-radius:8px;background:#e5e7eb;display:flex;align-items:center;justify-content:center;font-size:10px;color:#9ca3af">No cover</div>`;
+function renderGames() {
+  const box = document.getElementById('gameList');
+  if (!allGames.length) { box.innerHTML = '<p class="text-center text-gray-400 py-10">No games yet.</p>'; return; }
+  box.innerHTML = allGames.map(g => {
+    const n = allBG.filter(x => x.game_id === g.id).length;
+    return `<div class="card" style="display:flex;gap:12px;align-items:center;${g.active ? '' : 'opacity:.55;'}">
+      ${coverBox(g.cover_url, 54)}
+      <div style="flex:1;min-width:0"><p class="font-black">${escH(g.title)}</p>
+        <p class="text-xs text-gray-500">${escH(g.genre || '—')} · ${escH(g.players || '?')} player${g.is_multiplayer ? 's · multiplayer' : ''}</p>
+        <p class="text-xs text-gray-400">In ${n} bundle${n === 1 ? '' : 's'} · sort ${g.sort}</p></div>
+      <div class="text-right"><input type="checkbox" ${g.active ? 'checked' : ''} onchange="toggleGame('${g.id}', this.checked, this)" style="width:20px;height:20px"/>
+        <p><button class="text-xs font-bold underline mt-2" onclick="openGameModal('${g.id}')">Edit</button></p></div></div>`;
+  }).join('');
+}
+async function toggleGame(id, on, el) {
+  const { error } = await db.from('games').update({ active: on }).eq('id', id);
+  if (error) { toast('Failed: ' + error.message, 3500); el.checked = !on; return; }
+  allGames.find(g => g.id === id).active = on; renderGames(); toast(on ? '✅ Game is ON' : 'Game is OFF');
+}
+function openGameModal(id) {
+  const g = id ? allGames.find(x => x.id === id) : null; _gamePend = null;
+  setV('gEditId', g ? g.id : ''); document.getElementById('gmTitle').textContent = g ? 'Edit game' : 'Add game';
+  setV('gTitle', g ? g.title : ''); setV('gGenre', g ? g.genre : ''); setV('gPlayers', g ? g.players : '');
+  document.getElementById('gMulti').checked = g ? !!g.is_multiplayer : false; document.getElementById('gActive').checked = g ? !!g.active : true;
+  setV('gSort', g ? g.sort : allGames.length + 1); setV('gCover', g ? g.cover_url : ''); document.getElementById('gFile').value = '';
+  document.getElementById('gCoverNote').textContent = ''; gamePreview(); openM('gameModal');
+}
+function closeGameModal() { closeM('gameModal'); }
+function gamePreview() { document.getElementById('gCoverPrev').innerHTML = coverBox(_gamePend ? _gamePend.url : gv('gCover'), 96); }
+function gameCoverText() { _gamePend = null; document.getElementById('gFile').value = ''; gamePreview(); const u = gv('gCover'); if (u) probeUrl(u).then(d => { if (d && gv('gCover') === u) document.getElementById('gCoverNote').textContent = ratioWarning(d.w, d.h, 3, 4, '3:4 (600×800)', 400); }); }
+function clearGameCover() { _gamePend = null; setV('gCover', ''); document.getElementById('gFile').value = ''; document.getElementById('gCoverNote').textContent = ''; gamePreview(); }
+async function pickGameCover(inp) {
+  const f = inp.files[0]; if (!f) return;
+  try {
+    const r = await compressToWebp(f, 600, 0.82); _gamePend = r;
+    const note = document.getElementById('gCoverNote'); const w = ratioWarning(r.srcW, r.srcH, 3, 4, '3:4 (600×800)', 400);
+    note.className = 'text-xs ' + (w ? 'text-red-500' : 'text-green-700'); note.textContent = w || ('✅ ' + r.srcW + '×' + r.srcH + ' → ' + r.w + '×' + r.h + ' ' + r.ext.toUpperCase() + ', ' + Math.round(r.blob.size / 1024) + ' KB. Uploads when you tap Save.');
+    gamePreview();
+  } catch (e) { toast(e.message, 3500); inp.value = ''; }
+}
+async function saveGame() {
+  const id = gv('gEditId'), title = gv('gTitle');
+  if (!title) return toast('Game title is required.', 3000);
+  if (allGames.find(g => g.id !== id && g.title.toLowerCase() === title.toLowerCase())) return toast('A game with this title already exists.', 3500);
+  const btn = document.getElementById('gSaveBtn'); btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    let cover = gv('gCover') || null;
+    if (_gamePend) cover = await uploadSiteMedia(_gamePend.blob, _gamePend.ext, 'games', title);
+    const payload = { title, cover_url: cover, genre: gv('gGenre') || null, players: gv('gPlayers') || null, is_multiplayer: document.getElementById('gMulti').checked, active: document.getElementById('gActive').checked, sort: Math.round(nz(gv('gSort')) ?? 0) };
+    const { error } = id ? await db.from('games').update(payload).eq('id', id) : await db.from('games').insert(payload);
+    if (error) throw new Error('Save failed: ' + error.message);
+    toast('✅ Game saved'); closeGameModal(); loadGames();
+  } catch (e) { toast(e.message, 4500); }
+  btn.disabled = false; btn.textContent = 'Save Game';
+}
+
+function renderBundles() {
+  const box = document.getElementById('bundleList');
+  if (!allBundles.length) { box.innerHTML = '<p class="text-center text-gray-400 py-10">No bundles yet.</p>'; return; }
+  box.innerHTML = allBundles.map(b => {
+    const gs = allBG.filter(x => x.bundle_id === b.id).sort((x, y) => x.sort - y.sort).map(x => allGames.find(g => g.id === x.game_id)).filter(Boolean);
+    return `<div class="card" style="${b.active ? '' : 'opacity:.55;'}"><div class="flex justify-between items-start">
+      <div><p class="font-black">${escH(b.name)} ${b.is_default ? '<span class="badge" style="background:#fef9c3;color:#854d0e">Default</span>' : ''}</p><p class="text-xs text-gray-500">${escH(b.description || '')}</p></div>
+      <div class="text-right"><button class="text-xs font-bold underline" onclick="openBundleModal('${b.id}')">Edit</button> <button class="text-red-400 text-xs px-1" onclick="deleteBundle('${b.id}')">✕</button></div></div>
+      <p class="text-xs text-gray-500 mt-2">${gs.length ? gs.map((g, i) => (i + 1) + '. ' + escH(g.title)).join(' · ') : 'No games yet'}</p></div>`;
+  }).join('');
+}
+function openBundleModal(id) {
+  const b = id ? allBundles.find(x => x.id === id) : null;
+  setV('bEditId', b ? b.id : ''); document.getElementById('bmTitle').textContent = b ? 'Edit bundle' : 'Add bundle';
+  setV('bName', b ? b.name : ''); setV('bDesc', b ? b.description : '');
+  document.getElementById('bDefault').checked = b ? !!b.is_default : !allBundles.some(x => x.is_default);
+  document.getElementById('bActive').checked = b ? !!b.active : true; setV('bSort', b ? b.sort : allBundles.length + 1);
+  _bIn = b ? allBG.filter(x => x.bundle_id === b.id).sort((x, y) => x.sort - y.sort).map(x => x.game_id) : [];
+  renderBundlePick(); openM('bundleModal');
+}
+function closeBundleModal() { closeM('bundleModal'); }
+function renderBundlePick() {
+  const inn = document.getElementById('bIn');
+  inn.innerHTML = _bIn.length ? _bIn.map((gid, i) => { const g = allGames.find(x => x.id === gid); return `<div class="asset-row"><span class="w-5 text-gray-400">${i + 1}</span><span style="flex:1">${escH(g ? g.title : '(deleted)')}${g && !g.active ? ' <span class="text-xs text-gray-400">(off)</span>' : ''}</span>
+    <button class="px-2" onclick="bMove(${i},-1)">↑</button><button class="px-2" onclick="bMove(${i},1)">↓</button><button class="px-2 text-red-400" onclick="bRemove(${i})">✕</button></div>`; }).join('') : '<p class="text-xs text-gray-400">None yet. Tap a game below to add it.</p>';
+  const pool = allGames.filter(g => !_bIn.includes(g.id));
+  document.getElementById('bPool').innerHTML = pool.length ? pool.map(g => `<button class="text-xs font-bold border-2 border-gray-200 rounded-full px-3 py-1 mr-1 mb-1" onclick="bAdd('${g.id}')">+ ${escH(g.title)}</button>`).join('') : '<p class="text-xs text-gray-400">All games are in this bundle.</p>';
+}
+function bAdd(gid) { _bIn.push(gid); renderBundlePick(); }
+function bRemove(i) { _bIn.splice(i, 1); renderBundlePick(); }
+function bMove(i, d) { const j = i + d; if (j < 0 || j >= _bIn.length) return; [_bIn[i], _bIn[j]] = [_bIn[j], _bIn[i]]; renderBundlePick(); }
+async function saveBundle() {
+  const id = gv('bEditId'), name = gv('bName');
+  if (!name) return toast('Bundle name is required.', 3000);
+  if (allBundles.find(b => b.id !== id && b.name.toLowerCase() === name.toLowerCase())) return toast('A bundle with this name exists.', 3500);
+  const isDef = document.getElementById('bDefault').checked;
+  const payload = { name, description: gv('bDesc') || null, is_default: isDef, active: document.getElementById('bActive').checked, sort: Math.round(nz(gv('bSort')) ?? 0) };
+  const btn = document.getElementById('bSaveBtn'); btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    let bid = id;
+    if (isDef) { const q = db.from('bundles').update({ is_default: false }); const { error: e0 } = await (id ? q.neq('id', id) : q.eq('is_default', true)); if (e0) throw new Error(e0.message); }
+    if (id) { const { error } = await db.from('bundles').update(payload).eq('id', id); if (error) throw new Error(error.message); }
+    else { const { data, error } = await db.from('bundles').insert(payload).select('id').single(); if (error) throw new Error(error.message); bid = data.id; }
+    const { error: de } = await db.from('bundle_games').delete().eq('bundle_id', bid); if (de) throw new Error(de.message);
+    if (_bIn.length) { const { error: ie } = await db.from('bundle_games').insert(_bIn.map((gid, i) => ({ bundle_id: bid, game_id: gid, sort: i + 1 }))); if (ie) throw new Error(ie.message); }
+    toast('✅ Bundle saved'); closeBundleModal(); loadGames();
+  } catch (e) { toast('Save failed: ' + e.message, 4500); }
+  btn.disabled = false; btn.textContent = 'Save Bundle';
+}
+async function deleteBundle(id) {
+  const b = allBundles.find(x => x.id === id);
+  if (!confirm('Delete bundle "' + (b ? b.name : '') + '"? Consoles using it will show no bundle.')) return;
+  await db.from('partner_assets').update({ bundle_id: null }).eq('bundle_id', id);
+  const { error } = await db.from('bundles').delete().eq('id', id);
+  if (error) return toast('Delete failed: ' + error.message, 4000);
+  toast('Bundle deleted'); loadGames();
+}
+// bundle dropdown on console form
+async function fillBundleSelect(val) {
+  if (!allBundles.length) { const { data } = await db.from('bundles').select('*').order('sort').order('name'); allBundles = data || []; }
+  document.getElementById('aBundle').innerHTML = '<option value="">— None / not set —</option>' + allBundles.map(b => `<option value="${b.id}">${escH(b.name)}${b.is_default ? ' (default)' : ''}${b.active ? '' : ' (off)'}</option>`).join('');
+  document.getElementById('aBundle').value = val || '';
+}
+
+// ── REQUESTS ──────────────────────────────────────────────────
+let rqKind = 'game', gameReqs = [], areaReqs = [];
+const RQ_STATUS = { game: ['new', 'planned', 'added', 'declined'], area: ['new', 'contacted', 'will_serve', 'declined'] };
+async function loadRequests() {
+  const [g, a] = await Promise.all([db.from('game_requests').select('*').order('created_at', { ascending: false }), db.from('area_requests').select('*').order('created_at', { ascending: false })]);
+  if (g.error || a.error) { document.getElementById('requestList').innerHTML = '<p class="text-center text-red-500 py-10">' + escH((g.error || a.error).message) + '</p>'; return; }
+  gameReqs = g.data || []; areaReqs = a.data || []; fillRqStatus(); renderRequests();
+}
+function fillRqStatus() {
+  const cur = document.getElementById('rqStatus').value;
+  document.getElementById('rqStatus').innerHTML = '<option value="">All statuses</option>' + RQ_STATUS[rqKind].map(s => `<option value="${s}">${s.replace('_', ' ')}</option>`).join('');
+  document.getElementById('rqStatus').value = RQ_STATUS[rqKind].includes(cur) ? cur : '';
+  document.getElementById('rqSort').style.display = rqKind === 'game' ? '' : 'none';
+}
+function requestsTab(btn) { rqKind = btn.dataset.rq; document.querySelectorAll('[data-rq]').forEach(b => b.classList.toggle('active', b === btn)); document.getElementById('rqStatus').value = ''; fillRqStatus(); renderRequests(); }
+const gameKey = t => String(t || '').toLowerCase().replace(/\s+/g, ' ').trim();
+function renderRequests() {
+  const box = document.getElementById('requestList'), st = gv('rqStatus');
+  const opts = s => RQ_STATUS[rqKind].map(x => `<option value="${x}" ${x === s ? 'selected' : ''}>${x.replace('_', ' ')}</option>`).join('');
+  if (rqKind === 'game') {
+    const counts = {}; gameReqs.forEach(r => { const k = gameKey(r.game_title); (counts[k] = counts[k] || new Set()).add(r.phone || r.id); });
+    let rows = gameReqs.filter(r => !st || r.status === st);
+    if (gv('rqSort') === 'top') rows = rows.slice().sort((a, b) => counts[gameKey(b.game_title)].size - counts[gameKey(a.game_title)].size || gameKey(a.game_title).localeCompare(gameKey(b.game_title)));
+    box.innerHTML = rows.length ? rows.map(r => { const n = counts[gameKey(r.game_title)].size;
+      const msg = 'Hi ' + (r.name || '') + ', this is Leazo. You asked for "' + r.game_title + '" on our PS5s. ';
+      return `<div class="card"><div class="flex justify-between items-start"><div><p class="font-black">${escH(r.game_title)}</p>
+        <p class="text-xs text-gray-500">${n > 1 ? '<b class="text-purple-700">👥 ' + n + ' people asked</b>' : '1 person asked'}</p></div>
+        <select style="width:auto;font-size:12px;padding:6px" onchange="setReqStatus('game','${r.id}',this.value)">${opts(r.status)}</select></div>
+        <p class="text-xs text-gray-500 mt-2">${escH(r.name || 'No name')} · ${escH(r.phone || 'No phone')} · ${escH(r.city || '—')} · ${fmtShort(r.created_at)}</p>
+        <div class="flex gap-2 mt-2">${r.phone ? `<a class="btn-yellow text-center" style="text-decoration:none" target="_blank" href="${waLink(r.phone, msg)}">WhatsApp</a>` : ''}<button class="text-red-400 text-xs px-3" onclick="deleteReq('game','${r.id}')">Delete</button></div></div>`; }).join('') : '<p class="text-center text-gray-400 py-10">No game requests.</p>';
+  } else {
+    const rows = areaReqs.filter(r => !st || r.status === st);
+    box.innerHTML = rows.length ? rows.map(r => {
+      const map = (r.lat != null && r.lng != null) ? `<a class="underline" target="_blank" href="${mapsLink(r.lat, r.lng)}">Open on Google Maps</a>` : '';
+      const msg = 'Hi ' + (r.name || '') + ', this is Leazo. You asked us to deliver PS5 rentals to your area' + (r.city ? ' (' + r.city + ')' : '') + '. ';
+      return `<div class="card"><div class="flex justify-between items-start"><div><p class="font-black">${escH(r.name || 'No name')}</p>
+        <p class="text-xs text-gray-500">${escH(r.phone || 'No phone')} · ${escH(r.city || '—')} · ${fmtShort(r.created_at)}</p></div>
+        <select style="width:auto;font-size:12px;padding:6px" onchange="setReqStatus('area','${r.id}',this.value)">${opts(r.status)}</select></div>
+        <p class="text-xs text-gray-500 mt-2">${r.distance_km != null ? 'Distance from store: <b>' + Number(r.distance_km).toFixed(1) + ' km</b><br>' : ''}${r.address ? escH(r.address) + '<br>' : ''}${map}</p>
+        <div class="flex gap-2 mt-2">${r.phone ? `<a class="btn-yellow text-center" style="text-decoration:none" target="_blank" href="${waLink(r.phone, msg)}">WhatsApp</a>` : ''}<button class="text-red-400 text-xs px-3" onclick="deleteReq('area','${r.id}')">Delete</button></div></div>`; }).join('') : '<p class="text-center text-gray-400 py-10">No area requests.</p>';
+  }
+}
+async function setReqStatus(kind, id, s) {
+  const { error } = await db.from(kind === 'game' ? 'game_requests' : 'area_requests').update({ status: s }).eq('id', id);
+  if (error) { toast('Failed: ' + error.message, 3500); loadRequests(); return; }
+  (kind === 'game' ? gameReqs : areaReqs).find(r => r.id === id).status = s; toast('Status: ' + s.replace('_', ' '));
+  if (gv('rqStatus')) renderRequests();
+}
+async function deleteReq(kind, id) {
+  if (!confirm('Delete this request?')) return;
+  const { error } = await db.from(kind === 'game' ? 'game_requests' : 'area_requests').delete().eq('id', id);
+  if (error) return toast('Delete failed: ' + error.message, 3500);
+  loadRequests();
+}
+
+// ── HOME PAGE ─────────────────────────────────────────────────
+let homeCampaign = {}, homeAnn = {}, heroCfg = { show_campaign_slide: true, show_night_slide: true, slides: [] };
+async function loadHome() {
+  const { data, error } = await db.from('site_content').select('*').in('key', ['campaign', 'announcement', 'hero_slides']);
+  if (error) return toast('Could not load: ' + error.message, 4000);
+  const m = {}; (data || []).forEach(r => m[r.key] = r.value);
+  homeCampaign = m.campaign || {}; homeAnn = m.announcement || {};
+  heroCfg = Object.assign({ show_campaign_slide: true, show_night_slide: true, slides: [] }, m.hero_slides || {});
+  if (!Array.isArray(heroCfg.slides)) heroCfg.slides = [];
+  document.getElementById('hcActive').checked = homeCampaign.active !== false; setV('hcEyebrow', homeCampaign.eyebrow); setV('hcTitle', homeCampaign.title);
+  setV('hcSub', homeCampaign.subtitle); setV('hcCta', homeCampaign.cta); setV('hcTheme', homeCampaign.theme || 'vice');
+  document.getElementById('haActive').checked = homeAnn.active !== false; setV('haText', homeAnn.text);
+  document.getElementById('hsCampaign').checked = heroCfg.show_campaign_slide !== false; document.getElementById('hsNight').checked = heroCfg.show_night_slide !== false;
+  homePreview(); renderHero();
+}
+function homeTab(btn) {
+  document.querySelectorAll('[data-hm]').forEach(b => b.classList.toggle('active', b === btn));
+  document.getElementById('homeBanner').classList.toggle('hidden', btn.dataset.hm !== 'banner');
+  document.getElementById('homeHero').classList.toggle('hidden', btn.dataset.hm !== 'hero');
+}
+function homePreview() {
+  const vice = gv('hcTheme') === 'vice';
+  const title = gv('hcTitle').split(/\s+/).filter(Boolean); const white = title.slice(0, 2).join(' '), yellow = title.slice(2).join(' ');
+  document.getElementById('hcPreview').innerHTML = `<div style="border-radius:14px;padding:16px;color:#fff;background:${vice ? 'linear-gradient(135deg,#ff2d95,#7b2ff7 55%,#1a0b3b)' : 'linear-gradient(135deg,#1d4ed8,#0f172a)'};${document.getElementById('hcActive').checked ? '' : 'opacity:.4'}">
+    <p style="font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.85">${escH(gv('hcEyebrow'))}</p>
+    <p style="font-size:24px;font-weight:900;line-height:1.1;margin:4px 0">${escH(white)} <span style="color:#facc15">${escH(yellow)}</span></p>
+    <p style="font-size:12px;opacity:.9;margin-bottom:10px">${escH(gv('hcSub'))}</p>
+    ${gv('hcCta') ? '<span style="background:#facc15;color:#000;font-weight:800;font-size:12px;padding:7px 14px;border-radius:999px;display:inline-block">' + escH(gv('hcCta')) + '</span>' : ''}</div>${document.getElementById('hcActive').checked ? '' : '<p class="text-xs text-gray-400 mt-1">Campaign is off — the site shows a plain headline.</p>'}`;
+  document.getElementById('haPreview').innerHTML = `<div style="background:#000;color:#fff;font-size:12px;font-weight:600;text-align:center;padding:8px 10px;border-radius:8px;${document.getElementById('haActive').checked ? '' : 'opacity:.35'}">${escH(gv('haText')) || '&nbsp;'}</div>`;
+}
+async function saveContent(key, value) {
+  const { error } = await db.from('site_content').upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+  if (error) { toast('Save failed: ' + error.message, 4000); return false; } return true;
+}
+async function saveCampaign() {
+  const v = { active: document.getElementById('hcActive').checked, eyebrow: gv('hcEyebrow'), title: gv('hcTitle'), subtitle: gv('hcSub'), cta: gv('hcCta'), theme: gv('hcTheme') };
+  if (v.active && !v.title) return toast('Title is required while the campaign is on.', 3500);
+  if (await saveContent('campaign', v)) { homeCampaign = v; toast('✅ Campaign saved'); }
+}
+async function saveAnnouncement() {
+  const v = { active: document.getElementById('haActive').checked, text: gv('haText') };
+  if (v.active && !v.text) return toast('Write the announcement text first.', 3500);
+  if (await saveContent('announcement', v)) { homeAnn = v; toast('✅ Announcement saved'); }
+}
+
+// hero slides
+async function saveHero(msg) { if (await saveContent('hero_slides', heroCfg)) { if (msg) toast(msg); return true; } return false; }
+async function heroToggle() {
+  heroCfg.show_campaign_slide = document.getElementById('hsCampaign').checked; heroCfg.show_night_slide = document.getElementById('hsNight').checked;
+  await saveHero('✅ Saved');
+}
+function slideThumb(s) {
+  const u = s.image_desktop || s.image_mobile;
+  return u ? `<img src="${escH(u)}" alt="" style="width:88px;height:50px;object-fit:cover;border-radius:6px;background:#e5e7eb"/>` : '<div style="width:88px;height:50px;border-radius:6px;background:#e5e7eb"></div>';
+}
+function renderHero() {
+  const box = document.getElementById('heroList'), t = todayStr();
+  if (!heroCfg.slides.length) { box.innerHTML = '<p class="text-center text-gray-400 py-8 text-sm">No custom slides yet. The website shows the built-in slides above.</p>'; return; }
+  box.innerHTML = heroCfg.slides.map((s, i) => {
+    const expired = s.valid_until && s.valid_until < t;
+    return `<div class="card" style="${s.active === false || expired ? 'opacity:.6;' : ''}"><div class="flex gap-3 items-center">${slideThumb(s)}
+      <div style="flex:1;min-width:0"><p class="font-bold text-sm truncate">${escH(s.title || s.alt || '(no title)')}</p>
+        <p class="text-xs text-gray-500">${s.type === 'image' ? 'Image slide' : 'Text slide'} · ${s.position === 'first' ? 'First' : 'Last'}${s.valid_until ? ' · until ' + fmtShort(s.valid_until) : ''}${expired ? ' <b class="text-red-600">(expired)</b>' : ''}</p></div>
+      <input type="checkbox" ${s.active === false ? '' : 'checked'} onchange="toggleSlide(${i}, this.checked)" style="width:20px;height:20px"/></div>
+      <div class="flex gap-2 mt-2 text-sm"><button class="px-3 border rounded-lg" onclick="moveSlide(${i},-1)" ${i === 0 ? 'disabled style="opacity:.3"' : ''}>↑</button><button class="px-3 border rounded-lg" onclick="moveSlide(${i},1)" ${i === heroCfg.slides.length - 1 ? 'disabled style="opacity:.3"' : ''}>↓</button>
+        <button class="font-bold underline ml-2" onclick="openSlideModal(${i})">Edit</button><button class="text-red-400 ml-auto" onclick="deleteSlide(${i})">Delete</button></div></div>`;
+  }).join('');
+}
+async function toggleSlide(i, on) { heroCfg.slides[i].active = on; await saveHero(on ? '✅ Slide is ON' : 'Slide is OFF'); renderHero(); }
+async function moveSlide(i, d) { const j = i + d; if (j < 0 || j >= heroCfg.slides.length) return; const a = heroCfg.slides; [a[i], a[j]] = [a[j], a[i]]; await saveHero('✅ Order saved'); renderHero(); }
+async function deleteSlide(i) { if (!confirm('Delete this slide? (The uploaded pictures stay in storage.)')) return; heroCfg.slides.splice(i, 1); await saveHero('Slide deleted'); renderHero(); }
+
+let _slPend = { d: null, m: null }, _slDim = { d: null, m: null };
+function openSlideModal(i) {
+  const s = i === null ? null : heroCfg.slides[i]; _slPend = { d: null, m: null }; _slDim = { d: null, m: null };
+  setV('slIdx', i === null ? '' : i); document.getElementById('slTitle').textContent = s ? 'Edit slide' : 'Add slide';
+  document.getElementById('slActive').checked = s ? s.active !== false : true; setV('slType', s ? (s.type || 'text') : 'text'); setV('slPos', s ? (s.position || 'last') : 'last');
+  setV('slUrlD', s ? s.image_desktop : ''); setV('slUrlM', s ? s.image_mobile : ''); setV('slAlt', s ? s.alt : '');
+  setV('slEyebrow', s ? s.eyebrow : ''); setV('slTitleTxt', s ? s.title : ''); setV('slHighlight', s ? s.highlight : ''); setV('slSub', s ? s.subtitle : '');
+  setV('slCtaLabel', s ? s.cta_label : ''); setV('slCtaAction', s ? (s.cta_action || 'book') : 'book'); setV('slCtaLink', s ? s.cta_link : ''); setV('slValid', s ? s.valid_until : '');
+  ['slFileD', 'slFileM'].forEach(x => document.getElementById(x).value = ''); ['slWarnD', 'slWarnM', 'slErr'].forEach(x => document.getElementById(x).textContent = '');
+  slideTypeChanged(); renderSlidePreviews(); ['d', 'm'].forEach(w => slideUrlTyped(w, true)); openM('slideModal');
+}
+function closeSlideModal() { closeM('slideModal'); }
+function slideTypeChanged() {
+  const img = gv('slType') === 'image';
+  document.getElementById('slTextFields').style.display = img ? 'none' : '';
+  document.getElementById('slLinkWrap').style.display = gv('slCtaAction') === 'link' ? '' : 'none';
+  document.getElementById('slCtaLabelLbl').textContent = img ? 'BUTTON TEXT (empty = no button, picture is the banner)' : 'BUTTON TEXT';
+  document.getElementById('slCtaNote').textContent = img ? 'Image slides: the text is inside the picture. Leave button text empty to show only the picture.' : '';
+  renderSlidePreviews();
+}
+function slideImgUrl(w) { return _slPend[w] ? _slPend[w].url : gv(w === 'd' ? 'slUrlD' : 'slUrlM'); }
+function renderSlidePreviews() {
+  const zones = document.getElementById('slZones').checked, img = gv('slType') === 'image';
+  const frame = (w, ratio) => {
+    const u = slideImgUrl(w); let z = '';
+    if (zones) {
+      if (img) z = '<div style="position:absolute;inset:0;box-shadow:inset 0 0 0 9999px rgba(0,0,0,.35)"></div><div style="position:absolute;left:10%;top:10%;right:10%;bottom:10%;border:2px dashed #facc15;background:transparent;box-shadow:0 0 0 9999px rgba(0,0,0,.35)"></div>';
+      else z = w === 'd' ? '<div style="position:absolute;left:0;top:0;bottom:0;width:45%;background:rgba(250,204,21,.28);border-right:2px dashed #facc15;color:#fff;font-size:10px;font-weight:700;padding:4px">TEXT AREA</div>'
+                         : '<div style="position:absolute;left:0;right:0;bottom:0;height:50%;background:rgba(250,204,21,.28);border-top:2px dashed #facc15;color:#fff;font-size:10px;font-weight:700;padding:4px">TEXT AREA</div>';
+    }
+    return `<div style="position:relative;aspect-ratio:${ratio};background:#1f2937 ${u ? `url('${escH(u).replace(/'/g, '%27')}')` : ''} center/cover no-repeat;border-radius:8px;overflow:hidden">${u ? '' : '<p style="color:#9ca3af;font-size:11px;padding:8px">No picture</p>'}${z}</div>`;
+  };
+  document.getElementById('slPrevD').innerHTML = frame('d', '16/9'); document.getElementById('slPrevM').innerHTML = frame('m', '2/3');
+  document.getElementById('slZoneNote').textContent = !zones ? '' : img ? 'Image slide: keep everything important inside the dashed yellow box (middle 80%) — the edges can be cropped on different screens.' : 'Text slide: keep the left 45% (desktop) and the bottom 50% (mobile) quiet — the website puts the text there.';
+}
+async function pickSlideImage(w, inp) {
+  const f = inp.files[0]; if (!f) return; const warn = document.getElementById(w === 'd' ? 'slWarnD' : 'slWarnM');
+  try {
+    const r = await compressToWebp(f, 2400, 0.82); _slPend[w] = r;
+    const msg = w === 'd' ? ratioWarning(r.srcW, r.srcH, 16, 9, '16:9 (2400×1350)', 1600) : ratioWarning(r.srcW, r.srcH, 2, 3, '2:3 (1080×1620)', 800);
+    warn.className = 'text-xs mt-1 ' + (msg ? 'text-red-500' : 'text-green-700');
+    warn.textContent = msg || ('✅ ' + r.srcW + '×' + r.srcH + ' → ' + r.w + '×' + r.h + ' ' + r.ext.toUpperCase() + ', ' + Math.round(r.blob.size / 1024) + ' KB. Uploads on Save.');
+    setV(w === 'd' ? 'slUrlD' : 'slUrlM', ''); renderSlidePreviews();
+  } catch (e) { toast(e.message, 3500); inp.value = ''; }
+}
+function slideUrlTyped(w, quiet) {
+  if (!quiet) { _slPend[w] = null; document.getElementById(w === 'd' ? 'slFileD' : 'slFileM').value = ''; }
+  renderSlidePreviews();
+  const u = gv(w === 'd' ? 'slUrlD' : 'slUrlM'), warn = document.getElementById(w === 'd' ? 'slWarnD' : 'slWarnM');
+  if (_slPend[w]) return; if (!u) { warn.textContent = ''; return; }
+  probeUrl(u).then(d => { if (!d || gv(w === 'd' ? 'slUrlD' : 'slUrlM') !== u || _slPend[w]) return;
+    const msg = w === 'd' ? ratioWarning(d.w, d.h, 16, 9, '16:9 (2400×1350)', 1600) : ratioWarning(d.w, d.h, 2, 3, '2:3 (1080×1620)', 800);
+    warn.className = 'text-xs mt-1 ' + (msg ? 'text-red-500' : 'text-green-700'); warn.textContent = msg || ('✅ ' + d.w + '×' + d.h); });
+}
+async function saveSlide() {
+  const err = document.getElementById('slErr'); err.textContent = '';
+  const type = gv('slType'), action = gv('slCtaAction'), link = gv('slCtaLink'), label = gv('slCtaLabel');
+  const uD = gv('slUrlD'), uM = gv('slUrlM');
+  if (!_slPend.d && !_slPend.m && !uD && !uM) { err.textContent = 'Add at least one picture (desktop or mobile).'; return; }
+  if (type === 'text' && !gv('slTitleTxt')) { err.textContent = 'A text slide needs a title.'; return; }
+  if (!gv('slAlt') && type === 'image') { err.textContent = 'Write the alt text (what the picture shows) — the text is inside the picture, so screen readers need it.'; return; }
+  if (label && action === 'link' && !/^(https:\/\/|#|\/)/.test(link)) { err.textContent = 'Link must start with https://, / or #.'; return; }
+  const valid = gv('slValid') || null;
+  const btn = document.getElementById('slSaveBtn'); btn.disabled = true; btn.textContent = 'Uploading...';
+  try {
+    let dUrl = uD || null, mUrl = uM || null;
+    if (_slPend.d) dUrl = await uploadSiteMedia(_slPend.d.blob, _slPend.d.ext, 'hero', 'desktop');
+    if (_slPend.m) mUrl = await uploadSiteMedia(_slPend.m.blob, _slPend.m.ext, 'hero', 'mobile');
+    const idx = gv('slIdx'); const old = idx === '' ? {} : heroCfg.slides[Number(idx)];
+    const s = Object.assign({}, old, { active: document.getElementById('slActive').checked, type, position: gv('slPos'), image_desktop: dUrl, image_mobile: mUrl, alt: gv('slAlt'),
+      eyebrow: type === 'text' ? gv('slEyebrow') : '', title: type === 'text' ? gv('slTitleTxt') : '', highlight: type === 'text' ? gv('slHighlight') : '', subtitle: type === 'text' ? gv('slSub') : '',
+      cta_label: label, cta_action: action, cta_link: action === 'link' ? link : '', valid_until: valid });
+    if (idx === '') heroCfg.slides.push(s); else heroCfg.slides[Number(idx)] = s;
+    if (await saveHero('✅ Slide saved')) { closeSlideModal(); renderHero(); } else if (idx === '') heroCfg.slides.pop();
+  } catch (e) { err.textContent = e.message; }
+  btn.disabled = false; btn.textContent = 'Save slide';
+}
+
 // ── PAGE SWITCHING ────────────────────────────────────────────
 let currentPage = 'orders';
+const PAGE_LOADERS = { cities: () => loadCities(), games: () => loadGames(), requests: () => loadRequests(), home: () => loadHome() };
 function switchPage(btn) {
   currentPage = btn.dataset.page;
   document.querySelectorAll('.main-nav').forEach(b => b.classList.toggle('active', b === btn));
-  document.getElementById('pageOrders').classList.toggle('hidden', currentPage !== 'orders');
-  document.getElementById('pagePartners').classList.toggle('hidden', currentPage !== 'partners');
-  document.getElementById('pageVouchers').classList.toggle('hidden', currentPage !== 'vouchers');
-  document.getElementById('pageSettings').classList.toggle('hidden', currentPage !== 'settings');
+  ['orders','partners','vouchers','settings','cities','games','requests','home'].forEach(p => {
+    const el = document.getElementById('page' + p.charAt(0).toUpperCase() + p.slice(1)); if (el) el.classList.toggle('hidden', currentPage !== p);
+  });
   if (currentPage === 'partners') renderPartnerList();
   if (currentPage === 'vouchers') loadVouchers();
   if (currentPage === 'settings') loadSettings();
+  if (PAGE_LOADERS[currentPage]) PAGE_LOADERS[currentPage]();
 }
 
 function pageRefresh() {
   if (currentPage === 'orders') loadAll();
   else if (currentPage === 'vouchers') loadVouchers();
   else if (currentPage === 'settings') loadSettings();
+  else if (PAGE_LOADERS[currentPage]) PAGE_LOADERS[currentPage]();
   else { loadPartners().then(renderPartnerList); }
 }
 
@@ -2161,6 +3283,7 @@ function openAddAsset() {
   document.getElementById('aBookable').checked = true;
   document.getElementById('aType').value = 'ps5';
   document.getElementById('aHighValue').checked = true;
+  fillBundleSelect('');
   document.getElementById('assetModal').classList.remove('hidden');
 }
 function closeAssetModal(e) { if (e.target.id === 'assetModal') closeAssetModalDirect(); }
@@ -2191,6 +3314,7 @@ async function saveAsset() {
     serial_number: document.getElementById('aSerial').value.trim() || null,
     barcode:       document.getElementById('aBarcode').value.trim() || null,
     is_high_value: document.getElementById('aHighValue').checked,
+    bundle_id:     document.getElementById('aBundle').value || null,
   };
 
   if (window._assetEditMode && editingAssetId) {
@@ -2438,6 +3562,7 @@ function editAsset(assetId) {
   document.getElementById('aHighValue').checked   = a.is_high_value;
   document.getElementById('aCity').value          = a.city || '';
   document.getElementById('aBookable').checked    = a.bookable !== false;
+  fillBundleSelect(a.bundle_id);
   // Change modal save button behavior
   document.getElementById('assetModal').classList.remove('hidden');
   // Swap saveAsset to updateAsset temporarily via flag
